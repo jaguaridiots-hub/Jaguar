@@ -1,0 +1,3 @@
+Date,Time,Symbol,Timeframe,Entry,StopLoss,TakeProfit,Decision,Probability,Confidence,AI Score,Smart Money,Result
+2026-07-02,19:01:48,BTCUSDT,15m,61200,60850,62000,BUY,82,78,5,2,WIN
+2026-07-02,19:21:04,BTCUSDT,15m,61234.49,60852.07,61716.9,🟡 TAKE PROFIT,65,90,5,2,WIN
