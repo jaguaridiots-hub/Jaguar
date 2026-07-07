@@ -1,36 +1,38 @@
-from data.market_data import candles
+def rsi(candles):
+    closes = [c["close"] for c in candles]
 
-period = 14
+    period = 14
 
-closes = [c["close"] for c in candles]
+    gains = []
+    losses = []
 
-gains = []
-losses = []
+    for i in range(1, len(closes)):
+        diff = closes[i] - closes[i-1]
 
-for i in range(1, len(closes)):
-    diff = closes[i] - closes[i-1]
-    if diff > 0:
-        gains.append(diff)
-        losses.append(0)
+        gains.append(max(diff,0))
+        losses.append(abs(min(diff,0)))
+
+    avg_gain = sum(gains[-period:]) / period
+    avg_loss = sum(losses[-period:]) / period
+
+    if avg_loss == 0:
+        value = 100
     else:
-        gains.append(0)
-        losses.append(abs(diff))
+        rs = avg_gain / avg_loss
+        value = 100 - (100/(1+rs))
 
-avg_gain = sum(gains[-period:]) / period
-avg_loss = sum(losses[-period:]) / period
+    if value > 70:
+        signal = "OVERBOUGHT"
+    elif value < 30:
+        signal = "OVERSOLD"
+    else:
+        signal = "NEUTRAL"
 
-if avg_loss == 0:
-    rsi = 100
-else:
-    rs = avg_gain / avg_loss
-    rsi = 100 - (100 / (1 + rs))
+    print("====== RSI ======")
+    print(value)
+    print(signal)
 
-print("====== RSI ======")
-print(f"Value : {rsi:.2f}")
-
-if rsi > 70:
-    print("Signal : OVERBOUGHT")
-elif rsi < 30:
-    print("Signal : OVERSOLD")
-else:
-    print("Signal : NEUTRAL")
+    return {
+        "value": value,
+        "signal": signal
+    }

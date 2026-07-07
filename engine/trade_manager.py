@@ -10,7 +10,21 @@ class TradeManager:
         self.trade_closed = False
 
     def manage(self, state, plan):
+        if not plan:
+            return {
+                "Action": "NO TRADE",
+                "StopLoss": False,
+                "BreakEven": False,
+                "Trailing": False,
+            }
 
+        if plan.get("Entry") is None:
+            return {
+                "Action": "NO TRADE",
+                "StopLoss": False,
+                "BreakEven": False,
+                "Trailing": False,
+            }
         entry = float(plan["Entry"])
         sl = float(plan["StopLoss"])
         tp1 = float(plan["TP1"])

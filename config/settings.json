@@ -1,0 +1,28 @@
+{
+    "version": "3.2.0",
+
+    "capital": 100000,
+
+    "risk_percent": 1,
+
+    "paper_trading": true,
+
+    "default_market": "CRYPTO",
+
+    "default_timeframe": "15m",
+
+    "markets": [
+        "CRYPTO",
+        "INDIA",
+        "FOREX",
+        "US"
+    ],
+
+    "scan_limit": 50,
+
+    "live_refresh": 5,
+
+    "max_positions": 5,
+
+    "debug": false
+}

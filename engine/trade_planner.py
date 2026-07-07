@@ -1,46 +1,33 @@
 from indicators.atr import atr
-from engine.trade_filter import analyze as trade_filter
 
 
 def analyze(state):
 
-    report = trade_filter(state)
-
-    if not report["allow_trade"]:
-        return {
-            "Trade": "BLOCKED",
-            "Reasons": report["reasons"],
-            "Entry": None,
-            "StopLoss": None,
-            "TP1": None,
-            "TP2": None,
-            "TP3": None
-        }
-
-    entry = state.price
-
-    if entry <= 0:
+    if state.price <= 0:
         return None
 
-    if "BUY" in state.decision:
+    entry = state.price
+    atr_value = state.atr if state.atr > 0 else atr
 
-        stop = entry - atr
+    decision = state.decision.upper()
 
-        tp1 = entry + atr
-        tp2 = entry + atr * 2
-        tp3 = entry + atr * 3
+    if "BUY" in decision:
 
-        direction = "🟢 BUY"
+        stop = entry - atr_value
+        tp1 = entry + atr_value
+        tp2 = entry + atr_value * 2
+        tp3 = entry + atr_value * 3
 
-    elif "SELL" in state.decision:
+        direction = "BUY"
 
-        stop = entry + atr
+    elif "SELL" in decision:
 
-        tp1 = entry - atr
-        tp2 = entry - atr * 2
-        tp3 = entry - atr * 3
+        stop = entry + atr_value
+        tp1 = entry - atr_value
+        tp2 = entry - atr_value * 2
+        tp3 = entry - atr_value * 3
 
-        direction = "🔴 SELL"
+        direction = "SELL"
 
     else:
         return None
@@ -48,30 +35,14 @@ def analyze(state):
     risk = abs(entry - stop)
     reward = abs(tp3 - entry)
 
-    rr = round(reward / risk, 2)
+    rr = round(reward / risk, 2) if risk > 0 else 0
 
-    plan = {
+    return {
         "Direction": direction,
         "Entry": round(entry, 2),
         "StopLoss": round(stop, 2),
         "TP1": round(tp1, 2),
         "TP2": round(tp2, 2),
         "TP3": round(tp3, 2),
-        "RiskReward": rr,
-        "Reasons": report["reasons"]
+        "RiskReward": rr
     }
-
-    return plan
-
-
-if __name__ == "__main__":
-
-    from core.market_state import MarketState
-
-    state = MarketState()
-
-    state.price = 62750
-
-    state.decision = "🟢 BUY"
-
-    print(analyze(state))

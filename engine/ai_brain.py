@@ -1,79 +1,61 @@
-from indicators.ema import ema20, ema50, ema100, ema200
-from indicators.rsi import rsi
-from indicators.volume import signal as volume_signal
+from core.engine_result import EngineResult
 
 
 def analyze(state):
+
     score = 0
     reasons = []
 
-    # =============================
-    # EMA TREND
-    # =============================
+    signal = "NEUTRAL"
 
+    ema20 = state.ema20
+    ema50 = state.ema50
+    ema100 = state.ema100
+    ema200 = state.ema200
+
+    rsi = state.rsi
+
+    # EMA Trend
     if ema20 > ema50 > ema100 > ema200:
-        score += 3
+        score += 4
+        signal = "BULLISH"
         reasons.append("EMA Bullish")
 
     elif ema20 < ema50 < ema100 < ema200:
-        score -= 3
+        score -= 4
+        signal = "BEARISH"
         reasons.append("EMA Bearish")
 
-    # =============================
     # RSI
-    # =============================
-
-    if rsi < 30:
+    if rsi <= 30:
         score += 2
         reasons.append("RSI Oversold")
 
-    elif rsi > 70:
+    elif rsi >= 70:
         score -= 2
         reasons.append("RSI Overbought")
 
-    # =============================
-    # VOLUME
-    # =============================
-
-    if volume_signal == "HIGH VOLUME":
-        score += 2
-        reasons.append("High Volume")
-
+    # Volume
+    if state.volume > 0:
+        score += 1
     else:
         score -= 1
         reasons.append("Low Volume")
 
-    # =============================
-    # PROBABILITY
-    # =============================
+    confidence = min(1.0, abs(score) / 10)
 
-    probability = min(95, max(5, 50 + score * 8))
-
-    # =============================
-    # DECISION
-    # =============================
-
-    if score >= 6:
-        decision = "🟢 STRONG BUY"
-
-    elif score >= 3:
-        decision = "🟢 BUY"
-
-    elif score >= 1:
-        decision = "🟡 WAIT"
-
-    elif score <= -6:
-        decision = "🔴 STRONG SELL"
-
-    elif score <= -3:
-        decision = "🔴 SELL"
-
-    else:
-        decision = "⚪ NEUTRAL"
-
-    return {
-        "score": score,
-        "probability": probability,
-        "decision": decision,
-        "reasons": reasons
-    }
+    return EngineResult(
+        name="AI Brain",
+        signal=signal,
+        score=score,
+        confidence=confidence,
+        weight=1.20,
+        reasons=reasons,
+        metadata={
+            "EMA20": ema20,
+            "EMA50": ema50,
+            "EMA100": ema100,
+            "EMA200": ema200,
+            "RSI": rsi,
+        },
+    ).to_dict()

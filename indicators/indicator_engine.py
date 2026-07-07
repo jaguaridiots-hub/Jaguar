@@ -1,20 +1,28 @@
-from indicators.ema import ema20, ema50, ema100, ema200
+from indicators.ema import ema
 from indicators.rsi import rsi
+from indicators.volume import volume
+from indicators.fibonacci import fibonacci
 from indicators.atr import atr
-from indicators.volume import signal as volume_signal
+from indicators.macd import macd
+from indicators.adx import adx
+from indicators.supertrend import supertrend
+from indicators.bollinger import bollinger
+from indicators.vwap import vwap
 
-from data.market_data import candles
+class IndicatorEngine:
 
+    @staticmethod
+    def calculate(candles):
 
-def update_market_state(state):
-    state.ema20 = ema20
-    state.ema50 = ema50
-    state.ema100 = ema100
-    state.ema200 = ema200
-
-    state.rsi = rsi
-    state.atr = atr
-
-    state.volume = candles[-1]["volume"]
-
-    return volume_signal
+        return {
+            "ema": ema(candles),
+            "rsi": rsi(candles),
+            "volume": volume(candles),
+            "fibonacci": fibonacci(candles),
+            "atr": atr(candles),
+            "macd": macd(candles),
+            "adx": adx(candles),
+            "supertrend": supertrend(candles),
+            "bollinger": bollinger(candles),
+            "vwap": vwap(candles),
+        }

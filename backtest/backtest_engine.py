@@ -1,42 +1,68 @@
-import csv
+class BacktestEngine:
 
-FILE = "trade_history.csv"
+    def __init__(self):
 
-wins = 0
-losses = 0
-open_trades = 0
-total = 0
+        self.total_trades = 0
+        self.wins = 0
+        self.losses = 0
 
-with open(FILE, "r") as f:
-    reader = csv.DictReader(f)
+        self.gross_profit = 0
+        self.gross_loss = 0
 
-    for row in reader:
+        self.balance = 100000
 
-        total += 1
+    def add_trade(self, pnl):
 
-        result = row["Result"].upper()
+        self.total_trades += 1
 
-        if result == "WIN":
-            wins += 1
+        self.balance += pnl
 
-        elif result == "LOSS":
-            losses += 1
+        if pnl > 0:
+
+            self.wins += 1
+            self.gross_profit += pnl
 
         else:
-            open_trades += 1
 
-closed = wins + losses
+            self.losses += 1
+            self.gross_loss += abs(pnl)
 
-if closed > 0:
-    winrate = round((wins / closed) * 100, 2)
-else:
-    winrate = 0
+    def report(self):
 
-print("\n====== JAGUAR BACKTEST ENGINE ======\n")
+        if self.total_trades == 0:
 
-print("Total Trades :", total)
-print("Closed Trades:", closed)
-print("Open Trades  :", open_trades)
-print("Wins         :", wins)
-print("Losses       :", losses)
-print("Win Rate     :", f"{winrate}%")
+            return {
+                "Trades":0,
+                "WinRate":0,
+                "ProfitFactor":0,
+                "Balance":self.balance
+            }
+
+        winrate = round(
+            self.wins/self.total_trades*100,
+            2
+        )
+
+        if self.gross_loss == 0:
+            pf = 999
+        else:
+            pf = round(
+                self.gross_profit/self.gross_loss,
+                2
+            )
+
+        return {
+
+            "Trades":self.total_trades,
+
+            "Wins":self.wins,
+
+            "Losses":self.losses,
+
+            "WinRate":winrate,
+
+            "ProfitFactor":pf,
+
+            "Balance":round(self.balance,2)
+
+        }

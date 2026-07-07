@@ -2,16 +2,15 @@ from core.kernel import JaguarKernel
 from core.logger import JaguarLogger
 from core.registry import ModuleRegistry
 from core.event_bus import EventBus
-from engine.master_decision import analyze as master_decision
 from data.market_data import get_klines
-from analysis.multi_timeframe import report
-from engine.trade_planner import trade_plan
-from analysis.support_resistance_engine import support_resistance
 from engine.trade_manager import TradeManager
 from engine.position_manager import PositionManager
 from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
+import time
+from engine.state_manager import save, load, clear
+from market.live_loader import update_state
 
 print("=" * 50)
 print("              JAGUAR QUANT X v2.0")
@@ -92,40 +91,58 @@ print("RSI   :", state.rsi)
 print("ATR   :", state.atr)
 print("Volume:", volume_status)
 
-mtf = report()
-print("\n====== MULTI TIMEFRAME ======")
-for tf, trend in mtf.items():
-    print(f"{tf:4} : {trend}")
+#mtf = report()
+#print("\n====== MULTI TIMEFRAME ======")
+#for tf, trend in mtf.items():
+#    print(f"{tf:4} : {trend}")
 
-report = master_decision(state)
+from engine.institutional_master import analyze as institutional_master
 
-state.ai_score = report["score"]
-state.probability = report["probability"]
-state.confidence = report["confidence"]
+report = institutional_master(state)
+print(report)
 
-reasons = []
-reasons.extend(report["ai"]["reasons"])
-reasons.extend(report["smart_money"]["reasons"])
+decision = report["decision"]
+
+state.ai_score = decision["score"]
+state.probability = decision["probability"]
+state.confidence = decision["confidence"]
+state.decision = decision["decision"]
+
+plan = report["plan"]
+risk = report["risk"]
+
+print("\n========== MASTER DECISION ==========")
+print("Decision    :", state.decision)
+print("Confidence  :", state.confidence)
+print(f"Probability : {state.probability}%")
+print("AI Score    :", state.ai_score)
+
+reasons = decision["reasons"]
 
 plan = report["plan"]
 
-print("======== AI DECISION ========")
-print(f"AI Score     : {state.ai_score}")
-print(f"Confidence   : {state.confidence}")
-print(f"Probability  : {state.probability}%")
-print(f"Decision     : {state.decision}")
+#print("======== AI DECISION ========")
+#print(f"AI Score     : {state.ai_score}")
+#print(f"Confidence   : {state.confidence}")
+#print(f"Probability  : {state.probability}%")
+#print(f"Decision     : {state.decision}")
 
-levels = support_resistance()
+gann = report["engines"]["Gann"]
+
+support = gann["metadata"]["support"]
+resistance = gann["metadata"]["resistance"]
 
 print("\n====== SUPPORT / RESISTANCE ======")
-print("Support   :", round(levels["support"], 2))
-print("Resistance:", round(levels["resistance"], 2))
+print("Support   :", round(support, 2))
+print("Resistance:", round(resistance, 2))
 
 performance = Performance()
 
 journal = TradeJournal()
 
 position = PositionManager()
+
+load(position)
 
 manager = TradeManager()
 
@@ -139,52 +156,122 @@ else:
         "Trailing": False
     }
 
-if plan:
+#if plan:
+if plan and plan.get("Direction"):
+
     journal.save(state, plan)
 
-    if plan["Direction"] == "🟢 STRONG BUY":
+    if plan.get("Direction") == "🟢 STRONG BUY":
         position.open_trade(
             "LONG",
-            plan["Entry"],
-            plan["StopLoss"],
-            plan["TP1"]
+            plan.get("Entry"),
+            plan.get("StopLoss"),
+            plan.get("TP1")
         )
 
-    elif plan["Direction"] == "🔴 STRONG SELL":
+    elif plan.get("Direction") == "🔴 STRONG SELL":
         position.open_trade(
             "SHORT",
-            plan["Entry"],
-            plan["StopLoss"],
-            plan["TP1"]
+            plan.get("Entry"),
+            plan.get("StopLoss"),
+            plan.get("TP1")
         )
+
+else:
+    print("\nNo trade setup.")
 
     print("\n========== TRADE PLAN ==========")
 
-    print("Direction     :", plan["Direction"])
-    print("Entry         :", plan["Entry"])
-    print("Stop Loss     :", plan["StopLoss"])
 
-    print("TP1           :", plan["TP1"])
-    print("TP2           :", plan["TP2"])
-    print("TP3           :", plan["TP3"])
+if plan and plan.get("Direction"):
 
-    print("Risk Reward   : 1 :", plan["RiskReward"])
+    print("Direction :", plan.get("Direction"))
+    print("Entry :", plan.get("Entry"))
+    print("Stop Loss :", plan.get("StopLoss"))
 
-    print("Position Size :", plan["PositionSize"])
+    print("TP1 :", plan.get("TP1"))
+    print("TP2 :", plan.get("TP2"))
+    print("TP3 :", plan.get("TP3"))
 
-    print("Risk Amount   : $", plan["RiskAmount"])
+    print("Risk Reward :", plan.get("RiskReward"))
+
+#    print("Position Size :", plan.get("PositionSize"))
+
+ #   print("Risk Amount :", plan.get("RiskAmount"))
 
 else:
     print("\nNo Trade Plan Available")
 
 if plan:
-    position.update(state.price)
-    status = position.status()
 
-    print("\n======== POSITION MANAGER ========")
-    print("Position :", status["Position"])
-    print("Entry    :", status["Entry"])
-    print("PnL      :", status["PnL"])
+    if position.position == "NONE":
+
+        if "BUY" in plan["Direction"]:
+            position.open_trade(
+                "LONG",
+                plan["Entry"],
+                plan["StopLoss"],
+                plan["TP1"]
+            )
+
+            save(position)
+
+        elif "SELL" in plan["Direction"]:
+            position.open_trade(
+                "SHORT",
+                plan["Entry"],
+                plan["StopLoss"],
+                plan["TP1"]
+            )
+
+            save(position)
+
+    position.update(state.price)
+    while position.position != "NONE":
+
+        candles = get_klines()
+        latest = candles[-1]
+
+        state = update_state(state, "BTCUSDT")
+
+        print("\n===== LIVE MARKET =====")
+        print("Symbol :", state.symbol)
+        print("Price  :", state.price)
+        print("High   :", state.high)
+        print("Low    :", state.low)
+        print("Volume :", state.volume)
+
+        position.update(state.price)
+        save(position)
+
+        trade_status = manager.manage(state, plan)
+
+        position.stop_loss = trade_status["StopLoss"]
+
+        position.update(state.price)
+
+        status = position.status()
+
+        print("Price      :", state.price)
+        print("PnL        :", status["PnL"])
+        print("Action     :", trade_status["Action"])
+        print("Stop Loss  :", trade_status["StopLoss"])
+        print("BreakEven  :", trade_status["BreakEven"])
+        print("Trailing   :", trade_status["Trailing"])
+
+        if trade_status["Action"] in [
+            "EXIT",
+            "STOP LOSS",
+        ]:
+            position.close_trade()
+
+            clear()
+
+            print("\nTrade Closed")
+            break
+
+        time.sleep(5)
+
 else:
     print("\nNo Position")
 
@@ -218,4 +305,12 @@ else:
         trade_status,
         "btcusdt"
     )
+
     feed.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        print("\nStopping Jaguar...")
+        feed.stop()

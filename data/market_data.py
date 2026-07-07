@@ -1,38 +1,28 @@
-from binance.client import Client
+import requests
 
-client = Client()
+BASE = "https://api.binance.com/api/v3/klines"
 
 SYMBOL = "BTCUSDT"
-INTERVAL = Client.KLINE_INTERVAL_15MINUTE
+INTERVAL = "15m"
 
-klines = client.get_klines(
-    symbol=SYMBOL,
-    interval=INTERVAL,
-    limit=300
-)
-
-candles = []
-
-for k in klines:
-    candles.append({
-        "open": float(k[1]),
-        "high": float(k[2]),
-        "low": float(k[3]),
-        "close": float(k[4]),
-        "volume": float(k[5]),
-    })
 
 def get_klines(symbol=SYMBOL, interval=INTERVAL, limit=300):
-    klines = client.get_klines(
-        symbol=symbol,
-        interval=interval,
-        limit=limit
+
+    url = (
+        f"{BASE}?symbol={symbol}"
+        f"&interval={interval}"
+        f"&limit={limit}"
     )
 
-    data = []
+    response = requests.get(url, timeout=10)
+    response.raise_for_status()
+
+    klines = response.json()
+
+    candles = []
 
     for k in klines:
-        data.append({
+        candles.append({
             "open": float(k[1]),
             "high": float(k[2]),
             "low": float(k[3]),
@@ -40,4 +30,7 @@ def get_klines(symbol=SYMBOL, interval=INTERVAL, limit=300):
             "volume": float(k[5]),
         })
 
-    return data
+    return candles
+
+
+candles = get_klines()

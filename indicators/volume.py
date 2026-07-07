@@ -1,26 +1,21 @@
-from data.market_data import candles
+def volume(candles):
+    vols = [c["volume"] for c in candles]
 
-volumes = [c["volume"] for c in candles]
+    current = vols[-1]
+    average = sum(vols[-20:]) / 20
 
-current = volumes[-1]
-average = sum(volumes[-20:]) / 20
+    if current > average:
+        signal = "HIGH VOLUME"
+    else:
+        signal = "LOW VOLUME"
 
-print("====== Volume ======")
-print(f"Current : {current:.2f}")
-print(f"Average : {average:.2f}")
+    print("====== Volume ======")
+    print(current)
+    print(average)
+    print(signal)
 
-if current > average * 1.5:
-    print("Signal : VERY HIGH VOLUME")
-elif current > average:
-    print("Signal : HIGH VOLUME")
-else:
-    print("Signal : LOW VOLUME")
-
-if current > average:
-    signal = "HIGH VOLUME"
-else:
-    signal = "LOW VOLUME"
-
-print(f"Current : {current:.2f}")
-print(f"Average : {average:.2f}")
-print(f"Signal  : {signal}")
+    return {
+        "current": current,
+        "average": average,
+        "signal": signal
+    }

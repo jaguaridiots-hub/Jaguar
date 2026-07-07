@@ -1,36 +1,40 @@
-from data.market_data import candles
-
-def ema(data, period):
+def _ema(values, period):
     k = 2 / (period + 1)
-    value = sum(data[:period]) / period
 
-    for price in data[period:]:
-        value = price * k + value * (1 - k)
+    ema = sum(values[:period]) / period
 
-    return round(value, 2)
+    for price in values[period:]:
+        ema = price * k + ema * (1 - k)
 
-def calculate_ema(close):
-    ema20 = ema(close, 20)
-    ema50 = ema(close, 50)
-    ema100 = ema(close, 100)
-    ema200 = ema(close, 200)
-
-    return ema20, ema50, ema100, ema200
+    return round(ema, 2)
 
 
-closes = [c["close"] for c in candles]
+def ema(candles):
 
-ema20, ema50, ema100, ema200 = calculate_ema(closes)
+    closes = [c["close"] for c in candles]
 
-print("====== EMA ======")
-print("EMA20 :", ema20)
-print("EMA50 :", ema50)
-print("EMA100:", ema100)
-print("EMA200:", ema200)
+    ema20 = _ema(closes, 20)
+    ema50 = _ema(closes, 50)
+    ema100 = _ema(closes, 100)
+    ema200 = _ema(closes, 200)
 
-if ema20 > ema50 > ema100 > ema200:
-    print("\nTrend : STRONG BULLISH")
-elif ema20 < ema50 < ema100 < ema200:
-    print("\nTrend : STRONG BEARISH")
-else:
-    print("\nTrend : SIDEWAYS")
+    if ema20 > ema50 > ema100 > ema200:
+        trend = "STRONG BULLISH"
+
+    elif ema20 < ema50 < ema100 < ema200:
+        trend = "STRONG BEARISH"
+
+    else:
+        trend = "SIDEWAYS"
+
+    return {
+        "ema20": ema20,
+        "ema50": ema50,
+        "ema100": ema100,
+        "ema200": ema200,
+        "trend": trend
+    }
+
+
+def ema_value(closes, period):
+    return _ema(closes, period)
