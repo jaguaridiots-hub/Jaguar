@@ -1,22 +1,21 @@
-from core.market_feed import MarketFeed
+from market.provider import MarketProvider
 
 
 class TradingKernel:
 
     def __init__(self, symbol):
         self.symbol = symbol
-        self.market = None
-        self.data = None
 
-    def load(self):
-        self.data = MarketFeed.fetch(self.symbol)
-        self.market = self.data["market"]
+    def load(self, interval="15m", limit=500):
 
-        return self.data
+        candles = MarketProvider.load(
+            self.symbol,
+            interval,
+            limit
+        )
 
-    def info(self):
         return {
             "symbol": self.symbol,
-            "market": self.market,
-            "price": self.data["price"]
+            "interval": interval,
+            "candles": candles
         }

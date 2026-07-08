@@ -21,7 +21,9 @@ from strategy.gann_confluence import GannConfluence
 from strategy.gann_swing import GannSwing
 
 from strategy.risk_manager import RiskManager
-from ai.jaguar_brain_v2 import JaguarBrainV2
+from ai.jaguar_brain_v3 import JaguarBrainV3
+from strategy.multi_timeframe_v2 import MultiTimeframeV2
+from ai.master_confluence_v2 import MasterConfluenceV2
 
 class JaguarAI:
 
@@ -113,16 +115,19 @@ class JaguarAI:
         # Master AI
         # --------------------------
 
-        mtf = {"confidence": 80}
+        mtf = MultiTimeframeV2.analyze({
+
+            "5m": {"signal": tech_score["signal"]},
+            "15m": {"signal": tech_score["signal"]},
+            "1h": {"signal": tech_score["signal"]},
+            "4h": {"signal": tech_score["signal"]},
+            "1d": {"signal": tech_score["signal"]},
+
+        })
+
         risk_quality = {"quality": 90}
 
-        final = JaguarBrainV2.decide(
-            tech_score,
-            smc,
-            gann,
-            mtf,
-            risk_quality
-        )
+        from ai.jaguar_brain_v3 import JaguarBrainV3
 
         # --------------------------
         # Risk
@@ -131,6 +136,22 @@ class JaguarAI:
         risk = RiskManager.calculate(
             price,
             technical["atr"]["value"]
+        )
+
+        mtf = MultiTimeframeV2.analyze({
+            "5m": {"signal": tech_score["signal"]},
+            "15m": {"signal": tech_score["signal"]},
+            "1h": {"signal": tech_score["signal"]},
+            "4h": {"signal": tech_score["signal"]},
+            "1d": {"signal": tech_score["signal"]}
+        })
+
+        final = JaguarBrainV3.decide(
+            tech_score,
+            smc,
+            gann,
+            mtf,
+            risk
         )
 
         # --------------------------
@@ -170,6 +191,9 @@ class JaguarAI:
         print("TP3 :", risk["tp3"])
 
         print()
+
+        print("Grade :", final["grade"])
+        print("AI Score :", final["score"])
 
         print("Reasons")
 
