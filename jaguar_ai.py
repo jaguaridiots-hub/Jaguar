@@ -21,7 +21,7 @@ from strategy.gann_confluence import GannConfluence
 from strategy.gann_swing import GannSwing
 
 from strategy.risk_manager import RiskManager
-
+from ai.jaguar_brain_v2 import JaguarBrainV2
 
 class JaguarAI:
 
@@ -57,8 +57,6 @@ class JaguarAI:
         print(technical)
 
         tech_score = ScoreEngine.calculate(technical)
-
-        tech_decision = AIDecision.decide(tech_score)
 
         # --------------------------
         # Smart Money
@@ -115,10 +113,15 @@ class JaguarAI:
         # Master AI
         # --------------------------
 
-        final = MasterConfluence.analyze(
+        mtf = {"confidence": 80}
+        risk_quality = {"quality": 90}
+
+        final = JaguarBrainV2.decide(
             tech_score,
             smc,
-            gann
+            gann,
+            mtf,
+            risk_quality
         )
 
         # --------------------------
@@ -170,8 +173,7 @@ class JaguarAI:
 
         print("Reasons")
 
-        for r in final["reasons"]:
-
+        for r in tech_score["reasons"]:
             print("✓", r)
 
         print("=" * 60)
