@@ -24,6 +24,7 @@ from core.dashboard_engine import DashboardEngineRunner
 from core.orderflow_engine import OrderFlowEngineRunner
 from core.execution_engine import ExecutionEngineRunner
 from core.decision_engine import DecisionEngineRunner
+from core.probability_engine_v2 import ProbabilityEngineV2Runner
 
 from core.brain_engine import BrainEngine
 
@@ -43,6 +44,7 @@ def register(registry):
     registry.register(OrderBlockEngineRunner())
     registry.register(OrderFlowEngineRunner())
     registry.register(ExecutionEngineRunner())
+    registry.register(ProbabilityEngineV2Runner())
     registry.register(ProbabilityEngineRunner())
     registry.register(PremiumDiscountEngineRunner())
     registry.register(WyckoffEngineRunner())

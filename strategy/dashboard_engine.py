@@ -4,48 +4,77 @@ class DashboardEngine:
 
         bus.publish("DASHBOARD_ANALYSIS")
 
+        brain = getattr(state, "brain", {}) or {}
+        probability = getattr(state, "probability", {}) or {}
+        trade_plan = getattr(state, "trade_plan", {}) or {}
+        risk = getattr(state, "risk", {}) or {}
+        session = getattr(state, "session", {}) or {}
+        mtf = getattr(state, "mtf", {}) or {}
+        regime = getattr(state, "regime", {}) or {}
+        orderflow = getattr(state, "orderflow", {}) or {}
+        decision = getattr(state, "decision", {}) or {}
+        execution = getattr(state, "execution", {}) or {}
+        volume_profile = getattr(state, "volume_profile", {}) or {}
+        gann = getattr(state, "gann", {}) or {}
+
         state.dashboard = {
 
             "symbol": state.symbol,
             "interval": state.interval,
 
-            "signal": state.brain.get("signal"),
-            "score": state.brain.get("score"),
-            "confidence": state.brain.get("confidence"),
-            "grade": state.brain.get("grade"),
+            # AI
+            "signal": brain.get("signal"),
+            "score": brain.get("score"),
 
-            "entry": state.trade_plan.get("entry"),
-            "stop": state.trade_plan.get("stop"),
-            "tp1": state.trade_plan.get("tp1"),
-            "tp2": state.trade_plan.get("tp2"),
+            # Probability V2
+            "probability": probability.get("score"),
+            "confidence": probability.get("confidence"),
+            "institution_grade": probability.get("grade"),
+            "trade_quality": probability.get("quality"),
 
-            "risk_status": state.risk.get("status"),
-            "position_size": state.risk.get("position_size"),
-            "exposure": state.risk.get("exposure"),
+            # Trade Plan
+            "entry": trade_plan.get("entry"),
+            "stop": trade_plan.get("stop"),
+            "tp1": trade_plan.get("tp1"),
+            "tp2": trade_plan.get("tp2"),
 
-            "session": state.session.get("session"),
-            "mtf_bias": state.mtf.get("bias"),
+            # Risk
+            "risk_status": risk.get("status"),
+            "position_size": risk.get("position_size"),
+            "exposure": risk.get("exposure"),
 
-            "market_regime": state.regime.get("regime"),
-            "regime_score": state.regime.get("score"),
+            # Session
+            "session": session.get("session"),
 
-            "orderflow_signal": state.orderflow.get("signal"),
-            "orderflow_delta": state.orderflow.get("delta"),
+            # Multi Timeframe
+            "mtf_bias": mtf.get("bias"),
 
-            "decision": state.decision.get("decision"),
-            "decision_score": state.decision.get("score"),
+            # Regime
+            "market_regime": regime.get("regime"),
+            "regime_score": regime.get("score"),
 
-            "execution_signal": state.execution.get("signal"),
-            "execution_score": state.execution.get("score"),
-            "execution_reasons": state.execution.get("reasons"),
+            # Orderflow
+            "orderflow_signal": orderflow.get("signal"),
+            "orderflow_delta": orderflow.get("delta"),
 
-            "poc": state.volume_profile.get("poc"),
-            "vah": state.volume_profile.get("vah"),
-            "val": state.volume_profile.get("val"),
+            # Decision
+            "decision": decision.get("decision"),
+            "decision_score": decision.get("score"),
 
-            "gann_support": state.gann.get("support"),
-            "gann_resistance": state.gann.get("resistance"),
-            "gann_level": state.gann.get("nearest_level"),
+            # Execution
+            "execution_signal": execution.get("signal"),
+            "execution_score": execution.get("score"),
+            "execution_reasons": execution.get("reasons"),
+
+            # Volume Profile
+            "poc": volume_profile.get("poc"),
+            "vah": volume_profile.get("vah"),
+            "val": volume_profile.get("val"),
+
+            # Gann
+            "gann_support": gann.get("support"),
+            "gann_resistance": gann.get("resistance"),
+            "gann_level": gann.get("nearest_level"),
         }
 
         bus.publish("DASHBOARD_READY")
