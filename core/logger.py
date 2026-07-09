@@ -1,19 +1,11 @@
-from datetime import datetime
+import logging
 
-class JaguarLogger:
+logging.basicConfig(
 
-    @staticmethod
-    def info(message):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] INFO  : {message}")
+    level=logging.INFO,
 
-    @staticmethod
-    def warning(message):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] WARN  : {message}")
+    format="%(asctime)s | %(levelname)s | %(message)s"
 
-    @staticmethod
-    def error(message):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] ERROR : {message}")
+)
 
-    @staticmethod
-    def success(message):
-        print(f"[{datetime.now().strftime('%H:%M:%S')}] SUCCESS : {message}")
+logger = logging.getLogger("Jaguar")

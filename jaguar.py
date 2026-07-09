@@ -1,76 +1,25 @@
-print("="*60)
-print("            🐆 JAGUAR AI TRADING TERMINAL")
-print("="*60)
+from core.orchestrator import JaguarOrchestrator
 
-print()
 
-import indicators.ema
-print()
+def main():
 
-import indicators.rsi
-print()
+    app = JaguarOrchestrator()
 
-import indicators.atr
-print()
+    state = app.analyze("BTCUSDT", "15m")
 
-import indicators.volume
-print()
+    print("\n========== JAGUAR ==========")
 
-import indicators.fibonacci
-print()
+    from report.console_report import print_report
 
-import smc.swing
-print()
+    print_report(state)
 
-import smc.bos
-print()
+    print("\nEvents:")
 
-import smc.choch
-print()
+    for e in app.events():
 
-import smc.liquidity
-print()
+        print(e)
 
-import smc.order_block
-print()
 
-import smc.fvg
-print()
+if __name__ == "__main__":
 
-import smc.premium_discount
-print()
-
-import gann.square9
-print()
-
-import gann.angles
-print()
-
-import gann.timecycle
-print()
-
-import gann.support_resistance
-print()
-
-import market.scanner
-print()
-
-import engine.score
-print()
-
-import engine.trade_engine
-print()
-
-import engine.position_manager
-print()
-
-import engine.risk_manager
-print()
-
-import engine.confluence
-
-print()
-
-print("="*60)
-print("      Jaguar Analysis Complete")
-print("="*60)
+    main()
