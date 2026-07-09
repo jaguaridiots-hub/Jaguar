@@ -1,15 +1,14 @@
-ENGINES = []
+class EngineRegistry:
 
+    def __init__(self):
+        self.engines = []
 
-def register(name, func, weight=1.0):
+    def register(self, engine):
+        self.engines.append(engine)
 
-    ENGINES.append({
-        "name": name,
-        "func": func,
-        "weight": weight
-    })
+    def run(self, state, bus):
 
+        for engine in self.engines:
+            engine.run(state, bus)
 
-def get_all():
-
-    return ENGINES
+        return state

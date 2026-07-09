@@ -7,6 +7,7 @@ class ScoreEngine:
         reasons = []
 
         # ================= EMA =================
+
         ema20 = ind["ema"]["ema20"]
         ema50 = ind["ema"]["ema50"]
         ema100 = ind["ema"]["ema100"]
@@ -20,6 +21,7 @@ class ScoreEngine:
             reasons.append("EMA Bearish")
 
         # ================= RSI =================
+
         rsi = ind["rsi"]["value"]
 
         if 45 <= rsi <= 60:
@@ -35,6 +37,7 @@ class ScoreEngine:
             reasons.append("Overbought RSI")
 
         # ================= MACD =================
+
         if ind["macd"]["signal"] == "BUY":
             score += 25
             reasons.append("MACD Buy")
@@ -43,6 +46,7 @@ class ScoreEngine:
             reasons.append("MACD Sell")
 
         # ================= SuperTrend =================
+
         if ind["supertrend"]["signal"] == "BULLISH":
             score += 20
             reasons.append("SuperTrend Bullish")
@@ -51,6 +55,7 @@ class ScoreEngine:
             reasons.append("SuperTrend Bearish")
 
         # ================= VWAP =================
+
         if ind["vwap"]["signal"] == "ABOVE VWAP":
             score += 10
             reasons.append("Above VWAP")
@@ -59,6 +64,7 @@ class ScoreEngine:
             reasons.append("Below VWAP")
 
         # ================= ADX =================
+
         if ind["adx"]["signal"] == "STRONG":
             score += 15
             reasons.append("Strong Trend")
@@ -67,6 +73,7 @@ class ScoreEngine:
             reasons.append("Weak Trend")
 
         # ================= Volume =================
+
         if ind["volume"]["signal"] == "HIGH VOLUME":
             score += 10
             reasons.append("High Volume")
@@ -75,6 +82,7 @@ class ScoreEngine:
             reasons.append("Low Volume")
 
         # ================= Market Regime =================
+
         regime = ind.get("regime", {}).get("regime", "SIDEWAYS")
 
         if "BULLISH" in regime:
@@ -86,12 +94,13 @@ class ScoreEngine:
             reasons.append("Bearish Market Regime")
 
         # ================= Clamp Score =================
+
         score = max(-100, min(100, score))
 
-        # ================= Confidence =================
         confidence = round((score + 100) / 2, 2)
 
-        # ================= Signal =================
+        # ================= Final Signal =================
+
         if score >= 60:
             signal = "BUY"
 

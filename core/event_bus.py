@@ -1,17 +1,22 @@
 class EventBus:
 
     def __init__(self):
-        self.listeners = {}
+        self._events = []
 
-    def subscribe(self, event, callback):
-        if event not in self.listeners:
-            self.listeners[event] = []
+    def publish(self, name, payload=None):
 
-        self.listeners[event].append(callback)
+        self._events.append({
 
-    def publish(self, event, data=None):
-        print(f"\n📢 Event : {event}")
+            "event": name,
 
-        if event in self.listeners:
-            for callback in self.listeners[event]:
-                callback(data)
+            "payload": payload
+
+        })
+
+    def history(self):
+
+        return self._events
+
+    def clear(self):
+
+        self._events.clear()

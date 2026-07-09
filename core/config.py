@@ -1,17 +1,11 @@
-import json
+APP_NAME = "Jaguar Quant X"
 
+VERSION = "5.1"
 
-class Config:
+DEFAULT_SYMBOL = "BTCUSDT"
 
-    def __init__(self):
+DEFAULT_INTERVAL = "15m"
 
-        with open("config/settings.json") as f:
+DEFAULT_LIMIT = 500
 
-            self.data = json.load(f)
-
-    def get(self, key, default=None):
-
-        return self.data.get(key, default)
-
-
-config = Config()
+RISK_PERCENT = 1.0
