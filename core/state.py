@@ -3,20 +3,41 @@ class JaguarState:
     def __init__(self):
 
         self.symbol = None
-        self.interval = None
+        self.interval = "15m"
 
-        self.market = None
+        # Market Data
+        self.market = {}
+        self.market_current = None
+
+        # Engines
         self.indicators = None
         self.ai = None
         self.risk = None
+
         self.smc = {}
-        self.brain = {}
-        self.probability = {}
-        self.orderblock = {}
         self.structure = {}
+        self.mss = {}
+        self.volume_profile = None
+        self.equal_levels = {}
         self.liquidity = {}
         self.fvg = {}
         self.premium_discount = {}
         self.wyckoff = {}
-        self.mss = {}
-        self.equal_levels = {}
+        self.orderblock = {}
+        self.orderflow = {}
+        self.execution = {}
+        self.probability = {}
+        self.mtf = {}
+        self.session = {}
+
+        # New Enterprise Engines
+        self.regime = {}
+        self.orderflow = {}
+
+        self.trade_plan = {}
+        self.decision = {}
+        self.risk_manager = {}
+        self.gann = {}
+        self.dashboard = {}
+
+        self.brain = {}

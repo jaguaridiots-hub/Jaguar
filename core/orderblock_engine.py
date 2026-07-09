@@ -1,7 +1,10 @@
+from core.engine import Engine
 from strategy.orderblock_engine import OrderBlockEngine
 
 
-class OrderBlockEngineRunner:
+class OrderBlockEngineRunner(Engine):
+
+    name = "Order Block Engine"
 
     def run(self, state, bus):
 

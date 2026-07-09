@@ -1,7 +1,10 @@
+from core.engine import Engine
 from ai.probability_engine import ProbabilityEngine
 
 
-class ProbabilityEngineRunner:
+class ProbabilityEngineRunner(Engine):
+
+    name = "Probability Engine"
 
     def run(self, state, bus):
 

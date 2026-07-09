@@ -1,11 +1,19 @@
+from config.settings import (
+    STRONG_BUY_SCORE,
+    BUY_SCORE,
+    SELL_SCORE,
+    STRONG_SELL_SCORE,
+    GRADE_A_PLUS,
+    GRADE_A,
+    GRADE_B,
+    GRADE_C,
+)
+
 class JaguarBrainV4:
 
     @staticmethod
     def analyze(state):
 
-        # -----------------------------
-        # Inputs
-        # -----------------------------
         tech = state.ai
         smc = state.smc
         structure = getattr(state, "structure", {})
@@ -15,6 +23,13 @@ class JaguarBrainV4:
         mss = state.mss
         eq = state.equal_levels
         orderblock = getattr(state, "orderblock", {})
+        mtf = state.mtf
+        gann = state.gann
+        vp = state.volume_profile
+        session = state.session
+        regime = getattr(state, "regime", {})
+        orderflow = getattr(state, "orderflow", {})
+
         score = tech["score"]
         confidence = probability["probability"]
         reasons = list(tech["reasons"])
@@ -25,6 +40,7 @@ class JaguarBrainV4:
         # -----------------------------
         # Smart Money
         # -----------------------------
+
         if smc.get("trend") == "BULLISH":
             score += 10
             reasons.append("Bullish SMC")
@@ -65,8 +81,6 @@ class JaguarBrainV4:
             score -= 30
             reasons.append("Bearish MSS")
 
-        # ===== Equal High / Equal Low =====
-
         if eq.get("signal") == "EQL":
             score += 15
             reasons.append("Equal Low Liquidity")
@@ -76,33 +90,64 @@ class JaguarBrainV4:
             reasons.append("Equal High Liquidity")
 
         # -----------------------------
-        # Market Structure
+        # Multi Timeframe
         # -----------------------------
+
+        if mtf.get("bias") == "BULLISH":
+
+            if mtf.get("alignment", 0) >= 3:
+                score += 15
+                reasons.append(
+                    f"Multi-Timeframe Bullish ({mtf.get('alignment')}/4)"
+                )
+
+        elif mtf.get("bias") == "BEARISH":
+
+            if mtf.get("alignment", 0) >= 3:
+                score -= 15
+                reasons.append(
+                    f"Multi-Timeframe Bearish ({mtf.get('alignment')}/4)"
+                )
+
+        else:
+            reasons.append("Mixed Multi-Timeframe Structure")
+
+        # -----------------------------
+        # Structure
+        # -----------------------------
+
         if structure:
-
             score += structure.get("score", 0)
-
-            if "reasons" in structure:
-                reasons.extend(structure["reasons"])
+            reasons.extend(structure.get("reasons", []))
 
         liquidity = state.liquidity
-
         score += liquidity.get("score", 0)
-
-        if "reasons" in liquidity:
-            reasons.extend(liquidity["reasons"])
-
+        reasons.extend(liquidity.get("reasons", []))
 
         fvg = state.fvg
-
         score += fvg.get("score", 0)
+        reasons.extend(fvg.get("reasons", []))
 
-        if "reasons" in fvg:
-            reasons.extend(fvg["reasons"])
+        # -----------------------------
+        # Volume Profile
+        # -----------------------------
+
+        if vp:
+            score += vp.get("score", 0)
+            reasons.extend(vp.get("reasons", []))
+
+        # -----------------------------
+        # Session
+        # -----------------------------
+
+        if session:
+            score += session.get("score", 0)
+            reasons.extend(session.get("reasons", []))
 
         # -----------------------------
         # Order Block
         # -----------------------------
+
         if orderblock:
 
             trend = orderblock.get("trend", "NONE")
@@ -116,25 +161,52 @@ class JaguarBrainV4:
                 reasons.append("Bearish Order Block")
 
         # -----------------------------
+        # Gann
+        # -----------------------------
+
+        if gann:
+            score += gann.get("score", 0)
+            reasons.extend(gann.get("reasons", []))
+
+        # -----------------------------
+        # Market Regime
+        # -----------------------------
+
+        if regime:
+
+            score += regime.get("score", 0)
+            reasons.extend(regime.get("reasons", []))
+
+        # -----------------------------
+        # Order Flow (future engine)
+        # -----------------------------
+
+        if orderflow:
+
+            score += orderflow.get("score", 0)
+            reasons.extend(orderflow.get("reasons", []))
+
+        # -----------------------------
         # Clamp
         # -----------------------------
-        score = max(-100, min(100, score))
 
+        score = max(-100, min(100, score))
         confidence = max(0, min(100, confidence))
 
         # -----------------------------
         # Signal
         # -----------------------------
-        if score >= 80:
+
+        if score >= STRONG_BUY_SCORE:
             signal = "STRONG BUY"
 
-        elif score >= 50:
+        elif score >= BUY_SCORE:
             signal = "BUY"
 
-        elif score <= -80:
+        elif score <= STRONG_SELL_SCORE:
             signal = "STRONG SELL"
 
-        elif score <= -50:
+        elif score <= SELL_SCORE:
             signal = "SELL"
 
         else:
@@ -143,24 +215,22 @@ class JaguarBrainV4:
         # -----------------------------
         # Grade
         # -----------------------------
-        if confidence >= 90:
+
+        if confidence >= GRADE_A_PLUS:
             grade = "A+"
 
-        elif confidence >= 80:
+        elif confidence >= GRADE_A:
             grade = "A"
 
-        elif confidence >= 70:
+        elif confidence >= GRADE_B:
             grade = "B"
 
-        elif confidence >= 60:
+        elif confidence >= GRADE_C:
             grade = "C"
 
         else:
             grade = "D"
 
-        # -----------------------------
-        # Final Output
-        # -----------------------------
         return {
             "signal": signal,
             "score": score,
@@ -168,4 +238,3 @@ class JaguarBrainV4:
             "grade": grade,
             "reasons": reasons
         }
-

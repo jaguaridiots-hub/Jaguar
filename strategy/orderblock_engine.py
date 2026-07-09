@@ -4,7 +4,7 @@ class OrderBlockEngine:
 
         bus.publish("ORDERBLOCK_ANALYSIS")
 
-        candles = state.market["candles"]
+        candles = state.market_current["candles"]
 
         bullish = None
         bearish = None

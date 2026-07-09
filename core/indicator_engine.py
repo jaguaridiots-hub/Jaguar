@@ -10,9 +10,11 @@ class IndicatorEngine(Engine):
 
         bus.publish("INDICATORS")
 
-        candles = state.market["candles"]
+        candles = state.market_current["candles"]
 
         state.indicators = IndicatorCalculator.calculate(candles)
+
+        state.ai = state.indicators
 
         bus.publish("TECHNICAL_READY")
 
