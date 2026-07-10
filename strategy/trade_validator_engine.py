@@ -18,51 +18,61 @@ class TradeValidatorEngine:
         score = 0
         reasons = []
 
+        # AI Brain
         if brain.get("signal") in ("BUY", "STRONG BUY"):
             score += 15
             reasons.append("AI Bullish")
 
+        # Probability
         if probability.get("score", 0) >= 70:
             score += 15
             reasons.append("High Probability")
 
+        # Decision
         if decision.get("decision") == "ENTER":
             score += 15
             reasons.append("Decision Approved")
 
+        # Multi-Timeframe
         if mtf.get("alignment", 0) >= 4:
             score += 15
             reasons.append("MTF Alignment")
 
+        # Market Regime
         if regime.get("regime") in ("TREND", "COMPRESSION"):
             score += 10
             reasons.append("Valid Market Regime")
 
+        # Session
         if session.get("score", 0) >= 5:
             score += 5
             reasons.append("Good Session")
 
-        if orderflow.get("signal") == "BUY":
+        # Order Flow
+        if orderflow.get("signal") in ("BUY", "SELL"):
             score += 10
-            reasons.append("Buy Order Flow")
+            reasons.append("Order Flow Confirmed")
 
+        # Volume Profile
         if volume.get("score", 0) > 0:
             score += 5
             reasons.append("Volume Confirmation")
 
+        # Gann
         if gann.get("signal") != "NEUTRAL":
             score += 5
             reasons.append("Gann Confirmation")
 
+        # Risk
         if risk.get("status") == "SAFE":
             score += 5
             reasons.append("Risk Acceptable")
 
+        # Final Score
         score = max(0, min(100, score))
-
         approved = score >= 60
 
-        state.validator = {
+        state.trade_validator = {
             "approved": approved,
             "signal": "VALID" if approved else "INVALID",
             "score": score,

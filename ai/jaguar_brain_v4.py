@@ -226,10 +226,3 @@ class JaguarBrainV4:
             "reasons": reasons,
         }
 
-        return {
-            "signal": signal,
-            "score": score,
-            "confidence": confidence,
-            "grade": grade,
-            "reasons": reasons
-        }

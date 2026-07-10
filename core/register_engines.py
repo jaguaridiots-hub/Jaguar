@@ -28,48 +28,79 @@ from core.probability_engine_v2 import ProbabilityEngineV2Runner
 from core.trade_validator_engine import TradeValidatorEngineRunner
 from strategy.master_decision_engine import MasterDecisionEngine
 from strategy.execution_confirmation_engine import ExecutionConfirmationEngine
+from core.orderflow_engine import OrderFlowEngineRunner
+from core.confluence_engine_runner import ConfluenceEngineRunner
 
 from core.brain_engine import BrainEngine
 
 
 def register(registry):
 
+    # =========================
+    # Foundation
+    # =========================
     registry.register(MarketEngine())
     registry.register(IndicatorEngine())
     registry.register(ScoreEngine())
 
-    registry.register(SMCEngine())
-
+    # =========================
+    # Smart Money
+    # =========================
     registry.register(StructureEngineRunner())
     registry.register(MSSEngineRunner())
+    registry.register(SMCEngine())
     registry.register(LiquidityEngineRunner())
     registry.register(FVGEngineRunner())
     registry.register(OrderBlockEngineRunner())
-    registry.register(OrderFlowEngineRunner())
-    registry.register(ExecutionEngineRunner())
-    registry.register(ProbabilityEngineV2Runner())
     registry.register(PremiumDiscountEngineRunner())
     registry.register(WyckoffEngineRunner())
     registry.register(EqualLevelsEngineRunner())
-    registry.register(MTFEngineRunner())
     registry.register(VolumeProfileEngineRunner())
     registry.register(SessionEngineRunner())
-
-    # Enterprise Engines
+    registry.register(MTFEngineRunner())
     registry.register(RegimeEngineRunner())
     registry.register(GannEngineRunner())
+    registry.register(ProbabilityEngineV2Runner())
 
+    # =========================
+    # Order Flow
+    # =========================
+    registry.register(OrderFlowEngineRunner())
+
+    # =========================
     # AI Brain
+    # =========================
     registry.register(BrainEngine())
+    registry.register(ConfluenceEngineRunner())
     registry.register(DecisionEngineRunner())
 
-    # Execution
+    # =========================
+    # Trade Planning
+    # =========================
     registry.register(TradePlannerEngineRunner())
     registry.register(RiskManagerEngineRunner())
-    registry.register(TradeValidatorEngineRunner())
-    registry.register(TradeValidatorEngineRunner())
-    registry.register(ExecutionConfirmationEngine())
+
+    # =========================
+    # Master Decision
+    # =========================
     registry.register(MasterDecisionEngine())
 
+    # =========================
+    # Execution Confirmation
+    # =========================
+    registry.register(ExecutionConfirmationEngine())
+
+    # =========================
+    # Trade Validator
+    # =========================
+    registry.register(TradeValidatorEngineRunner())
+
+    # =========================
+    # Execution
+    # =========================
+    registry.register(ExecutionEngineRunner())
+
+    # =========================
     # Dashboard
+    # =========================
     registry.register(DashboardEngineRunner())

@@ -1,8 +1,10 @@
+
 """
 Jaguar Quant X Enterprise
 Phase 5.2.10
 Multi-Timeframe Confluence Engine
 """
+
 
 class MTFEngine:
 
@@ -30,40 +32,34 @@ class MTFEngine:
 
         reasons = []
 
-        # --------------------------------------------------
-        # Read each timeframe independently
-        # --------------------------------------------------
+        timeframes = getattr(state, "timeframes", {}) or {}
 
         for tf in MTFEngine.TIMEFRAMES:
 
-            try:
+            score = 0
 
-                # Future Enterprise Structure
-                #
-                # state.timeframes = {
-                #     "15m":{"score":70},
-                #     "1h":{"score":45},
-                #     "4h":{"score":-20},
-                #     "1d":{"score":85},
-                # }
+            if tf in timeframes:
 
-                if hasattr(state, "timeframes") and tf in state.timeframes:
-                    score = state.timeframes[tf]["score"]
+                candles = timeframes[tf].get("candles", [])
 
-                else:
-                    # Temporary fallback for current Jaguar
-                    score = state.ai.get("score", 0)
+                if len(candles) >= 50:
 
-                signal = MTFEngine.score_to_signal(score)
+                    first = candles[-50]["close"]
+                    last = candles[-1]["close"]
 
-            except Exception:
+                    if first != 0:
 
-                signal = "WAIT"
-                score = 0
+                        change = ((last - first) / first) * 100
+
+                        score = int(change * 20)
+
+                        score = max(-100, min(100, score))
+
+            signal = MTFEngine.score_to_signal(score)
 
             frames[tf] = {
                 "score": score,
-                "signal": signal
+                "signal": signal,
             }
 
             if signal == "BUY":
@@ -75,31 +71,18 @@ class MTFEngine:
             else:
                 wait += 1
 
-        # --------------------------------------------------
-        # Institutional Bias
-        # --------------------------------------------------
+        alignment = max(buy, sell)
 
         if buy >= 3:
-
             bias = "BULLISH"
 
         elif sell >= 3:
-
             bias = "BEARISH"
 
         else:
-
             bias = "NEUTRAL"
 
-        alignment = max(buy, sell)
-
-        strength = round((alignment / 4) * 100)
-
-        confidence = strength
-
-        # --------------------------------------------------
-        # Reasons
-        # --------------------------------------------------
+        strength = int((alignment / 4) * 100)
 
         reasons.append(f"{buy} BUY timeframe(s)")
         reasons.append(f"{sell} SELL timeframe(s)")
@@ -112,35 +95,19 @@ class MTFEngine:
             reasons.append("Higher timeframe bearish alignment")
 
         else:
-            reasons.append("Mixed timeframe structure")
-
-        # --------------------------------------------------
-        # Return Enterprise Result
-        # --------------------------------------------------
+            reasons.append("Mixed timeframe alignment")
 
         return {
-
             "engine": "MultiTimeframe",
-
             "frames": frames,
-
             "buy": buy,
-
             "sell": sell,
-
             "wait": wait,
-
             "alignment": alignment,
-
-            "strength": strength,
-
-            "confidence": confidence,
-
             "bias": bias,
-
+            "strength": strength,
+            "confidence": strength,
             "signal": bias,
-
             "score": strength,
-
-            "reasons": reasons
+            "reasons": reasons,
         }

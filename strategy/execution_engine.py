@@ -4,105 +4,83 @@ class ExecutionEngine:
 
         bus.publish("EXECUTION_ANALYSIS")
 
-        # Safe defaults
-        decision = getattr(state, "decision", {}) or {}
-        regime = getattr(state, "regime", {}) or {}
-        session = getattr(state, "session", {}) or {}
-        orderflow = getattr(state, "orderflow", {}) or {}
-        mtf = getattr(state, "mtf", {}) or {}
-        risk = getattr(state, "risk", {}) or {}
+        # -------------------------------------------------
+        # Read Enterprise Decision Chain
+        # -------------------------------------------------
+        idm = getattr(state, "idm", {}) or {}
+        trade_plan = getattr(state, "trade_plan", {}) or {}
+        validator = getattr(state, "trade_validator", {}) or {}
+        confirmation = getattr(state, "execution_confirmation", {}) or {}
 
-        score = 0
         reasons = []
 
         # -------------------------------------------------
-        # Decision Engine
+        # Gate 1 : Institutional Decision
         # -------------------------------------------------
-        if decision.get("decision") == "ENTER":
-            score += 40
-            reasons.append("Decision Approved")
+        if not idm.get("approved", False):
+            state.execution = {
+                "signal": "NO ENTRY",
+                "status": "BLOCKED",
+                "reasons": ["Institutional Decision Matrix rejected"]
+            }
+            bus.publish("EXECUTION_BLOCKED")
+            return state
 
-        elif decision.get("decision") == "WATCH":
-            score += 20
-            reasons.append("Decision Watch")
+        reasons.append("IDM Approved")
 
-        # -------------------------------------------------
-        # Session
-        # -------------------------------------------------
-        if session.get("score", 0) >= 20:
-            score += 15
-            reasons.append("Active Trading Session")
+        # ------------------------------------------------
+        # Gate 2 : Trade Plan
+        # ------------------------------------------------
+        if trade_plan.get("signal") not in (
+            "ENTER",
+            "BUY",
+            "STRONG BUY",
+        ):
+            state.execution = {
+                "signal": "WAIT",
+                "status": "PENDING",
+                "reasons": reasons + ["Trade plan not ready"]
+            }
+            bus.publish("EXECUTION_PENDING")
+            return state
 
-        # -------------------------------------------------
-        # Order Flow
-        # -------------------------------------------------
-        if orderflow.get("signal") == "BUY":
-            score += 15
-            reasons.append("Buy Order Flow")
-
-        elif orderflow.get("signal") == "SELL":
-            score += 15
-            reasons.append("Sell Order Flow")
-
-        # -------------------------------------------------
-        # Market Regime
-        # -------------------------------------------------
-        if regime.get("regime") == "TREND":
-            score += 15
-            reasons.append("Trending Market")
-
-        elif regime.get("regime") == "COMPRESSION":
-            score -= 10
-            reasons.append("Range Market")
+        reasons.append("Trade Plan Ready")
 
         # -------------------------------------------------
-        # Multi-Timeframe Alignment
+        # Gate 3 : Validator
         # -------------------------------------------------
-        alignment = mtf.get("alignment", 0)
+        if not validator.get("approved", False):
+            state.execution = {
+                "signal": "WAIT",
+                "status": "PENDING",
+                "reasons": reasons + ["Trade Validator rejected"]
+            }
+            bus.publish("EXECUTION_PENDING")
+            return state
 
-        if alignment >= 4:
-            score += 20
-            reasons.append("Full MTF Alignment")
-
-        elif alignment >= 3:
-            score += 10
-            reasons.append("Strong MTF Alignment")
-
-        # -------------------------------------------------
-        # Risk Filter
-        # -------------------------------------------------
-        if risk.get("status") == "SAFE":
-            score += 10
-            reasons.append("Risk Acceptable")
-
-        elif risk.get("status") == "HIGH RISK":
-            score -= 20
-            reasons.append("High Risk")
-
-        elif risk.get("status") == "NO TRADE":
-            score -= 100
-            reasons.append("Risk Block")
+        reasons.append("Trade Validated")
 
         # -------------------------------------------------
-        # Clamp
+        # Gate 4 : Execution Confirmation
         # -------------------------------------------------
-        score = max(0, min(100, score))
+        if not confirmation.get("confirmed", False):
+            state.execution = {
+                "signal": "WAIT CONFIRMATION",
+                "status": "PENDING",
+                "reasons": reasons + ["Waiting for execution confirmation"]
+            }
+            bus.publish("EXECUTION_WAIT")
+            return state
+
+        reasons.append("Execution Confirmed")
 
         # -------------------------------------------------
-        # Final Execution Signal
+        # Final Execution
         # -------------------------------------------------
-        if score >= 85:
-            signal = "ENTER NOW"
-
-        elif score >= 65:
-            signal = "WAIT CONFIRMATION"
-
-        else:
-            signal = "NO ENTRY"
-
         state.execution = {
-            "signal": signal,
-            "score": score,
+            "signal": "ENTER NOW",
+            "status": "APPROVED",
+            "score": 100,
             "reasons": reasons
         }
 

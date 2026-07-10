@@ -7,53 +7,110 @@ class OrderFlowEngine:
         candles = state.market_current["candles"]
 
         last = candles[-1]
+        prev = candles[-2]
 
-        buy_pressure = 0
-        sell_pressure = 0
+        buy = 0
+        sell = 0
+        reasons = []
 
-        # Candle Body
+        # ==========================
+        # Candle Direction
+        # ==========================
         if last["close"] > last["open"]:
-            buy_pressure += 20
+            buy += 15
+            reasons.append("Bullish Candle")
         else:
-            sell_pressure += 20
+            sell += 15
+            reasons.append("Bearish Candle")
 
-        # Average Volume
+        # ==========================
+        # Volume Spike
+        # ==========================
         avg_volume = sum(c["volume"] for c in candles[-20:]) / 20
 
-        if last["volume"] > avg_volume:
+        if last["volume"] > avg_volume * 1.5:
             if last["close"] > last["open"]:
-                buy_pressure += 30
+                buy += 20
+                reasons.append("Bullish Volume Spike")
             else:
-                sell_pressure += 30
+                sell += 20
+                reasons.append("Bearish Volume Spike")
 
-        # Wick Analysis
-        upper = last["high"] - max(last["open"], last["close"])
-        lower = min(last["open"], last["close"]) - last["low"]
+        # ==========================
+        # Candle Body Strength
+        # ==========================
+        body = abs(last["close"] - last["open"])
+        rng = max(last["high"] - last["low"], 0.000001)
 
-        if lower > upper:
-            buy_pressure += 20
-        elif upper > lower:
-            sell_pressure += 20
+        if body / rng > 0.6:
+            if last["close"] > last["open"]:
+                buy += 15
+                reasons.append("Strong Bull Body")
+            else:
+                sell += 15
+                reasons.append("Strong Bear Body")
 
-        delta = buy_pressure - sell_pressure
+        # ==========================
+        # Break Previous High/Low
+        # ==========================
+        if last["high"] > prev["high"]:
+            buy += 10
+            reasons.append("High Break")
 
-        if delta > 25:
+        if last["low"] < prev["low"]:
+            sell += 10
+            reasons.append("Low Break")
+
+        # ==========================
+        # Price vs POC
+        # ==========================
+        vp = getattr(state, "volume_profile", {}) or {}
+
+        poc = vp.get("poc")
+
+        if poc:
+
+            if last["close"] > poc:
+                buy += 10
+                reasons.append("Above POC")
+            else:
+                sell += 10
+                reasons.append("Below POC")
+
+        # ==========================
+        # Multi-Timeframe Bias
+        # ==========================
+        mtf = getattr(state, "mtf", {}) or {}
+
+        if mtf.get("bias") == "BULLISH":
+            buy += 10
+            reasons.append("Bullish MTF")
+
+        elif mtf.get("bias") == "BEARISH":
+            sell += 10
+            reasons.append("Bearish MTF")
+
+        # ==========================
+        # Delta
+        # ==========================
+        delta = buy - sell
+
+        if delta >= 20:
             signal = "BUY"
-        elif delta < -25:
+
+        elif delta <= -20:
             signal = "SELL"
+
         else:
             signal = "NEUTRAL"
 
         state.orderflow = {
             "signal": signal,
-            "buy_pressure": buy_pressure,
-            "sell_pressure": sell_pressure,
+            "buy_pressure": buy,
+            "sell_pressure": sell,
             "delta": delta,
-            "score": delta,
-            "reasons": [
-                f"Buy Pressure {buy_pressure}",
-                f"Sell Pressure {sell_pressure}"
-            ]
+            "score": abs(delta),
+            "reasons": reasons,
         }
 
         bus.publish("ORDERFLOW_READY")

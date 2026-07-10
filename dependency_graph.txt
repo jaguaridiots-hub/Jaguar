@@ -1,0 +1,880 @@
+
+./main.py
+  from core.kernel
+  from core.logger
+  from core.registry
+  from core.event_bus
+  from data.market_data
+  from engine.trade_manager
+  from engine.position_manager
+  from engine.trade_journal
+  from engine.performance
+  from engine.live_feed
+  import time
+  from engine.state_manager
+  from market.live_loader
+  from indicators.indicator_engine
+  from engine.institutional_master
+
+./jaguar.py
+  from core.orchestrator
+  from report.console_report
+
+./scanner.py
+  from core.trading_kernel
+  from indicators.indicator_engine
+  from strategy.support_resistance
+  from strategy.decision
+
+./jaguar_ai.py
+  from core.trading_kernel
+  from indicators.indicator_engine
+  from ai.score_engine
+  from ai.decision_engine
+  from ai.master_confluence
+  from ai.gann_engine
+  from strategy.market_regime
+  from strategy.market_structure
+  from strategy.order_block
+  from strategy.fair_value_gap
+  from strategy.liquidity
+  from strategy.premium_discount
+  from strategy.institutional_entry
+  from strategy.gann_square
+  from strategy.gann_angles
+  from strategy.gann_time
+  from strategy.gann_confluence
+  from strategy.gann_swing
+  from strategy.risk_manager
+  from ai.jaguar_brain_v3
+  from strategy.multi_timeframe_v2
+  from ai.master_confluence_v2
+  from ai.jaguar_brain_v3
+
+./config_backup.py
+
+./core/kernel.py
+  from core.market_state
+
+./core/event_bus.py
+
+./core/logger.py
+  import logging
+
+./core/registry.py
+
+./core/__init__.py
+
+./core/market_state.py
+
+./core/engine_registry.py
+
+./core/engine_runner.py
+  from core.engine_registry
+
+./core/engine_result.py
+
+./core/register_engines.py
+  from core.market_engine
+  from core.indicator_engine
+  from core.score_engine
+  from strategy.smc_engine
+  from core.structure_engine
+  from core.mss_engine
+  from core.liquidity_engine
+  from core.fvg_engine
+  from core.orderblock_engine
+  from core.probability_engine
+  from core.premium_discount_engine
+  from core.wyckoff_engine
+  from core.equal_levels_engine
+  from core.mtf_engine
+  from core.volume_profile_engine
+  from core.session_engine
+  from core.regime_engine
+  from core.gann_engine
+  from core.trade_planner_engine
+  from core.risk_manager_engine
+  from core.dashboard_engine
+  from core.orderflow_engine
+  from core.execution_engine
+  from core.decision_engine
+  from core.probability_engine_v2
+  from core.trade_validator_engine
+  from strategy.master_decision_engine
+  from strategy.execution_confirmation_engine
+  from core.brain_engine
+
+./core/config.py
+
+./core/market_detector.py
+
+./core/trading_kernel.py
+  from market.provider
+
+./core/market_feed.py
+  from market.provider
+
+./core/brain_engine.py
+  from ai.jaguar_brain_v4
+
+./core/engine.py
+
+./core/equal_levels_engine.py
+  from core.engine
+  from strategy.equal_levels_engine
+
+./core/fvg_engine.py
+  from core.engine
+  from strategy.fvg_engine
+
+./core/indicator_engine.py
+  from core.engine
+  from indicators.indicator_engine
+
+./core/liquidity_engine.py
+  from core.engine
+  from strategy.liquidity_engine
+
+./core/market_engine.py
+  from core.engine
+  from core.trading_kernel
+
+./core/mss_engine.py
+  from core.engine
+  from strategy.mss_engine
+
+./core/orchestrator.py
+  from core.state
+  from core.event_bus
+  from core.logger
+  from core.engine_registry
+  from core.market_engine
+  from core.indicator_engine
+  from core.score_engine
+  from core.register_engines
+
+./core/orderblock_engine.py
+  from core.engine
+  from strategy.orderblock_engine
+
+./core/premium_discount_engine.py
+  from core.engine
+  from strategy.premium_discount_engine
+
+./core/probability_engine.py
+  from core.engine
+  from ai.probability_engine
+
+./core/score_engine.py
+  from core.engine
+  from ai.score_engine
+
+./core/state.py
+
+./core/structure_engine.py
+  from core.engine
+  from strategy.structure_engine
+
+./core/wyckoff_engine.py
+  from core.engine
+  from strategy.wyckoff_engine
+
+./core/mtf_engine.py
+  from strategy.mtf_engine
+
+./core/pipeline.py
+  from core.state
+  from core.event_bus
+  from core.engine_registry
+  from core.register_engines
+
+./core/volume_profile_engine.py
+  from core.engine
+  from strategy.volume_profile_engine
+
+./core/session_engine.py
+  from core.engine
+  from strategy.session_engine
+
+./core/trade_planner_engine.py
+  from core.engine
+  from strategy.trade_planner_engine
+
+./core/risk_manager_engine.py
+  from core.engine
+  from strategy.risk_manager_engine
+
+./core/gann_engine.py
+  from core.engine
+  from strategy.gann_engine
+
+./core/dashboard_engine.py
+  from core.engine
+  from strategy.dashboard_engine
+
+./core/regime_engine.py
+  from core.engine
+  from strategy.regime_engine
+
+./core/orderflow_engine.py
+  from core.engine
+  from strategy.orderflow_engine
+
+./core/execution_engine.py
+  from core.engine
+  from strategy.execution_engine
+
+./core/decision_engine.py
+  from strategy.master_decision
+
+./core/probability_engine_v2.py
+  from core.engine
+  from strategy.probability_engine_v2
+
+./core/trade_validator_engine.py
+  from strategy.trade_validator_engine
+
+./market/data_engine.py
+  from datetime
+
+./market/candle.py
+  from dataclasses
+  from datetime
+
+./market/symbol.py
+  from dataclasses
+
+./market/timeframe.py
+
+./market/session.py
+  from datetime
+
+./market/scanner.py
+  from data.market_data
+  from indicators.ema
+
+./market/watchlist.py
+
+./market/scanner_v2.py
+  from market.watchlist
+  import random
+
+./market/live_scanner.py
+  from market.watchlist
+
+./market/__init__.py
+
+./market/adapter.py
+  from core.market_detector
+  from market.crypto
+  from market.nse
+  from market.bse
+  from market.forex
+  from market.us
+  from market.mcx
+
+./market/crypto.py
+  from data.market_data
+
+./market/nse.py
+  import yfinance
+
+./market/bse.py
+
+./market/forex.py
+
+./market/us.py
+
+./market/mcx.py
+
+./market/binance.py
+  import requests
+
+./market/live_loader.py
+  from market.adapter
+  from market.crypto
+  from market.forex
+  from market.nse
+  from market.bse
+  from market.us
+  from market.mcx
+
+./market/provider.py
+  from market.binance_live
+
+./market/binance_live.py
+  import requests
+
+./market/cache.py
+
+./indicators/ema.py
+
+./indicators/rsi.py
+
+./indicators/atr.py
+
+./indicators/volume.py
+
+./indicators/fibonacci.py
+
+./indicators/indicator_engine.py
+  from indicators.ema
+  from indicators.rsi
+  from indicators.volume
+  from indicators.fibonacci
+  from indicators.atr
+  from indicators.macd
+  from indicators.adx
+  from indicators.supertrend
+  from indicators.bollinger
+  from indicators.vwap
+
+./indicators/macd.py
+  from indicators.ema
+
+./indicators/adx.py
+
+./indicators/supertrend.py
+
+./indicators/bollinger.py
+  from math
+
+./indicators/vwap.py
+
+./gann/square9.py
+  import math
+  from data.market_data
+
+./gann/angles.py
+  from data.market_data
+
+./gann/timecycle.py
+  from datetime
+
+./gann/support_resistance.py
+  from data.market_data
+
+./smc/bos.py
+  from data.market_data
+
+./smc/choch.py
+  from data.market_data
+
+./smc/swing.py
+  from data.market_data
+
+./smc/liquidity.py
+  from data.market_data
+
+./smc/order_block.py
+  from data.market_data
+
+./smc/fvg.py
+  from data.market_data
+
+./smc/premium_discount.py
+  from data.market_data
+
+./smc/smc_engine.py
+  from data.market_data
+
+./engine/decision.py
+  from indicators.ema
+  from indicators.rsi
+  import indicators.volume
+
+./engine/risk.py
+
+./engine/position_size.py
+
+./engine/stop_loss.py
+
+./engine/take_profit.py
+
+./engine/risk_reward.py
+
+./engine/trade_planner.py
+  from indicators.atr
+
+./engine/master_decision.py
+  from engine.ai_brain
+  from engine.smc_engine
+  from engine.gann_engine
+  from engine.fibonacci_engine
+  from engine.market_regime
+  from engine.trade_filter
+  from engine.trade_planner
+  from engine.confluence_engine
+
+./engine/score.py
+
+./engine/trade_engine.py
+
+./engine/position_manager.py
+
+./engine/risk_manager.py
+
+./engine/confluence.py
+  from engine.score
+  from market.scanner
+
+./engine/ai_brain.py
+  from core.engine_result
+
+./engine/smart_money.py
+  from analysis.bos_engine
+  from analysis.liquidity_engine
+  from analysis.orderblock_engine
+  from analysis.fvg_engine
+  from analysis.premium_discount_engine
+
+./engine/master_ai.py
+  from engine.ai_brain
+  from engine.smart_money
+
+./engine/market_regime.py
+  from core.engine_result
+
+./engine/probability.py
+  from engine.master_ai
+  from engine.market_regime
+
+./engine/trade_filter.py
+  from engine.market_regime
+  from indicators.volume
+  from core.market_state
+
+./engine/market_context.py
+  from indicators.ema
+  from indicators.rsi
+
+./engine/entry_quality.py
+  from engine.market_context
+
+./engine/exit_quality.py
+  from engine.market_context
+
+./engine/trade_logger.py
+  import csv
+  import os
+  from datetime
+
+./engine/test_logger.py
+  from engine.trade_logger
+
+./engine/decision_engine.py
+  from smc.smc_engine
+  from analysis.multi_timeframe
+  from analysis.liquidity_engine
+  from analysis.orderblock_engine
+  from analysis.bos_engine
+  from analysis.premium_discount_engine
+  from analysis.breaker_engine
+  from analysis.mitigation_engine
+  from analysis.fvg_engine
+  from analysis.support_resistance_engine
+  from analysis.swing_engine
+  from analysis.liquidity_sweep
+  from analysis.killzone_engine
+  from analysis.mss_engine
+  from analysis.inducement_engine
+  from analysis.smt_engine
+  from analysis.cisd_engine
+  from analysis.ote_engine
+  from analysis.vwap_engine
+  from analysis.cvd_engine
+  from analysis.volume_profile
+  from analysis.regime_engine
+  from analysis.delta_engine
+  from analysis.confidence_engine
+
+./engine/trade_manager.py
+
+./engine/trade_journal.py
+  import os
+  import csv
+  from datetime
+
+./engine/performance.py
+  import csv
+  import os
+
+./engine/live_feed.py
+  import threading
+  import time
+
+./engine/market_state.py
+  from dataclasses
+
+./engine/smc_engine.py
+  from analysis.support_resistance_engine
+  from core.market_state
+
+./engine/gann_engine.py
+  from core.engine_result
+  import math
+
+./engine/fibonacci_engine.py
+  from core.engine_result
+  from data.market_data
+
+./engine/confluence_engine.py
+
+./engine/bos_engine.py
+  from core.engine_result
+  from data.market_data
+
+./engine/choch_engine.py
+  from core.engine_result
+  from data.market_data
+
+./engine/liquidity_engine.py
+  from core.engine_result
+  from data.market_data
+
+./engine/order_block_engine.py
+  from core.engine_result
+  from data.market_data
+
+./engine/fvg_engine.py
+  from core.engine_result
+  from data.market_data
+
+./engine/institutional_confluence.py
+
+./engine/risk_engine.py
+
+./engine/institutional_master.py
+  from engine.ai_brain
+  from engine.market_regime
+  from engine.smc_engine
+  from engine.bos_engine
+  from engine.choch_engine
+  from engine.liquidity_engine
+  from engine.order_block_engine
+  from engine.fvg_engine
+  from engine.fibonacci_engine
+  from engine.gann_engine
+  from engine.institutional_confluence
+  from engine.trade_planner
+  from engine.risk_engine
+
+./engine/state_manager.py
+  import json
+  import os
+
+./engine/institutional_master_v2.py
+  from core.engine_runner
+
+./data/binance.py
+  import requests
+
+./data/market_data.py
+  import requests
+
+./data/test.py
+  from market_data
+
+./backtest/backtest_engine.py
+
+./backtest/result_updater.py
+  import csv
+  from backtest.live_price
+
+./backtest/live_price.py
+  import requests
+
+./backtest/__init__.py
+
+./backtest/replay_engine.py
+  from jaguar_ai
+
+./backtest/trade_simulator.py
+
+./backtest/performance.py
+
+./analytics/performance.py
+  import csv
+
+./historical/data_loader.py
+  import requests
+
+./historical/trade_engine.py
+  from historical.data_loader
+  from historical.strategy
+
+./historical/indicators.py
+  from math
+
+./historical/test_indicators.py
+  from historical.data_loader
+  from historical.indicators
+
+./historical/strategy.py
+  from historical.indicators
+
+./historical/test_strategy.py
+  from historical.data_loader
+  from historical.strategy
+
+./historical/test_v6.py
+  from historical.data_loader
+  from historical.indicators
+
+./historical/test_v8.py
+  from historical.data_loader
+  from historical.indicators
+
+./historical/market_structure.py
+
+./historical/test_structure.py
+  from historical.data_loader
+  from historical.market_structure
+
+./historical/confluence.py
+  import math
+
+./historical/test_confluence.py
+  from historical.data_loader
+  from historical.indicators
+  from historical.confluence
+
+./historical/smc.py
+
+./historical/test_smc.py
+  from historical.data_loader
+  from historical.smc
+
+./historical/patterns.py
+
+./historical/test_patterns.py
+  from historical.data_loader
+  from historical.patterns
+
+./historical/decision.py
+  from historical.market_structure
+  from historical.confluence
+  from historical.patterns
+  from historical.smc
+
+./historical/test_decision.py
+  from historical.data_loader
+  from historical.decision
+
+./analysis/__init__.py
+
+./analysis/multi_timeframe.py
+  from data.market_data
+  from indicators.ema
+
+./analysis/liquidity_engine.py
+  from data.market_data
+
+./analysis/orderblock_engine.py
+
+./analysis/breaker_engine.py
+  from data.market_data
+
+./analysis/bos_engine.py
+  from data.market_data
+
+./analysis/premium_discount_engine.py
+  from data.market_data
+
+./analysis/mitigation_engine.py
+
+./analysis/fvg_engine.py
+  from data.market_data
+
+./analysis/support_resistance_engine.py
+  from data.market_data
+
+./analysis/swing_engine.py
+  from data.market_data
+
+./analysis/liquidity_sweep.py
+  from data.market_data
+
+./analysis/killzone_engine.py
+  from datetime
+
+./analysis/mss_engine.py
+  from data.market_data
+
+./analysis/inducement_engine.py
+  from data.market_data
+
+./analysis/smt_engine.py
+  from data.market_data
+
+./analysis/cisd_engine.py
+  from data.market_data
+
+./analysis/ote_engine.py
+  from data.market_data
+
+./analysis/vwap_engine.py
+  from data.market_data
+
+./analysis/cvd_engine.py
+  from data.market_data
+
+./analysis/volume_profile.py
+  from data.market_data
+
+./analysis/regime_engine.py
+
+./analysis/delta_engine.py
+
+./analysis/confidence_engine.py
+
+./config/settings.py
+
+./config/__init__.py
+
+./tests/test_market_detector.py
+  from core.market_detector
+
+./tests/test_adapter.py
+  from market.adapter
+
+./tests/test_binance.py
+  from market.binance
+
+./tests/test_live_loader.py
+  from market.adapter
+
+./strategy/__init__.py
+
+./strategy/decision.py
+
+./strategy/trade_planner.py
+
+./strategy/support_resistance.py
+
+./strategy/candlestick.py
+
+./strategy/multi_timeframe.py
+
+./strategy/risk_manager.py
+
+./strategy/market_regime.py
+
+./strategy/pattern_engine.py
+
+./strategy/market_structure.py
+
+./strategy/order_block.py
+
+./strategy/liquidity.py
+
+./strategy/premium_discount.py
+
+./strategy/institutional_entry.py
+
+./strategy/gann_square.py
+  from math
+
+./strategy/gann_angles.py
+
+./strategy/gann_time.py
+
+./strategy/gann_confluence.py
+
+./strategy/gann_swing.py
+
+./strategy/fair_value_gap.py
+
+./strategy/atr_risk.py
+
+./strategy/position_size.py
+
+./strategy/bos_engine.py
+
+./strategy/choch_engine.py
+
+./strategy/equal_levels_engine.py
+
+./strategy/fvg_engine.py
+
+./strategy/liquidity_engine.py
+
+./strategy/mss_engine.py
+
+./strategy/mtf_engine.py
+
+./strategy/multi_timeframe_v2.py
+
+./strategy/orderblock_engine.py
+
+./strategy/premium_discount_engine.py
+
+./strategy/smc_engine.py
+
+./strategy/structure_engine.py
+  from strategy.bos_engine
+  from strategy.choch_engine
+
+./strategy/wyckoff_engine.py
+
+./strategy/volume_profile_engine.py
+
+./strategy/session_engine.py
+  from datetime
+
+./strategy/trade_planner_engine.py
+
+./strategy/risk_manager_engine.py
+
+./strategy/gann_engine.py
+  import math
+
+./strategy/dashboard_engine.py
+
+./strategy/regime_engine.py
+
+./strategy/orderflow_engine.py
+
+./strategy/execution_engine.py
+
+./strategy/master_decision.py
+
+./strategy/probability_engine_v2.py
+
+./strategy/trade_validator_engine.py
+
+./strategy/master_decision_engine.py
+
+./strategy/execution_confirmation_engine.py
+
+./ai/__init__.py
+
+./ai/score_engine.py
+
+./ai/decision_engine.py
+
+./ai/gann_engine.py
+
+./ai/master_confluence.py
+
+./ai/trade_grade.py
+
+./ai/jaguar_brain.py
+
+./ai/jaguar_brain_v2.py
+
+./ai/jaguar_brain_v3.py
+
+./ai/jaguar_brain_v4.py
+  from config.settings
+
+./ai/master_confluence_v2.py
+
+./ai/probability_engine.py
+
+./models/result.py
+
+./report/__init__.py
+
+./report/console_report.py
