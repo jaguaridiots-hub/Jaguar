@@ -3,10 +3,6 @@ from config.settings import (
     BUY_SCORE,
     SELL_SCORE,
     STRONG_SELL_SCORE,
-    GRADE_A_PLUS,
-    GRADE_A,
-    GRADE_B,
-    GRADE_C,
 )
 
 class JaguarBrainV4:
@@ -17,7 +13,7 @@ class JaguarBrainV4:
         tech = state.ai
         smc = state.smc
         structure = getattr(state, "structure", {})
-        probability = state.probability
+        probability = getattr(state, "probability", {}) or {}
         pd = state.premium_discount
         wy = state.wyckoff
         mss = state.mss
@@ -31,7 +27,10 @@ class JaguarBrainV4:
         orderflow = getattr(state, "orderflow", {})
 
         score = tech["score"]
-        confidence = probability["probability"]
+        probability_score = probability.get("score", 0)
+        confidence = probability.get("confidence", "LOW")
+        grade = probability.get("grade", "D")
+        quality = probability.get("quality", "*")
         reasons = list(tech["reasons"])
 
         if "reasons" in probability:
@@ -191,7 +190,7 @@ class JaguarBrainV4:
         # -----------------------------
 
         score = max(-100, min(100, score))
-        confidence = max(0, min(100, confidence))
+        probability_score = max(0, min(100, probability_score))
 
         # -----------------------------
         # Signal
@@ -212,24 +211,20 @@ class JaguarBrainV4:
         else:
             signal = "WAIT"
 
-        # -----------------------------
-        # Grade
-        # -----------------------------
+        # --------------------------------
+        # Final Grade
+        # --------------------------------
 
-        if confidence >= GRADE_A_PLUS:
-            grade = "A+"
+        confidence_text = probability.get("confidence", "LOW")
+        grade = probability.get("grade", "D")
 
-        elif confidence >= GRADE_A:
-            grade = "A"
-
-        elif confidence >= GRADE_B:
-            grade = "B"
-
-        elif confidence >= GRADE_C:
-            grade = "C"
-
-        else:
-            grade = "D"
+        return {
+            "signal": signal,
+            "score": score,
+            "confidence": confidence_text,
+            "grade": grade,
+            "reasons": reasons,
+        }
 
         return {
             "signal": signal,

@@ -4,7 +4,7 @@ def print_report(state):
 
     print()
     print("=" * 60)
-    print("                JAGUAR QUANT X")
+    print("                    JAGUAR QUANT X")
     print("=" * 60)
 
     print("Signal      :", brain.get("signal"))
@@ -42,9 +42,7 @@ def print_report(state):
     print("\nGANN")
     print(getattr(state, "gann", {}))
 
-    print()
-
-    print("Regime")
+    print("\nRegime")
     print(getattr(state, "regime", {}))
 
     print()
@@ -74,68 +72,71 @@ def print_report(state):
     print("ENTERPRISE DASHBOARD")
     print("=" * 60)
 
-    if hasattr(state, "dashboard") and state.dashboard:
+    d = getattr(state, "dashboard", {}) or {}
 
-        d = state.dashboard
+    print("Symbol                 :", d.get("symbol"))
+    print("Timeframe              :", d.get("interval"))
 
-        print("Symbol          :", d.get("symbol"))
-        print("Timeframe       :", d.get("interval"))
+    print()
+    print("AI Signal              :", d.get("signal"))
+    print("AI Score               :", d.get("score"))
+    print("Probability            :", d.get("probability"))
+    print("Confidence             :", d.get("confidence"))
+    print("Institution Grade      :", d.get("institution_grade"))
+    print("Trade Quality          :", d.get("trade_quality"))
 
-        print()
+    print()
+    print("Entry                  :", d.get("entry"))
+    print("Stop Loss              :", d.get("stop"))
+    print("Take Profit 1          :", d.get("tp1"))
+    print("Take Profit 2          :", d.get("tp2"))
 
-        print("AI Signal       :", d.get("signal"))
-        print("Score           :", d.get("score"))
-        print("Probability     :", d.get("probability"))
-        print("Confidence      :", d.get("confidence"))
-        print("Grade           :", d.get("institution_grade"))
-        print("Quality         :", d.get("trade_quality"))
+    print()
+    print("Risk Status            :", d.get("risk_status"))
+    print("Position Size          :", d.get("position_size"))
+    print("Exposure               :", d.get("exposure"))
 
-        print()
+    print()
+    print("Session                :", d.get("session"))
+    print("MTF Bias               :", d.get("mtf_bias"))
 
-        print("Entry           :", d.get("entry"))
-        print("Stop Loss       :", d.get("stop"))
-        print("Take Profit 1   :", d.get("tp1"))
-        print("Take Profit 2   :", d.get("tp2"))
+    print("Market Regime          :", d.get("market_regime"))
+    print("Regime Score           :", d.get("regime_score"))
 
-        print()
+    print()
+    print("Decision               :", d.get("decision"))
+    print("Decision Score         :", d.get("decision_score"))
 
-        print("Risk Status     :", d.get("risk_status"))
-        print("Position Size   :", d.get("position_size"))
-        print("Exposure        :", d.get("exposure"))
+    print()
+    print("Execution              :", d.get("execution_signal"))
+    print("Execution Score        :", d.get("execution_score"))
 
-        print()
+    print()
+    print("Execution Confirmation :", d.get("execution_confirmation"))
+    print("Confirmation Score     :", d.get("execution_confirmation_score"))
 
-        print("Session         :", d.get("session"))
-        print("MTF Bias        :", d.get("mtf_bias"))
+    print()
+    print("Validator              :", d.get("validator_signal"))
+    print("Validator Score        :", d.get("validator_score"))
+    print("Trade Approved         :", d.get("validator_approved"))
 
-        print("Market Regime   :", d.get("market_regime"))
-        print("Regime Score    :", d.get("regime_score"))
+    print()
+    print("Master Decision        :", d.get("final_decision"))
+    print("Master Approved        :", d.get("trade_approved"))
+    print("Master Score           :", d.get("master_score"))
 
-        print()
+    print()
+    print("Order Flow             :", d.get("orderflow_signal"))
+    print("Delta                  :", d.get("orderflow_delta"))
 
-        print("Decision        :", d.get("decision"))
-        print("Decision Score  :", d.get("decision_score"))
+    print()
+    print("POC                    :", d.get("poc"))
+    print("VAH                    :", d.get("vah"))
+    print("VAL                    :", d.get("val"))
 
-        print()
-
-        print("Execution       :", d.get("execution_signal"))
-        print("Execution Score :", d.get("execution_score"))
-
-        print()
-
-        print("Order Flow      :", d.get("orderflow_signal"))
-        print("Delta           :", d.get("orderflow_delta"))
-
-        print()
-
-        print("POC             :", d.get("poc"))
-        print("VAH             :", d.get("vah"))
-        print("VAL             :", d.get("val"))
-
-        print()
-
-        print("Gann Support    :", d.get("gann_support"))
-        print("Gann Resistance :", d.get("gann_resistance"))
-        print("Nearest Level   :", d.get("gann_level"))
+    print()
+    print("Gann Support           :", d.get("gann_support"))
+    print("Gann Resistance        :", d.get("gann_resistance"))
+    print("Nearest Level          :", d.get("gann_level"))
 
     print("=" * 60)

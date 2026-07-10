@@ -5,6 +5,7 @@ class DashboardEngine:
         bus.publish("DASHBOARD_ANALYSIS")
 
         brain = getattr(state, "brain", {}) or {}
+        master = getattr(state, "master_decision", {}) or {}
         probability = getattr(state, "probability", {}) or {}
         trade_plan = getattr(state, "trade_plan", {}) or {}
         risk = getattr(state, "risk", {}) or {}
@@ -14,23 +15,26 @@ class DashboardEngine:
         orderflow = getattr(state, "orderflow", {}) or {}
         decision = getattr(state, "decision", {}) or {}
         execution = getattr(state, "execution", {}) or {}
+        validator = getattr(state, "trade_validator", {}) or {}
+        execution_confirmation = getattr(state, "execution_confirmation", {}) or {}
         volume_profile = getattr(state, "volume_profile", {}) or {}
         gann = getattr(state, "gann", {}) or {}
 
         state.dashboard = {
 
-            "symbol": state.symbol,
-            "interval": state.interval,
+            # General
+            "symbol": getattr(state, "symbol", ""),
+            "interval": getattr(state, "interval", ""),
 
-            # AI
-            "signal": brain.get("signal"),
-            "score": brain.get("score"),
+            # AI Brain
+            "signal": brain.get("signal", "NONE"),
+            "score": brain.get("score", 0),
 
-            # Probability V2
-            "probability": probability.get("score"),
-            "confidence": probability.get("confidence"),
-            "institution_grade": probability.get("grade"),
-            "trade_quality": probability.get("quality"),
+            # Probability
+            "probability": probability.get("score", 0),
+            "confidence": probability.get("confidence", "LOW"),
+            "institution_grade": probability.get("grade", "D"),
+            "trade_quality": probability.get("quality", "★"),
 
             # Trade Plan
             "entry": trade_plan.get("entry"),
@@ -39,32 +43,47 @@ class DashboardEngine:
             "tp2": trade_plan.get("tp2"),
 
             # Risk
-            "risk_status": risk.get("status"),
-            "position_size": risk.get("position_size"),
-            "exposure": risk.get("exposure"),
+            "risk_status": risk.get("status", "UNKNOWN"),
+            "position_size": risk.get("position_size", 0),
+            "exposure": risk.get("exposure", 0),
 
             # Session
-            "session": session.get("session"),
+            "session": session.get("session", "UNKNOWN"),
 
             # Multi Timeframe
-            "mtf_bias": mtf.get("bias"),
+            "mtf_bias": mtf.get("bias", "NEUTRAL"),
 
             # Regime
-            "market_regime": regime.get("regime"),
-            "regime_score": regime.get("score"),
+            "market_regime": regime.get("regime", "UNKNOWN"),
+            "regime_score": regime.get("score", 0),
 
-            # Orderflow
-            "orderflow_signal": orderflow.get("signal"),
-            "orderflow_delta": orderflow.get("delta"),
+            # Order Flow
+            "orderflow_signal": orderflow.get("signal", "NONE"),
+            "orderflow_delta": orderflow.get("delta", 0),
 
             # Decision
-            "decision": decision.get("decision"),
-            "decision_score": decision.get("score"),
+            "decision": decision.get("decision", "WAIT"),
+            "decision_score": decision.get("score", 0),
 
             # Execution
-            "execution_signal": execution.get("signal"),
-            "execution_score": execution.get("score"),
-            "execution_reasons": execution.get("reasons"),
+            "execution_signal": execution.get("signal", "NO ENTRY"),
+            "execution_score": execution.get("score", 0),
+            "execution_reasons": execution.get("reasons", []),
+
+            # Execution Confirmation
+            "execution_confirmation": execution_confirmation.get("signal", "NO ENTRY"),
+            "execution_confirmation_score": execution_confirmation.get("score", 0),
+            "execution_confirmed": execution_confirmation.get("confirmed", False),
+
+            # Trade Validator
+            "validator_signal": validator.get("signal", "INVALID"),
+            "validator_score": validator.get("score", 0),
+            "validator_approved": validator.get("approved", False),
+
+            # Master Decision
+            "final_decision": master.get("decision", "WAIT"),
+            "trade_approved": master.get("approved", False),
+            "master_score": master.get("score", 0),
 
             # Volume Profile
             "poc": volume_profile.get("poc"),
