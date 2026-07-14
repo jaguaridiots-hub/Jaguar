@@ -1,58 +1,752 @@
-from core.engine_result import EngineResult
-from data.market_data import candles
+"""
+Jaguar Quant X Enterprise
+Order Block Engine v2.0
 
+Structural order-block intelligence.
+
+Detects:
+- Bullish order-block candidates
+- Bearish order-block candidates
+- Displacement confirmation
+- Fresh zones
+- Mitigated zones
+- Rejection confirmation
+- Invalidated zones
+
+Order-block lifecycle:
+CANDIDATE
+FRESH
+MITIGATED
+CONFIRMED
+INVALIDATED
+NEUTRAL
+
+The engine only emits a directional signal when price interacts
+with a structurally valid order-block zone and confirms rejection.
+"""
+
+from core.engine_result import EngineResult
+from engine.structure_utils import (
+    get_candles,
+    valid_candles,
+)
+
+LOOKBACK = 80
+ATR_PERIOD = 14
+
+MIN_DISPLACEMENT_ATR = 0.80
+MIN_BODY_ATR = 0.50
+
+
+# ==========================================================
+# SAFE NUMBER
+# ==========================================================
+
+def _number(value, default=0.0):
+
+    try:
+        return float(value or default)
+
+    except (TypeError, ValueError):
+        return float(default)
+
+
+# ==========================================================
+# TRUE RANGE
+# ==========================================================
+
+def _true_range(current, previous):
+
+    high = _number(
+        current.get("high")
+    )
+
+    low = _number(
+        current.get("low")
+    )
+
+    previous_close = _number(
+        previous.get("close")
+    )
+
+    return max(
+        high - low,
+        abs(
+            high - previous_close
+        ),
+        abs(
+            low - previous_close
+        ),
+    )
+
+
+# ==========================================================
+# ATR
+# ==========================================================
+
+def _atr(window, period=ATR_PERIOD):
+
+    if len(window) < 2:
+
+        return 0.0
+
+    ranges = []
+
+    start = max(
+        1,
+        len(window) - period,
+    )
+
+    for index in range(
+        start,
+        len(window),
+    ):
+
+        ranges.append(
+            _true_range(
+                window[index],
+                window[index - 1],
+            )
+        )
+
+    if not ranges:
+
+        return 0.0
+
+    return sum(ranges) / len(ranges)
+
+
+# ==========================================================
+# CANDLE HELPERS
+# ==========================================================
+
+def _body(candle):
+
+    return abs(
+        _number(
+            candle.get("close")
+        )
+        - _number(
+            candle.get("open")
+        )
+    )
+
+
+def _bullish(candle):
+
+    return (
+        _number(
+            candle.get("close")
+        )
+        >
+        _number(
+            candle.get("open")
+        )
+    )
+
+
+def _bearish(candle):
+
+    return (
+        _number(
+            candle.get("close")
+        )
+        <
+        _number(
+            candle.get("open")
+        )
+    )
+
+
+# ==========================================================
+# ZONE OVERLAP
+# ==========================================================
+
+def _intersects(
+    candle,
+    zone_low,
+    zone_high,
+):
+
+    candle_high = _number(
+        candle.get("high")
+    )
+
+    candle_low = _number(
+        candle.get("low")
+    )
+
+    return (
+        candle_high >= zone_low
+        and candle_low <= zone_high
+    )
+
+
+# ==========================================================
+# BULLISH ORDER BLOCK CANDIDATE
+# ==========================================================
+
+def _bullish_candidate(
+    window,
+    index,
+    atr,
+):
+
+    candle = window[index]
+
+    displacement = window[index + 1]
+
+    if not _bearish(candle):
+
+        return None
+
+    displacement_body = _body(
+        displacement
+    )
+
+    if displacement_body < (
+        atr * MIN_BODY_ATR
+    ):
+
+        return None
+
+    if not _bullish(displacement):
+
+        return None
+
+    candle_high = _number(
+        candle.get("high")
+    )
+
+    candle_low = _number(
+        candle.get("low")
+    )
+
+    displacement_close = _number(
+        displacement.get("close")
+    )
+
+    displacement_distance = (
+        displacement_close
+        - candle_high
+    )
+
+    if displacement_distance < (
+        atr * MIN_DISPLACEMENT_ATR
+    ):
+
+        return None
+
+    return {
+        "direction": "BULLISH",
+        "index": index,
+        "zone_low": candle_low,
+        "zone_high": candle_high,
+        "origin_open": _number(
+            candle.get("open")
+        ),
+        "origin_close": _number(
+            candle.get("close")
+        ),
+        "displacement": (
+            displacement_distance
+        ),
+    }
+
+
+# ==========================================================
+# BEARISH ORDER BLOCK CANDIDATE
+# ==========================================================
+
+def _bearish_candidate(
+    window,
+    index,
+    atr,
+):
+
+    candle = window[index]
+
+    displacement = window[index + 1]
+
+    if not _bullish(candle):
+
+        return None
+
+    displacement_body = _body(
+        displacement
+    )
+
+    if displacement_body < (
+        atr * MIN_BODY_ATR
+    ):
+
+        return None
+
+    if not _bearish(displacement):
+
+        return None
+
+    candle_high = _number(
+        candle.get("high")
+    )
+
+    candle_low = _number(
+        candle.get("low")
+    )
+
+    displacement_close = _number(
+        displacement.get("close")
+    )
+
+    displacement_distance = (
+        candle_low
+        - displacement_close
+    )
+
+    if displacement_distance < (
+        atr * MIN_DISPLACEMENT_ATR
+    ):
+
+        return None
+
+    return {
+        "direction": "BEARISH",
+        "index": index,
+        "zone_low": candle_low,
+        "zone_high": candle_high,
+        "origin_open": _number(
+            candle.get("open")
+        ),
+        "origin_close": _number(
+            candle.get("close")
+        ),
+        "displacement": (
+            displacement_distance
+        ),
+    }
+
+
+# ==========================================================
+# ZONE LIFECYCLE
+# ==========================================================
+
+def _evaluate_zone(
+    window,
+    zone,
+):
+
+    zone_low = zone["zone_low"]
+
+    zone_high = zone["zone_high"]
+
+    direction = zone["direction"]
+
+    start = zone["index"] + 2
+
+    historical = window[
+        start:-1
+    ]
+
+    last = window[-1]
+
+    current_index = len(window) - 1
+
+    mitigated = False
+
+    invalidated = False
+
+    interaction_count = 0
+
+    interaction_index = None
+
+    confirmation_index = None
+
+    for historical_offset, candle in enumerate(
+        historical,
+        start=start,
+    ):
+
+        close = _number(
+            candle.get("close")
+        )
+
+        if direction == "BULLISH":
+
+            if close < zone_low:
+
+                invalidated = True
+                break
+
+        else:
+
+            if close > zone_high:
+
+                invalidated = True
+                break
+
+        if _intersects(
+            candle,
+            zone_low,
+            zone_high,
+        ):
+
+            mitigated = True
+
+            interaction_count += 1
+
+            interaction_index = historical_offset
+
+    if invalidated:
+
+        return {
+            "lifecycle": "INVALIDATED",
+            "signal": "NEUTRAL",
+            "score": 0,
+            "confidence": 0.0,
+            "interacting": False,
+            "mitigated": mitigated,
+            "interaction_count":
+                interaction_count,
+        }
+
+    last_close = _number(
+        last.get("close")
+    )
+
+    last_open = _number(
+        last.get("open")
+    )
+
+    interacting = _intersects(
+        last,
+        zone_low,
+        zone_high,
+    )
+
+    if interacting:
+
+        interaction_index = current_index
+
+    if direction == "BULLISH":
+
+        if last_close < zone_low:
+
+            return {
+                "lifecycle": "INVALIDATED",
+                "signal": "NEUTRAL",
+                "score": 0,
+                "confidence": 0.0,
+                "interacting": interacting,
+                "mitigated": mitigated,
+                "interaction_count":
+                    interaction_count,
+            }
+
+        if (
+            (interacting or mitigated)
+            and last_close > zone_high
+            and last_close > last_open
+        ):
+
+            return {
+                "lifecycle": "CONFIRMED",
+                "signal": "BULLISH",
+                "score": 5,
+                "confidence": 0.90,
+                "interacting": True,
+                "mitigated": True,
+                "interaction_count":
+                    interaction_count + 1,
+                "confirmation_index":
+                    current_index,
+                "interaction_index":
+                    interaction_index,
+            }
+
+    else:
+
+        if last_close > zone_high:
+
+            return {
+                "lifecycle": "INVALIDATED",
+                "signal": "NEUTRAL",
+                "score": 0,
+                "confidence": 0.0,
+                "interacting": interacting,
+                "mitigated": mitigated,
+                "interaction_count":
+                    interaction_count,
+            }
+
+        if (
+            (interacting or mitigated)
+            and last_close < zone_low
+            and last_close < last_open
+        ):
+
+            return {
+                "lifecycle": "CONFIRMED",
+                "signal": "BEARISH",
+                "score": -5,
+                "confidence": 0.90,
+                "interacting": True,
+                "mitigated": True,
+                "interaction_count":
+                    interaction_count + 1,
+                "confirmation_index":
+                    current_index,
+                "interaction_index":
+                    interaction_index,
+            }
+
+    if interacting:
+
+        return {
+            "lifecycle": "MITIGATED",
+            "signal": "NEUTRAL",
+            "score": 0,
+            "confidence": 0.55,
+            "interacting": True,
+            "mitigated": True,
+            "interaction_count":
+                interaction_count + 1,
+        }
+
+    return {
+        "lifecycle": (
+            "MITIGATED"
+            if mitigated
+            else "FRESH"
+        ),
+        "signal": "NEUTRAL",
+        "score": 0,
+        "confidence": (
+            0.35
+            if mitigated
+            else 0.25
+        ),
+        "interacting": False,
+        "mitigated": mitigated,
+        "interaction_count":
+            interaction_count,
+    }
+
+
+# ==========================================================
+# ENGINE
+# ==========================================================
 
 def analyze(state):
 
-    if len(candles) < 20:
+    candles = valid_candles(
+        get_candles(state)
+    )
+
+    if len(candles) < 25:
+
         return EngineResult(
             name="Order Block",
             signal="NEUTRAL",
             score=0,
-            confidence=0,
+            confidence=0.0,
             weight=1.20,
-            reasons=["Not enough candles"]
+            reasons=[
+                "Not enough candles for order block analysis"
+            ],
+            metadata={
+                "lifecycle": "NEUTRAL",
+            },
         ).to_dict()
 
-    last = candles[-1]
+    window = candles[
+        -min(
+            LOOKBACK,
+            len(candles),
+        ):
+    ]
 
-    signal = "NEUTRAL"
-    score = 0
+    # ======================================================
+    # CURRENT ANALYTICAL INDEX
+    # ======================================================
+    #
+    # Canonical index of the latest candle in the local
+    # analytical window.
+    #
+    # This value belongs to analyze() scope. _evaluate_zone()
+    # maintains its own local current_index for lifecycle
+    # evaluation.
+    # ======================================================
+
+    current_index = len(window) - 1
+
+    atr = _atr(
+        window
+    )
+
+    if atr <= 0:
+
+        return EngineResult(
+            name="Order Block",
+            signal="NEUTRAL",
+            score=0,
+            confidence=0.0,
+            weight=1.20,
+            reasons=[
+                "ATR unavailable for order block analysis"
+            ],
+            metadata={
+                "lifecycle": "NEUTRAL",
+            },
+        ).to_dict()
+
+    candidates = []
+
+    for index in range(
+        0,
+        len(window) - 1,
+    ):
+
+        bullish = _bullish_candidate(
+            window,
+            index,
+            atr,
+        )
+
+        if bullish is not None:
+
+            candidates.append(
+                bullish
+            )
+
+        bearish = _bearish_candidate(
+            window,
+            index,
+            atr,
+        )
+
+        if bearish is not None:
+
+            candidates.append(
+                bearish
+            )
+
+    if not candidates:
+
+        return EngineResult(
+            name="Order Block",
+            signal="NEUTRAL",
+            score=0,
+            confidence=0.0,
+            weight=1.20,
+            reasons=[
+                "No displacement-confirmed order block"
+            ],
+            metadata={
+                "lifecycle": "NEUTRAL",
+                "atr": atr,
+                "candidate_count": 0,
+            },
+        ).to_dict()
+
+    # ======================================================
+    # MOST RECENT VALID ZONE
+    # ======================================================
+
+    selected_zone = None
+
+    selected_evaluation = None
+
+    for zone in reversed(
+        candidates
+    ):
+
+        evaluation = _evaluate_zone(
+            window,
+            zone,
+        )
+
+        if evaluation[
+            "lifecycle"
+        ] != "INVALIDATED":
+
+            selected_zone = zone
+
+            selected_evaluation = evaluation
+
+            break
+
+    if selected_zone is None:
+
+        return EngineResult(
+            name="Order Block",
+            signal="NEUTRAL",
+            score=0,
+            confidence=0.0,
+            weight=1.20,
+            reasons=[
+                "All detected order blocks invalidated"
+            ],
+            metadata={
+                "lifecycle": "INVALIDATED",
+                "atr": atr,
+                "candidate_count":
+                    len(candidates),
+            },
+        ).to_dict()
+
+    lifecycle = selected_evaluation[
+        "lifecycle"
+    ]
+
+    signal = selected_evaluation[
+        "signal"
+    ]
+
+    score = selected_evaluation[
+        "score"
+    ]
+
+    confidence = selected_evaluation[
+        "confidence"
+    ]
+
+    direction = selected_zone[
+        "direction"
+    ]
+
     reasons = []
 
-    for i in range(len(candles) - 6, len(candles) - 1):
+    if lifecycle == "CONFIRMED":
 
-        candle = candles[i]
+        if direction == "BULLISH":
 
-        # Bullish Order Block
-        if (
-            candle["close"] < candle["open"]
-            and candles[i + 1]["close"] > candle["high"]
-        ):
+            reasons.append(
+                "Bullish order block rejection confirmed"
+            )
 
-            if last["close"] >= candle["low"]:
+        else:
 
-                signal = "BULLISH"
-                score = 5
-                reasons.append("Bullish Order Block")
+            reasons.append(
+                "Bearish order block rejection confirmed"
+            )
 
-                break
+    elif lifecycle == "MITIGATED":
 
-        # Bearish Order Block
-        if (
-            candle["close"] > candle["open"]
-            and candles[i + 1]["close"] < candle["low"]
-        ):
+        reasons.append(
+            f"{direction.title()} order block mitigated"
+        )
 
-            if last["close"] <= candle["high"]:
+    elif lifecycle == "FRESH":
 
-                signal = "BEARISH"
-                score = -5
-                reasons.append("Bearish Order Block")
+        reasons.append(
+            f"Fresh {direction.lower()} order block detected"
+        )
 
-                break
+    else:
 
-    confidence = min(1.0, abs(score) / 6)
+        reasons.append(
+            "Order block awaiting confirmation"
+        )
 
     return EngineResult(
         name="Order Block",
@@ -62,6 +756,64 @@ def analyze(state):
         weight=1.20,
         reasons=reasons,
         metadata={
-            "last_close": last["close"]
-        }
+            "lifecycle": lifecycle,
+            "direction": direction,
+            "zone_low":
+                selected_zone["zone_low"],
+            "zone_high":
+                selected_zone["zone_high"],
+            "origin_index":
+                selected_zone["index"],
+            "confirmation_index":
+                selected_evaluation.get(
+                    "confirmation_index"
+                ),
+            "interaction_index":
+                selected_evaluation.get(
+                    "interaction_index"
+                ),
+            "trigger_age":
+                (
+                    current_index
+                    - selected_evaluation.get(
+                        "confirmation_index"
+                    )
+                    if selected_evaluation.get(
+                        "confirmation_index"
+                    ) is not None
+                    else None
+                ),
+
+            "displacement":
+                selected_zone["displacement"],
+            "interacting":
+                selected_evaluation[
+                    "interacting"
+                ],
+            "mitigated":
+                selected_evaluation[
+                    "mitigated"
+                ],
+            "interaction_count":
+                selected_evaluation[
+                    "interaction_count"
+                ],
+            "atr": atr,
+            "candidate_count":
+                len(candidates),
+            "last_close": _number(
+                window[-1].get("close")
+            ),
+        },
     ).to_dict()
+
+
+if __name__ == "__main__":
+
+    from core.market_state import MarketState
+
+    state = MarketState()
+
+    print(
+        analyze(state)
+    )
