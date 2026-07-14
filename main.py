@@ -646,3 +646,16 @@ for reason in idm_reasons:
         "•",
         reason,
     )
+feed = LiveFeed(
+    state,
+    plan,
+    trade_status,
+    "btcusdt",
+)
+feed.start()
+try:
+    while True:
+        time.sleep(1)
+except KeyboardInterrupt:
+    print('\nStopping Jaguar...')
+    feed.stop()
