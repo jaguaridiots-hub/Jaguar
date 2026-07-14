@@ -2,7 +2,7 @@ from core.kernel import JaguarKernel
 from core.logger import JaguarLogger
 from core.registry import ModuleRegistry
 from core.event_bus import EventBus
-from data.market_data import get_klines
+
 from engine.trade_manager import TradeManager
 from engine.position_manager import PositionManager
 from engine.trade_journal import TradeJournal
@@ -53,19 +53,19 @@ print("Jaguar Quant X Ready To Trade")
 print("=" * 50)
 
 # ===================================================
-# LOAD LIVE MARKET DATA
+# CANONICAL STARTUP MARKET HYDRATION
 # ===================================================
-
-candles = get_klines()
-
-latest = candles[-1]
 
 state = kernel.get_state()
 
-state.symbol = "BTCUSDT"
-state.timeframe = "15m"
-state.price = latest["close"]
-state.volume = latest["volume"]
+state = update_state(
+    state,
+    SYMBOL,
+)
+
+candles = state.market["candles"]
+
+latest = candles[-1]
 
 print("\n========= LIVE MARKET =========")
 print("Symbol     :", state.symbol)
@@ -229,10 +229,10 @@ if plan:
     position.update(state.price)
     while position.position != "NONE":
 
-        candles = get_klines()
-        latest = candles[-1]
-
-        state = update_state(state, "BTCUSDT")
+        state = update_state(
+            state,
+            SYMBOL,
+        )
 
         print("\n===== LIVE MARKET =====")
         print("Symbol :", state.symbol)
