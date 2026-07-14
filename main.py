@@ -12,6 +12,9 @@ import time
 from engine.state_manager import save, load, clear
 from market.live_loader import update_state
 
+SYMBOL = "BTCUSDT"
+TIMEFRAME = "15m"
+
 print("=" * 50)
 print("              JAGUAR QUANT X v2.0")
 print("=" * 50)
