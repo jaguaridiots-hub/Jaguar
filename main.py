@@ -109,25 +109,160 @@ from engine.institutional_master import analyze as institutional_master
 report = institutional_master(state)
 print(report)
 
-decision = report["decision"]
+context = report.get(
+    "context",
+    report.get(
+        "decision",
+        {},
+    ),
+)
 
-state.ai_score = decision["score"]
-state.probability = decision["probability"]
-state.confidence = decision["confidence"]
-state.decision = decision["decision"]
+enterprise = report.get(
+    "enterprise",
+    {},
+)
 
-plan = report["plan"]
-risk = report["risk"]
+plan = report.get(
+    "plan",
+    {},
+)
 
-print("\n========== MASTER DECISION ==========")
-print("Decision    :", state.decision)
-print("Confidence  :", state.confidence)
-print(f"Probability : {state.probability}%")
-print("AI Score    :", state.ai_score)
+context_direction = context.get(
+    "direction",
+    "NEUTRAL",
+)
 
-reasons = decision["reasons"]
+context_decision = context.get(
+    "decision",
+    "WAIT",
+)
 
-plan = report["plan"]
+context_grade = context.get(
+    "confidence",
+    "D",
+)
+
+context_probability = context.get(
+    "probability",
+    0,
+)
+
+context_score = context.get(
+    "score",
+    0,
+)
+
+print(
+    "\n========== MARKET CONTEXT =========="
+)
+
+print(
+    "Bias          :",
+    context_direction,
+)
+
+print(
+    "Setup Status  :",
+    context_decision,
+)
+
+print(
+    "Context Grade :",
+    context_grade,
+)
+
+print(
+    "Probability   :",
+    f"{context_probability}%",
+)
+
+print(
+    "Context Score :",
+    context_score,
+)
+
+execution = enterprise.get(
+    "execution",
+    {},
+)
+
+enterprise_approved = enterprise.get(
+    "approved",
+    False,
+)
+
+print(
+    "\n========== ENTERPRISE DECISION =========="
+)
+
+print(
+    "Score         :",
+    enterprise.get(
+        "score",
+        0,
+    ),
+)
+
+print(
+    "Grade         :",
+    enterprise.get(
+        "grade",
+        "F",
+    ),
+)
+
+print(
+    "Confidence    :",
+    enterprise.get(
+        "confidence",
+        0,
+    ),
+)
+
+print(
+    "IDM Decision  :",
+    enterprise.get(
+        "decision",
+        "WAIT",
+    ),
+)
+
+print(
+    "Priority      :",
+    enterprise.get(
+        "priority",
+        "LOW",
+    ),
+)
+
+print(
+    "Approved      :",
+    enterprise_approved,
+)
+
+print(
+    "Execution     :",
+    execution.get(
+        "status",
+        "WAIT",
+    ),
+)
+
+print(
+    "Ready         :",
+    execution.get(
+        "ready",
+        False,
+    ),
+)
+
+print(
+    "Reason        :",
+    execution.get(
+        "reason",
+        "",
+    ),
+)
 
 #print("======== AI DECISION ========")
 #print(f"AI Score     : {state.ai_score}")
