@@ -1,10 +1,14 @@
+import time
+
 from core.kernel import JaguarKernel
 from core.logger import JaguarLogger
 from core.registry import ModuleRegistry
 from core.event_bus import EventBus
+
 from indicators.indicator_engine import (
     update_market_state,
 )
+
 from engine.institutional_master import (
     analyze as institutional_master,
 )
@@ -14,29 +18,56 @@ from engine.position_manager import PositionManager
 from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
-import time
-from engine.state_manager import save, load, clear
+
+from engine.state_manager import (
+    save,
+    load,
+    clear,
+)
+
 from market.live_loader import update_state
+
 
 SYMBOL = "BTCUSDT"
 TIMEFRAME = "15m"
+
+
+# ==================================================
+# HEADER
+# ==================================================
 
 print("=" * 50)
 print("              JAGUAR QUANT X v2.0")
 print("=" * 50)
 
-# Logger
-log = JaguarLogger()
-log.info("Starting Jaguar Quant X...")
 
-# Kernel
+# ==================================================
+# LOGGER
+# ==================================================
+
+log = JaguarLogger()
+
+log.info(
+    "Starting Jaguar Quant X..."
+)
+
+
+# ==================================================
+# KERNEL
+# ==================================================
+
 kernel = JaguarKernel()
+
 kernel.initialize(
     SYMBOL,
     TIMEFRAME,
 )
 
-# Registry
+
+# ==================================================
+# MODULE REGISTRY
+# ==================================================
+
 registry = ModuleRegistry()
 
 modules = [
@@ -52,21 +83,36 @@ modules = [
 ]
 
 for module in modules:
+
     registry.register(module)
 
 registry.show()
 
-# Event Bus
+
+# ==================================================
+# EVENT BUS
+# ==================================================
+
 bus = EventBus()
-bus.publish("startup", "All Systems Online")
+
+bus.publish(
+    "startup",
+    "All Systems Online",
+)
+
 
 print("\n" + "=" * 50)
-print("Jaguar Quant X Ready To Trade")
+
+print(
+    "Jaguar Quant X Ready To Trade"
+)
+
 print("=" * 50)
 
-# ===================================================
+
+# ==================================================
 # CANONICAL STARTUP MARKET HYDRATION
-# ===================================================
+# ==================================================
 
 state = kernel.get_state()
 
@@ -79,39 +125,101 @@ candles = state.market["candles"]
 
 latest = candles[-1]
 
-print("\n========= LIVE MARKET =========")
-print("Symbol     :", state.symbol)
-print("Timeframe  :", state.timeframe)
-print("Price      :", state.price)
-print("High       :", latest["high"])
-print("Low        :", latest["low"])
-print("Volume     :", state.volume)
 
-print("\nMarket State")
-print(state.summary())
+# ==================================================
+# LIVE MARKET
+# ==================================================
+
+print(
+    "\n========= LIVE MARKET ========="
+)
+
+print(
+    "Symbol     :",
+    state.symbol,
+)
+
+print(
+    "Timeframe  :",
+    state.timeframe,
+)
+
+print(
+    "Price      :",
+    state.price,
+)
+
+print(
+    "High       :",
+    latest["high"],
+)
+
+print(
+    "Low        :",
+    latest["low"],
+)
+
+print(
+    "Volume     :",
+    state.volume,
+)
+
+
+# ==================================================
+# INDICATORS
+# ==================================================
 
 state = update_market_state(
     state,
 )
 
-print("\nIndicators")
-print("-------------------------")
-print("EMA20 :", state.ema20)
-print("EMA50 :", state.ema50)
-print("EMA100:", state.ema100)
-print("EMA200:", state.ema200)
-print("RSI   :", state.rsi)
-print("ATR   :", state.atr)
-print("Volume:", state.volume)
+print(
+    "\n========= INDICATORS ========="
+)
 
-#mtf = report()
-#print("\n====== MULTI TIMEFRAME ======")
-#for tf, trend in mtf.items():
-#    print(f"{tf:4} : {trend}")
+print(
+    "EMA20  :",
+    state.ema20,
+)
 
+print(
+    "EMA50  :",
+    state.ema50,
+)
 
-report = institutional_master(state)
-print(report)
+print(
+    "EMA100 :",
+    state.ema100,
+)
+
+print(
+    "EMA200 :",
+    state.ema200,
+)
+
+print(
+    "RSI    :",
+    state.rsi,
+)
+
+print(
+    "ATR    :",
+    state.atr,
+)
+
+print(
+    "Volume :",
+    state.volume,
+)
+
+# ==================================================
+# JAGUAR MASTER ANALYSIS
+# ==================================================
+
+report = institutional_master(
+    state
+)
+
 
 context = report.get(
     "context",
@@ -130,6 +238,11 @@ plan = report.get(
     "plan",
     {},
 )
+
+
+# ==================================================
+# MARKET CONTEXT
+# ==================================================
 
 context_direction = context.get(
     "direction",
@@ -155,6 +268,7 @@ context_score = context.get(
     "score",
     0,
 )
+
 
 print(
     "\n========== MARKET CONTEXT =========="
@@ -185,15 +299,22 @@ print(
     context_score,
 )
 
+# ==================================================
+# ENTERPRISE DECISION
+# ==================================================
+
 execution = enterprise.get(
     "execution",
     {},
 )
 
+
+
 enterprise_approved = enterprise.get(
     "approved",
     False,
 )
+
 
 print(
     "\n========== ENTERPRISE DECISION =========="
@@ -268,11 +389,9 @@ print(
     ),
 )
 
-#print("======== AI DECISION ========")
-#print(f"AI Score     : {state.ai_score}")
-#print(f"Confidence   : {state.confidence}")
-#print(f"Probability  : {state.probability}%")
-#print(f"Decision     : {state.decision}")
+# ==================================================
+# SUPPORT / RESISTANCE
+# ==================================================
 
 engines = report.get(
     "engines",
@@ -573,6 +692,16 @@ else:
     print(
         "\nNo Position"
     )
+
+
+# ==================================================
+# TRADE MANAGER REPORT
+# ==================================================
+
+print(
+    "\n======== TRADE MANAGER ========"
+)
+
 print(
     "Action      :",
     trade_status.get(
@@ -580,6 +709,7 @@ print(
         "NO TRADE",
     ),
 )
+
 print(
     "Stop Loss   :",
     trade_status.get(
@@ -587,6 +717,7 @@ print(
         0,
     ),
 )
+
 print(
     "Break Even  :",
     trade_status.get(
@@ -594,6 +725,7 @@ print(
         False,
     ),
 )
+
 print(
     "Trailing SL :",
     trade_status.get(
@@ -601,7 +733,19 @@ print(
         False,
     ),
 )
+
+
+# ==================================================
+# PERFORMANCE
+# ==================================================
+
 stats = performance.summary()
+
+
+print(
+    "\n========== PERFORMANCE =========="
+)
+
 print(
     "Total Trades :",
     stats.get(
@@ -609,6 +753,7 @@ print(
         0,
     ),
 )
+
 print(
     "Wins         :",
     stats.get(
@@ -616,6 +761,7 @@ print(
         0,
     ),
 )
+
 print(
     "Losses       :",
     stats.get(
@@ -623,43 +769,92 @@ print(
         0,
     ),
 )
+
 print(
     "Win Rate     :",
     f'{stats.get("WinRate", 0)}%',
 )
+
+print(
+    "=" * 34
+)
+
+
+# ==================================================
+# LEGACY ANALYSIS REASONS
+# ==================================================
+
+print(
+    "\nMarket Bias Reasons"
+)
+
 reasons = context.get(
     "reasons",
     [],
 )
+
 unique_reasons = list(
     dict.fromkeys(reasons)
 )
+
 for reason in unique_reasons:
 
     print(
         "✓",
         reason,
     )
+
+
+# ==================================================
+# ENTERPRISE REASONS
+# ==================================================
+
+print(
+    "\nEnterprise Reasons"
+)
+
 idm_reasons = state.idm.get(
     "reasons",
     [],
 )
+
 for reason in idm_reasons:
 
     print(
         "•",
         reason,
     )
+
+
+# ==================================================
+# LIVE FEED
+# ==================================================
+
+print(
+    "\n========== LIVE BINANCE FEED =========="
+)
+
+
 feed = LiveFeed(
     state,
     plan,
     trade_status,
     "btcusdt",
 )
+
 feed.start()
+
+
 try:
+
     while True:
+
         time.sleep(1)
+
+
 except KeyboardInterrupt:
-    print('\nStopping Jaguar...')
+
+    print(
+        "\nStopping Jaguar..."
+    )
     feed.stop()
