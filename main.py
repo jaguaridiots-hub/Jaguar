@@ -569,3 +569,80 @@ else:
     print(
         "\nNo Position"
     )
+print(
+    "Action      :",
+    trade_status.get(
+        "Action",
+        "NO TRADE",
+    ),
+)
+print(
+    "Stop Loss   :",
+    trade_status.get(
+        "StopLoss",
+        0,
+    ),
+)
+print(
+    "Break Even  :",
+    trade_status.get(
+        "BreakEven",
+        False,
+    ),
+)
+print(
+    "Trailing SL :",
+    trade_status.get(
+        "Trailing",
+        False,
+    ),
+)
+stats = performance.summary()
+print(
+    "Total Trades :",
+    stats.get(
+        "Trades",
+        0,
+    ),
+)
+print(
+    "Wins         :",
+    stats.get(
+        "Wins",
+        0,
+    ),
+)
+print(
+    "Losses       :",
+    stats.get(
+        "Losses",
+        0,
+    ),
+)
+print(
+    "Win Rate     :",
+    f'{stats.get("WinRate", 0)}%',
+)
+reasons = context.get(
+    "reasons",
+    [],
+)
+unique_reasons = list(
+    dict.fromkeys(reasons)
+)
+for reason in unique_reasons:
+
+    print(
+        "✓",
+        reason,
+    )
+idm_reasons = state.idm.get(
+    "reasons",
+    [],
+)
+for reason in idm_reasons:
+
+    print(
+        "•",
+        reason,
+    )
