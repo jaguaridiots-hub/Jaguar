@@ -25,7 +25,10 @@ log.info("Starting Jaguar Quant X...")
 
 # Kernel
 kernel = JaguarKernel()
-kernel.initialize("BTCUSDT", "15m")
+kernel.initialize(
+    SYMBOL,
+    TIMEFRAME,
+)
 
 # Registry
 registry = ModuleRegistry()
