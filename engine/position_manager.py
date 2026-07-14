@@ -27,6 +27,9 @@ class PositionManager:
         elif self.position == "SHORT":
             self.pnl = self.entry - current_price
 
+
+    def update_stop_loss(self, stop_loss):
+        self.stop_loss = stop_loss
     def status(self):
         return {
             "Position": self.position,

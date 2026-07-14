@@ -432,7 +432,9 @@ if plan:
 
         trade_status = manager.manage(state, plan)
 
-        position.stop_loss = trade_status["StopLoss"]
+        position.update_stop_loss(
+            trade_status["StopLoss"],
+        )
 
         position.update(state.price)
 
