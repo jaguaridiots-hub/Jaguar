@@ -270,14 +270,57 @@ print(
 #print(f"Probability  : {state.probability}%")
 #print(f"Decision     : {state.decision}")
 
-gann = report["engines"]["Gann"]
+engines = report.get(
+    "engines",
+    {},
+)
 
-support = gann["metadata"]["support"]
-resistance = gann["metadata"]["resistance"]
+gann = engines.get(
+    "Gann",
+    {},
+)
+
+gann_metadata = gann.get(
+    "metadata",
+    {},
+)
+
+support = gann_metadata.get(
+    "support",
+)
+
+resistance = gann_metadata.get(
+    "resistance",
+)
 
 print("\n====== SUPPORT / RESISTANCE ======")
-print("Support   :", round(support, 2))
-print("Resistance:", round(resistance, 2))
+support_display = (
+    round(support, 2)
+    if isinstance(
+        support,
+        (int, float),
+    )
+    else "N/A"
+)
+
+resistance_display = (
+    round(resistance, 2)
+    if isinstance(
+        resistance,
+        (int, float),
+    )
+    else "N/A"
+)
+
+print(
+    "Support   :",
+    support_display,
+)
+
+print(
+    "Resistance:",
+    resistance_display,
+)
 
 performance = Performance()
 
