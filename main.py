@@ -2,6 +2,12 @@ from core.kernel import JaguarKernel
 from core.logger import JaguarLogger
 from core.registry import ModuleRegistry
 from core.event_bus import EventBus
+from indicators.indicator_engine import (
+    update_market_state,
+)
+from engine.institutional_master import (
+    analyze as institutional_master,
+)
 
 from engine.trade_manager import TradeManager
 from engine.position_manager import PositionManager
@@ -83,7 +89,6 @@ print("Volume     :", state.volume)
 
 print("\nMarket State")
 print(state.summary())
-from indicators.indicator_engine import update_market_state
 
 state = update_market_state(
     state,
@@ -104,7 +109,6 @@ print("Volume:", state.volume)
 #for tf, trend in mtf.items():
 #    print(f"{tf:4} : {trend}")
 
-from engine.institutional_master import analyze as institutional_master
 
 report = institutional_master(state)
 print(report)
