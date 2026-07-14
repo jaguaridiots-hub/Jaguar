@@ -85,7 +85,9 @@ print("\nMarket State")
 print(state.summary())
 from indicators.indicator_engine import update_market_state
 
-volume_status = update_market_state(state)
+state = update_market_state(
+    state,
+)
 
 print("\nIndicators")
 print("-------------------------")
@@ -95,7 +97,7 @@ print("EMA100:", state.ema100)
 print("EMA200:", state.ema200)
 print("RSI   :", state.rsi)
 print("ATR   :", state.atr)
-print("Volume:", volume_status)
+print("Volume:", state.volume)
 
 #mtf = report()
 #print("\n====== MULTI TIMEFRAME ======")
