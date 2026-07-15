@@ -1,111 +1,132 @@
-from analysis.support_resistance_engine import support_resistance
+"""
+Jaguar Quant X Enterprise
+SMC Aggregation Engine
+
+Single-source-of-truth aggregator for Smart Money Concepts.
+
+This engine does NOT independently detect BOS, CHOCH, liquidity,
+order blocks, or fair value gaps.
+
+Dedicated structural engines are the analytical authorities.
+"""
+
+from engine.bos_engine import analyze as bos_analyze
+from engine.choch_engine import analyze as choch_analyze
+from engine.liquidity_engine import analyze as liquidity_analyze
+from engine.order_block_engine import analyze as ob_analyze
+from engine.fvg_engine import analyze as fvg_analyze
+
+
+def _signal(result, default="NEUTRAL"):
+    if isinstance(result, dict):
+        return str(result.get("signal", default)).upper()
+
+    if isinstance(result, str):
+        return result.upper()
+
+    return default
+
+
+def _score(result):
+    if not isinstance(result, dict):
+        return 0
+
+    try:
+        return int(result.get("score", 0) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def _reasons(result):
+    if not isinstance(result, dict):
+        return []
+
+    reasons = result.get("reasons", [])
+
+    if not isinstance(reasons, list):
+        return []
+
+    return reasons
 
 
 def analyze(state):
+    """
+    Aggregate canonical SMC engine results.
+
+    Important:
+    This engine is descriptive only.
+
+    The dedicated engines remain the scoring authorities in
+    institutional confluence and enterprise scoring.
+    """
+
+    bos = bos_analyze(state)
+    choch = choch_analyze(state)
+    liquidity = liquidity_analyze(state)
+    order_block = ob_analyze(state)
+    fvg = fvg_analyze(state)
+
     reasons = []
-    score = 0
 
-    price = state.price
-    ema20 = state.ema20
-    ema50 = state.ema50
+    for result in (
+        bos,
+        choch,
+        liquidity,
+        order_block,
+        fvg,
+    ):
+        reasons.extend(_reasons(result))
 
-    levels = support_resistance()
+    reasons = list(dict.fromkeys(reasons))
 
-    support = levels["support"]
-    resistance = levels["resistance"]
+    raw_score = sum(
+        _score(result)
+        for result in (
+            bos,
+            choch,
+            liquidity,
+            order_block,
+            fvg,
+        )
+    )
 
-    # -----------------------------
-    # Break of Structure (BOS)
-    # -----------------------------
-    if price > ema20 > ema50:
-        bos = "BULLISH"
-        score += 2
-        reasons.append("Bullish BOS")
-
-    elif price < ema20 < ema50:
-        bos = "BEARISH"
-        score -= 2
-        reasons.append("Bearish BOS")
-
+    if raw_score > 0:
+        signal = "BULLISH"
+    elif raw_score < 0:
+        signal = "BEARISH"
     else:
-        bos = "NONE"
-
-    # -----------------------------
-    # Change of Character
-    # -----------------------------
-    choch = False
-
-    if bos == "BULLISH" and price < ema20:
-        choch = True
-        reasons.append("Bearish CHoCH")
-
-    elif bos == "BEARISH" and price > ema20:
-        choch = True
-        reasons.append("Bullish CHoCH")
-
-    # -----------------------------
-    # Order Block
-    # -----------------------------
-    if abs(price - support) < abs(price - resistance):
-        order_block = "BULLISH"
-        score += 1
-        reasons.append("Bullish Order Block")
-    else:
-        order_block = "BEARISH"
-        score -= 1
-        reasons.append("Bearish Order Block")
-
-    # -----------------------------
-    # Liquidity
-    # -----------------------------
-    if abs(price - support) < state.atr:
-        liquidity = "EQUAL LOW"
-        score += 1
-        reasons.append("Equal Low Liquidity")
-
-    elif abs(price - resistance) < state.atr:
-        liquidity = "EQUAL HIGH"
-        score -= 1
-        reasons.append("Equal High Liquidity")
-
-    else:
-        liquidity = "NONE"
-
-    # -----------------------------
-    # Fair Value Gap
-    # -----------------------------
-    fvg = abs(resistance - support) > state.atr * 2
-
-    if fvg:
-        score += 1
-        reasons.append("Fair Value Gap")
-
-    # -----------------------------
-    # Premium / Discount
-    # -----------------------------
-    midpoint = (support + resistance) / 2
-
-    premium = False
-    discount = False
-
-    if price > midpoint:
-        premium = True
-        reasons.append("Premium Zone")
-    else:
-        discount = True
-        score += 1
-        reasons.append("Discount Zone")
+        signal = "NEUTRAL"
 
     return {
-        "bos": bos,
-        "choch": choch,
-        "order_block": order_block,
-        "fvg": fvg,
-        "liquidity": liquidity,
-        "premium": premium,
-        "discount": discount,
-        "score": score,
-        "reasons": reasons
+        "name": "SMC Aggregator",
+        "signal": signal,
+
+        # Deliberately zero.
+        # Dedicated engines own scoring authority.
+        "score": 0,
+
+        "confidence": 0.0,
+        "weight": 0.0,
+
+        "reasons": reasons,
+
+        "metadata": {
+            "raw_score": raw_score,
+            "bos": _signal(bos),
+            "choch": _signal(choch),
+            "liquidity": _signal(liquidity),
+            "order_block": _signal(order_block),
+            "fvg": _signal(fvg),
+        },
+
+        # Legacy compatibility fields
+        "bos": _signal(bos),
+        "choch": _signal(choch),
+        "liquidity": _signal(liquidity),
+        "order_block": _signal(order_block),
+        "fvg": _signal(fvg),
+        "premium": False,
+        "discount": False,
     }
 
 
@@ -113,10 +134,5 @@ if __name__ == "__main__":
     from core.market_state import MarketState
 
     state = MarketState()
-
-    state.price = 63000
-    state.ema20 = 62950
-    state.ema50 = 62800
-    state.atr = 180
 
     print(analyze(state))
