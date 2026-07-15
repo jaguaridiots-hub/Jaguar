@@ -115,6 +115,7 @@ print("=" * 50)
 # ==================================================
 
 state = kernel.get_state()
+state.timeframe = TIMEFRAME
 
 state = update_state(
     state,

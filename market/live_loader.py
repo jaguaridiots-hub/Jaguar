@@ -35,10 +35,8 @@ Runtime constraints:
 """
 
 from core.market_detector import MarketDetector
-from market.provider import (
-    MarketProvider,
-    MarketProviderError,
-)
+from market.adapter import MarketAdapter
+from market.provider import MarketProviderError
 
 
 class LiveMarketLoaderError(RuntimeError):
@@ -209,7 +207,7 @@ def load_market(
 
         if market == "MCX":
 
-            candles = MarketProvider.load(
+            candles = MarketAdapter.load(
                 normalized_symbol,
                 normalized_interval,
                 normalized_limit,
@@ -218,7 +216,7 @@ def load_market(
 
         else:
 
-            candles = MarketProvider.load(
+            candles = MarketAdapter.load(
                 normalized_symbol,
                 normalized_interval,
                 normalized_limit,
