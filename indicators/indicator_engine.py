@@ -186,7 +186,7 @@ def update_market_state(state, candles=None):
 
         volume_value = _first_value(
             volume_data,
-            ["volume", "Volume", "value"],
+            ["current", "volume", "Volume", "value"],
             default=None
         )
 
