@@ -14,3 +14,10 @@ def get_data(symbol="BTCUSDT"):
         "volume": latest["volume"],
         "candles": candles,
     }
+
+# ==========================================
+# Legacy Compatibility Functions
+# ==========================================
+
+def get_crypto(symbol="BTCUSDT"):
+    return get_data(symbol)
