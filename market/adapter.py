@@ -33,3 +33,14 @@ class MarketAdapter:
             raise Exception(f"Unsupported Market : {market}")
 
         return get_data(symbol)
+
+# ==========================================
+# Legacy Compatibility Functions
+# ==========================================
+
+def detect_market(symbol):
+    return MarketAdapter.get_market(symbol)
+
+
+def load_market(symbol):
+    return MarketAdapter.load(symbol)
