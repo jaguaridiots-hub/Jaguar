@@ -2087,4 +2087,8 @@ class StructuralZoneEngine:
             "============================================"
         )
 
+        print("Confirmed      :", execution_trigger_confirmed)
+        print("Reason         :", execution_trigger_reason)
+        print("Candidates     :", len(trigger_candidates))
+
         return state

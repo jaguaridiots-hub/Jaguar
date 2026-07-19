@@ -70,6 +70,10 @@ class ProbabilityEngineV2:
             reasons.append("Risk Safe")
 
         score = max(0, min(100, score))
+        print("Brain :", brain)
+        print("Decision :", decision)
+        print("MTF :", mtf)
+        print("Risk :", risk)
 
         if score >= 90:
             confidence = "VERY HIGH"

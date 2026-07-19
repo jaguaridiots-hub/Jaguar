@@ -1,3 +1,5 @@
+from config.decision_config import *
+
 class TradeValidatorEngine:
 
     def run(self, state, bus):
@@ -24,7 +26,7 @@ class TradeValidatorEngine:
             reasons.append("AI Bullish")
 
         # Probability
-        if probability.get("score", 0) >= 70:
+        if probability.get("score", 0) >= MIN_PROBABILITY:
             score += 15
             reasons.append("High Probability")
 
@@ -34,7 +36,7 @@ class TradeValidatorEngine:
             reasons.append("Decision Approved")
 
         # Multi-Timeframe
-        if mtf.get("alignment", 0) >= 4:
+        if mtf.get("alignment", 0) >= MIN_MTF_ALIGNMENT:
             score += 15
             reasons.append("MTF Alignment")
 
@@ -70,7 +72,7 @@ class TradeValidatorEngine:
 
         # Final Score
         score = max(0, min(100, score))
-        approved = score >= 60
+        approved = score >= TRADE_VALIDATOR_THRESHOLD
 
         state.trade_validator = {
             "approved": approved,

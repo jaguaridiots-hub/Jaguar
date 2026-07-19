@@ -30,6 +30,8 @@ from strategy.master_decision_engine import MasterDecisionEngine
 from strategy.execution_confirmation_engine import ExecutionConfirmationEngine
 from core.orderflow_engine import OrderFlowEngineRunner
 from core.confluence_engine_runner import ConfluenceEngineRunner
+from core.timeframe_indicator_engine import TimeframeIndicatorEngineRunner
+from core.backtest_engine import BacktestEngine
 
 from core.brain_engine import BrainEngine
 
@@ -57,10 +59,15 @@ def register(registry):
     registry.register(EqualLevelsEngineRunner())
     registry.register(VolumeProfileEngineRunner())
     registry.register(SessionEngineRunner())
+
+    # Produce multi-timeframe indicators FIRST
+    registry.register(TimeframeIndicatorEngineRunner())
+
+    # Consume those indicators SECOND
     registry.register(MTFEngineRunner())
+
     registry.register(RegimeEngineRunner())
     registry.register(GannEngineRunner())
-    registry.register(ProbabilityEngineV2Runner())
 
     # =========================
     # Order Flow
@@ -72,18 +79,14 @@ def register(registry):
     # =========================
     registry.register(BrainEngine())
     registry.register(ConfluenceEngineRunner())
-    registry.register(DecisionEngineRunner())
 
     # =========================
     # Trade Planning
     # =========================
     registry.register(TradePlannerEngineRunner())
     registry.register(RiskManagerEngineRunner())
-
-    # =========================
-    # Master Decision
-    # =========================
-    registry.register(MasterDecisionEngine())
+    registry.register(ProbabilityEngineV2Runner())
+    registry.register(DecisionEngineRunner())
 
     # =========================
     # Execution Confirmation
@@ -96,6 +99,11 @@ def register(registry):
     registry.register(TradeValidatorEngineRunner())
 
     # =========================
+    # Master Decision
+    # =========================
+    registry.register(MasterDecisionEngine())
+
+    # =========================
     # Execution
     # =========================
     registry.register(ExecutionEngineRunner())
@@ -104,3 +112,7 @@ def register(registry):
     # Dashboard
     # =========================
     registry.register(DashboardEngineRunner())
+
+    # Backtesting
+    registry.register(BacktestEngine())
+

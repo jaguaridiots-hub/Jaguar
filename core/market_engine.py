@@ -10,7 +10,7 @@ class MarketEngine(Engine):
         "15m",
         "1h",
         "4h",
-        "1d"
+        "1d",
     ]
 
     def run(self, state, bus):
@@ -22,12 +22,37 @@ class MarketEngine(Engine):
         markets = {}
 
         for tf in self.TIMEFRAMES:
-            markets[tf] = kernel.load(tf)
+
+            data = kernel.load(tf)
+
+            print(f"\n===== {tf} =====")
+            print(type(data))
+            print(data.keys() if isinstance(data, dict) else "NOT DICT")
+
+            markets[tf] = data
 
         state.market = markets
 
-        # Backward compatibility
-        state.market_current = markets[state.interval]
+        state.market_current = markets.get(state.interval)
+
+        state.timeframes = {}
+
+        for tf, data in markets.items():
+
+            if not isinstance(data, dict):
+                continue
+
+            candles = data.get("candles", [])
+
+            state.timeframes[tf] = {
+                "symbol": data.get("symbol"),
+                "interval": data.get("interval"),
+                "candles": candles,
+            }
+
+            print(f"{tf}: {len(candles)} candles")
+
+        print("Loaded Timeframes:", list(state.timeframes.keys()))
 
         bus.publish("MARKET_READY")
 
