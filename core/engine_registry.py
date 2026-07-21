@@ -10,7 +10,9 @@ class EngineRegistry:
     def register(self, engine):
         self.engines.append(engine)
 
-    def run(self, state, bus):
+    def run(self, state, bus, skip=None):
+        if skip is None:
+            skip = set()
 
         # Initialize tracking if not already present
         if not hasattr(state, "engine_status"):
@@ -25,6 +27,8 @@ class EngineRegistry:
         total_start = time.perf_counter()
 
         for engine in self.engines:
+            if engine.__class__.__name__ in skip:
+                continue
 
             name = engine.__class__.__name__
 

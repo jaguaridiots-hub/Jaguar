@@ -53,7 +53,7 @@ from engine.trade_planner import analyze as legacy_planner
 from engine.risk_engine import analyze as legacy_risk
 
 from intelligence.enterprise_adapter import EnterpriseAdapter
-
+from intelligence.execution_confirmation_engine import analyze as execution_confirmation_analyze
 from intelligence.structural_zone_engine import (
     StructuralZoneEngine,
 )
@@ -348,8 +348,6 @@ def analyze(state, capital=100000):
 
     ai = ai_analyze(state)
 
-    regime = regime_analyze(state)
-
     # ========================================================
     # CANONICAL STRUCTURAL SPECIALIST ENGINES
     #
@@ -412,26 +410,6 @@ def analyze(state, capital=100000):
     state.fibonacci = fib
 
     state.gann = gann
-
-    # ========================================================
-    # NORMALIZE REGIME
-    # ========================================================
-
-    regime_signal = _signal(
-        regime
-    )
-
-    if regime_signal in (
-        "BULLISH",
-        "BEARISH",
-        "SIDEWAYS",
-    ):
-        state.trend = regime_signal
-
-    else:
-        state.trend = "UNKNOWN"
-
-    state.regime = regime_signal
 
     # ========================================================
     # LEGACY BOOLEAN STRUCTURAL COMPATIBILITY
@@ -530,10 +508,6 @@ def analyze(state, capital=100000):
     # ========================================================
 
     state.market[
-        "regime_result"
-    ] = regime
-
-    state.market[
         "bos_result"
     ] = bos
 
@@ -553,6 +527,30 @@ def analyze(state, capital=100000):
         "fvg_result"
     ] = fvg
 
+    regime = regime_analyze(state)
+
+    state.market[
+        "regime_result"
+    ] = regime
+    # ========================================================
+    # NORMALIZE REGIME
+    # ========================================================
+
+    regime_signal = _signal(
+        regime
+    )
+
+    if regime_signal in (
+        "BULLISH",
+        "BEARISH",
+        "SIDEWAYS",
+    ):
+        state.trend = regime_signal
+
+    else:
+        state.trend = "UNKNOWN"
+
+    state.regime = regime_signal
     state.market[
         "fibonacci_result"
     ] = fib
@@ -611,6 +609,12 @@ def analyze(state, capital=100000):
     state = structural_zone_engine.process(
         state
     )
+
+    execution_confirmation = execution_confirmation_analyze(state)
+
+    state.market["execution_confirmation"] = execution_confirmation
+
+    state.execution_confirmation = execution_confirmation
 
     structural_zone = getattr(
         state,

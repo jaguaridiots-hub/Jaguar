@@ -7,8 +7,7 @@ def analyze(state):
         return None
 
     entry = state.price
-    atr_value = state.atr if state.atr > 0 else atr
-
+    atr_value = float(getattr(state, "atr", 0.0) or 0.0)
     decision = state.decision.upper()
 
     if "BUY" in decision:

@@ -22,6 +22,8 @@ It does not directly create trade plans.
 It does not directly execute trades.
 """
 
+from intelligence.execution_policy import ExecutionPolicy
+
 
 class StructuralZoneEngine:
 
@@ -449,6 +451,18 @@ class StructuralZoneEngine:
         fvg_metadata = self._metadata(
             fvg_result
         )
+
+        print("\n========== STRUCTURAL LIFECYCLE TRACE ==========")
+
+        print("LIQUIDITY :", liquidity_metadata.get("lifecycle"))
+        print("ORDER BLOCK :", order_block_metadata.get("lifecycle"))
+        print("FVG :", fvg_metadata.get("lifecycle"))
+
+        print("LIQUIDITY SIGNAL :", liquidity_result.get("signal"))
+        print("ORDER BLOCK SIGNAL :", order_block_result.get("signal"))
+        print("FVG SIGNAL :", fvg_result.get("signal"))
+
+        print("===============================================\n")
 
         # ==================================================
         # BASIC MARKET FACTS
@@ -1187,7 +1201,24 @@ class StructuralZoneEngine:
         else:
 
             zone_pool = candidates
+        # ==================================================
+        # FILTER NON-TRADABLE EXECUTION ZONES
+        # ==================================================
 
+        tradable_zone_pool = [
+            zone
+            for zone in zone_pool
+            if zone.get("lifecycle") not in (
+                "MITIGATED",
+                "FILLED",
+                "INVALID",
+                "INVALIDATED",
+                "BROKEN",
+           )
+        ]
+
+        if tradable_zone_pool:
+             zone_pool = tradable_zone_pool
         selected_zone = None
 
         if zone_pool:
@@ -1263,6 +1294,7 @@ class StructuralZoneEngine:
                 "interacting",
                 False,
             )
+
 
             distance = selected_zone.get(
                 "distance",
@@ -1830,6 +1862,26 @@ class StructuralZoneEngine:
         # ==================================================
 
         context_score = 0
+
+        policy = ExecutionPolicy.evaluate(
+            bos_confirmed=(structure_state == "STRUCTURE_BREAK"),
+            choch_confirmed=(structure_state == "CHARACTER_CHANGE"),
+            zone_interaction=interacting,
+            liquidity_state=liquidity_trigger_lifecycle,
+            order_block_state=order_block_trigger_lifecycle,
+            fvg_state=fvg_trigger_lifecycle,
+            structure_direction=direction,
+            trigger_direction=execution_trigger_direction,
+            zone_valid=execution_trigger_location_valid,
+            location_active=interacting,
+            execution_trigger_confirmed=execution_trigger_confirmed,
+            execution_trigger_conflict=(
+                execution_trigger_status == "DIRECTION_CONFLICT"
+            ),
+            conflict_count=(
+                1 if execution_trigger_status == "DIRECTION_CONFLICT" else 0
+            ),
+        )
 
         # ==================================================
         # ENTERPRISE CONTRACT

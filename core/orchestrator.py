@@ -16,6 +16,11 @@ class JaguarOrchestrator:
         from core.register_engines import register
         register(self.registry)
 
+        print("\n========== REGISTERED ENGINES ==========")
+        for i, engine in enumerate(self.registry.engines, 1):
+            print(f"{i:02d}. {engine.__class__.__name__}")
+        print("========================================\n")
+
     def publish(self, event, payload=None):
         logger.info(event)
         self.bus.publish(event, payload)

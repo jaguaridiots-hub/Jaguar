@@ -652,28 +652,34 @@ def analyze(state):
     # MOST RECENT VALID ZONE
     # ======================================================
 
+    priority = {
+        "CONFIRMED": 4,
+        "FRESH": 3,
+        "INTERACTING": 2,
+        "MITIGATED": 1,
+    }
+
     selected_zone = None
-
     selected_evaluation = None
+    best_priority = -1
 
-    for zone in reversed(
-        candidates
-    ):
-
+    for zone in reversed(candidates):
         evaluation = _evaluate_zone(
             window,
             zone,
         )
 
-        if evaluation[
-            "lifecycle"
-        ] != "INVALIDATED":
+        lifecycle = evaluation["lifecycle"]
 
+        if lifecycle == "INVALIDATED":
+            continue
+
+        score = priority.get(lifecycle, 0)
+
+        if score > best_priority:
+            best_priority = score
             selected_zone = zone
-
             selected_evaluation = evaluation
-
-            break
 
     if selected_zone is None:
 

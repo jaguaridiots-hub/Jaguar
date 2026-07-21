@@ -32,22 +32,22 @@ from core.orderflow_engine import OrderFlowEngineRunner
 from core.confluence_engine_runner import ConfluenceEngineRunner
 from core.timeframe_indicator_engine import TimeframeIndicatorEngineRunner
 from core.backtest_engine import BacktestEngine
-
+from core.execution_trigger_engine import ExecutionTriggerEngineRunner
 from core.brain_engine import BrainEngine
 
 
 def register(registry):
 
-    # =========================
+    # =====================================================
     # Foundation
-    # =========================
+    # =====================================================
     registry.register(MarketEngine())
     registry.register(IndicatorEngine())
     registry.register(ScoreEngine())
 
-    # =========================
+    # =====================================================
     # Smart Money
-    # =========================
+    # =====================================================
     registry.register(StructureEngineRunner())
     registry.register(MSSEngineRunner())
     registry.register(SMCEngine())
@@ -60,59 +60,75 @@ def register(registry):
     registry.register(VolumeProfileEngineRunner())
     registry.register(SessionEngineRunner())
 
-    # Produce multi-timeframe indicators FIRST
+    # =====================================================
+    # Multi-Timeframe
+    # =====================================================
     registry.register(TimeframeIndicatorEngineRunner())
-
-    # Consume those indicators SECOND
     registry.register(MTFEngineRunner())
 
+    # =====================================================
+    # Market Context
+    # =====================================================
     registry.register(RegimeEngineRunner())
     registry.register(GannEngineRunner())
-
-    # =========================
-    # Order Flow
-    # =========================
     registry.register(OrderFlowEngineRunner())
 
-    # =========================
+    # =====================================================
+    # Probability (must be before Brain)
+    # =====================================================
+    registry.register(ProbabilityEngineV2Runner())
+
+    # =====================================================
     # AI Brain
-    # =========================
+    # =====================================================
     registry.register(BrainEngine())
     registry.register(ConfluenceEngineRunner())
 
-    # =========================
+    # =====================================================
     # Trade Planning
-    # =========================
+    # =====================================================
     registry.register(TradePlannerEngineRunner())
+
+    # =====================================================
+    # Risk
+    # =====================================================
     registry.register(RiskManagerEngineRunner())
-    registry.register(ProbabilityEngineV2Runner())
+
+    # =====================================================
+    # Institutional Decision
+    # =====================================================
     registry.register(DecisionEngineRunner())
 
-    # =========================
+    # Execution Trigger
+
+    registry.register(ExecutionTriggerEngineRunner())
+
+    # =====================================================
     # Execution Confirmation
-    # =========================
+    # =====================================================
     registry.register(ExecutionConfirmationEngine())
 
-    # =========================
+    # =====================================================
     # Trade Validator
-    # =========================
+    # =====================================================
     registry.register(TradeValidatorEngineRunner())
 
-    # =========================
+    # =====================================================
     # Master Decision
-    # =========================
+    # =====================================================
     registry.register(MasterDecisionEngine())
 
-    # =========================
+    # =====================================================
     # Execution
-    # =========================
+    # =====================================================
     registry.register(ExecutionEngineRunner())
 
-    # =========================
+    # =====================================================
     # Dashboard
-    # =========================
+    # =====================================================
     registry.register(DashboardEngineRunner())
 
-    # Backtesting
-    registry.register(BacktestEngine())
-
+    # =====================================================
+    # Backtest
+    # =====================================================
+    registry.register(BacktestEngine(registry))

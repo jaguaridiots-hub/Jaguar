@@ -17,6 +17,7 @@ class ExecutionConfirmationEngine:
         vp = getattr(state, "volume_profile", {}) or {}
         gann = getattr(state, "gann", {}) or {}
         risk = getattr(state, "risk", {}) or {}
+        execution_trigger = getattr(state, "execution_trigger", {}) or {}
 
         score = 0
         reasons = []
@@ -33,6 +34,15 @@ class ExecutionConfirmationEngine:
         if probability.get("score", 0) >= 75:
             score += 10
             reasons.append("High Probability")
+
+        # Execution Trigger
+        if execution_trigger.get("confirmed", False):
+            score += 25
+            reasons.append("Execution Trigger Confirmed")
+
+        elif execution_trigger.get("signal") == "BUY":
+            score += 15
+            reasons.append("Execution Trigger")
 
         # Decision
         if decision.get("decision") == "ENTER":

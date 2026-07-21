@@ -81,6 +81,9 @@ class TradeValidatorEngine:
             "reasons": reasons,
         }
 
+        print("\n========== TRADE VALIDATOR ==========")
+        print(state.trade_validator)
+
         bus.publish("TRADE_VALIDATOR_READY")
 
         return state

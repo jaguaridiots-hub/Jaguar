@@ -1,36 +1,28 @@
 class ProbabilityEngineV2:
 
-    def run(self, state, bus):
+    @staticmethod
+    def analyze(state):
 
-        bus.publish("PROBABILITY_V2_ANALYSIS")
-
-        brain = getattr(state, "brain", {}) or {}
         mtf = getattr(state, "mtf", {}) or {}
         decision = getattr(state, "decision", {}) or {}
         risk = getattr(state, "risk", {}) or {}
         orderflow = getattr(state, "orderflow", {}) or {}
         session = getattr(state, "session", {}) or {}
         gann = getattr(state, "gann", {}) or {}
+        smc = getattr(state, "smc", {}) or {}
+        bos = getattr(state, "bos", {}) or {}
+        choch = getattr(state, "choch", {}) or {}
+        liquidity = getattr(state, "liquidity", {}) or {}
+        orderblock = getattr(state, "orderblock", {}) or {}
+        fvg = getattr(state, "fvg", {}) or {}
+        premium_discount = getattr(state, "premium_discount", {}) or {}
+        wyckoff = getattr(state, "wyckoff", {}) or {}
+        equal_levels = getattr(state, "equal_levels", {}) or {}
+        volume_profile = getattr(state, "volume_profile", {}) or {}
+        market_regime = getattr(state, "market_regime", {}) or {}
 
         score = 0
         reasons = []
-
-        # AI
-        if brain.get("signal") == "STRONG BUY":
-            score += 30
-            reasons.append("Strong Buy")
-
-        elif brain.get("signal") == "BUY":
-            score += 20
-            reasons.append("Buy")
-
-        elif brain.get("signal") == "STRONG SELL":
-            score += 30
-            reasons.append("Strong Sell")
-
-        elif brain.get("signal") == "SELL":
-            score += 20
-            reasons.append("Sell")
 
         # Multi Time Frame
         alignment = mtf.get("alignment", 0)
@@ -70,7 +62,6 @@ class ProbabilityEngineV2:
             reasons.append("Risk Safe")
 
         score = max(0, min(100, score))
-        print("Brain :", brain)
         print("Decision :", decision)
         print("MTF :", mtf)
         print("Risk :", risk)
@@ -100,7 +91,5 @@ class ProbabilityEngineV2:
             "grade": grade,
             "reasons": reasons,
         }
-
-        bus.publish("PROBABILITY_V2_READY")
 
         return state

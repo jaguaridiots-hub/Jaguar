@@ -3,25 +3,11 @@ class TimeframeLoader:
     @staticmethod
     def load(state):
 
-        market = getattr(state, "market_current", {})
-
-        candles = market.get("candles", [])
+        markets = getattr(state, "market", {}) or {}
 
         return {
-            "15m": {
-                "candles": candles,
-                "score": 0
-            },
-            "1h": {
-                "candles": candles,
-                "score": 0
-            },
-            "4h": {
-                "candles": candles,
-                "score": 0
-            },
-            "1d": {
-                "candles": candles,
-                "score": 0
-            }
+            "15m": markets.get("15m", {"candles": [], "score": 0}),
+            "1h":  markets.get("1h",  {"candles": [], "score": 0}),
+            "4h":  markets.get("4h",  {"candles": [], "score": 0}),
+            "1d":  markets.get("1d",  {"candles": [], "score": 0}),
         }

@@ -18,7 +18,7 @@ from engine.position_manager import PositionManager
 from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
-
+from core.jaguar_analysis_engine import JaguarAnalysisEngine
 from engine.state_manager import (
     save,
     load,
@@ -57,6 +57,7 @@ log.info(
 # ==================================================
 
 kernel = JaguarKernel()
+analysis = JaguarAnalysisEngine(kernel)
 
 kernel.initialize(
     SYMBOL,
@@ -114,13 +115,12 @@ print("=" * 50)
 # CANONICAL STARTUP MARKET HYDRATION
 # ==================================================
 
-state = kernel.get_state()
-state.timeframe = TIMEFRAME
+result = analysis.run(SYMBOL)
 
-state = update_state(
-    state,
-    SYMBOL,
-)
+state = result["state"]
+report = result["report"]
+
+state.timeframe = TIMEFRAME
 
 candles = state.market["candles"]
 
@@ -217,9 +217,6 @@ print(
 # JAGUAR MASTER ANALYSIS
 # ==================================================
 
-report = institutional_master(
-    state
-)
 
 
 context = report.get(

@@ -8,5 +8,10 @@ class ProbabilityEngineV2Runner(Engine):
 
     def run(self, state, bus):
 
-        return ProbabilityEngineV2().run(state, bus)
+        bus.publish("PROBABILITY_V2_ANALYSIS")
 
+        state = ProbabilityEngineV2.analyze(state)
+
+        bus.publish("PROBABILITY_V2_READY")
+
+        return state
