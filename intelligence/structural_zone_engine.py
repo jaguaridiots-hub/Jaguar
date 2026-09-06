@@ -1,0 +1,2115 @@
+"""
+Jaguar Quant X Enterprise
+Structural Zone Engine v1.0
+
+Canonical structural-location intelligence layer.
+
+Purpose:
+- Interpret BOS / CHOCH structure state
+- Interpret liquidity pool lifecycle
+- Interpret Order Block lifecycle
+- Interpret FVG lifecycle
+- Select the best directional structural zone
+- Measure price interaction and ATR distance
+- Produce a normalized enterprise structural-zone contract
+
+IMPORTANT:
+This engine is context intelligence only.
+
+It does not directly approve trades.
+It does not directly modify institutional score.
+It does not directly create trade plans.
+It does not directly execute trades.
+"""
+
+from intelligence.execution_policy import ExecutionPolicy
+
+
+class StructuralZoneEngine:
+
+    name = "Structural Zone Engine"
+
+    # ==================================================
+    # SAFE HELPERS
+    # ==================================================
+
+    @staticmethod
+    def _market(state):
+
+        market = getattr(
+            state,
+            "market",
+            {},
+        )
+
+        if not isinstance(
+            market,
+            dict,
+        ):
+            market = {}
+
+            state.market = market
+
+        return market
+
+    @staticmethod
+    def _dictionary(value):
+
+        if isinstance(
+            value,
+            dict,
+        ):
+            return value
+
+        return {}
+
+    @staticmethod
+    def _metadata(result):
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            return {}
+
+        metadata = result.get(
+            "metadata",
+            {},
+        )
+
+        if isinstance(
+            metadata,
+            dict,
+        ):
+            return metadata
+
+        return {}
+
+    @staticmethod
+    def _signal(result):
+
+        if isinstance(
+            result,
+            dict,
+        ):
+
+            signal = str(
+                result.get(
+                    "signal",
+                    "NEUTRAL",
+                )
+            ).upper().strip()
+
+        elif isinstance(
+            result,
+            str,
+        ):
+
+            signal = result.upper().strip()
+
+        else:
+
+            signal = "NEUTRAL"
+
+        if signal in (
+            "BULLISH",
+            "BEARISH",
+            "NEUTRAL",
+            "SIDEWAYS",
+            "UNKNOWN",
+        ):
+            return signal
+
+        return "NEUTRAL"
+
+    @staticmethod
+    def _float(value, default=0.0):
+
+        try:
+            return float(
+                value
+                or default
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return float(
+                default
+            )
+
+    @staticmethod
+    def _bool(value):
+
+        return bool(
+            value
+        )
+
+    @staticmethod
+    def _reasons(result):
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            return []
+
+        reasons = result.get(
+            "reasons",
+            [],
+        )
+
+        if not isinstance(
+            reasons,
+            list,
+        ):
+            return []
+
+        return [
+            str(reason)
+            for reason in reasons
+        ]
+
+    @staticmethod
+    def _unique(values):
+
+        return list(
+            dict.fromkeys(
+                values
+            )
+        )
+
+    # ==================================================
+    # ZONE CANDIDATE
+    # ==================================================
+
+    @classmethod
+    def _zone_candidate(
+        cls,
+        zone_type,
+        metadata,
+        price,
+        atr,
+    ):
+
+        metadata = cls._dictionary(
+            metadata
+        )
+
+        direction = str(
+            metadata.get(
+                "direction",
+                "NEUTRAL",
+            )
+        ).upper().strip()
+
+        lifecycle = str(
+            metadata.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        zone_low = cls._float(
+            metadata.get(
+                "zone_low",
+                0.0,
+            )
+        )
+
+        zone_high = cls._float(
+            metadata.get(
+                "zone_high",
+                0.0,
+            )
+        )
+
+        interacting = cls._bool(
+            metadata.get(
+                "interacting",
+                False,
+            )
+        )
+
+        if (
+            zone_low <= 0
+            or zone_high <= 0
+        ):
+            return None
+
+        if zone_low > zone_high:
+
+            zone_low, zone_high = (
+                zone_high,
+                zone_low,
+            )
+
+        if (
+            zone_low
+            <= price
+            <= zone_high
+        ):
+            interacting = True
+
+        if price < zone_low:
+
+            distance = (
+                zone_low
+                - price
+            )
+
+        elif price > zone_high:
+
+            distance = (
+                price
+                - zone_high
+            )
+
+        else:
+
+            distance = 0.0
+
+        if atr > 0:
+
+            distance_atr = (
+                distance
+                / atr
+            )
+
+        else:
+
+            distance_atr = 0.0
+
+        # ----------------------------------------------
+        # Lifecycle quality
+        # ----------------------------------------------
+
+        if lifecycle in (
+            "FRESH",
+            "ACTIVE",
+            "VALID",
+        ):
+
+            lifecycle_quality = 3
+
+        elif lifecycle in (
+            "INTERACTING",
+            "TOUCHED",
+        ):
+
+            lifecycle_quality = 2
+
+        elif lifecycle in (
+            "MITIGATED",
+            "FILLED",
+            "INVALID",
+            "BROKEN",
+        ):
+
+            lifecycle_quality = 0
+
+        else:
+
+            lifecycle_quality = 1
+
+        # ----------------------------------------------
+        # Zone-type quality
+        # ----------------------------------------------
+
+        if zone_type == "ORDER_BLOCK":
+
+            type_quality = 3
+
+        elif zone_type == "FVG":
+
+            type_quality = 2
+
+        else:
+
+            type_quality = 1
+
+        # ----------------------------------------------
+        # Interaction quality
+        # ----------------------------------------------
+
+        if interacting:
+
+            interaction_quality = 4
+
+        elif distance_atr <= 1.0:
+
+            interaction_quality = 3
+
+        elif distance_atr <= 2.0:
+
+            interaction_quality = 2
+
+        elif distance_atr <= 4.0:
+
+            interaction_quality = 1
+
+        else:
+
+            interaction_quality = 0
+
+        quality = (
+            lifecycle_quality
+            + type_quality
+            + interaction_quality
+        )
+
+        return {
+
+            "type": zone_type,
+
+            "direction": direction,
+
+            "lifecycle": lifecycle,
+
+            "zone_low": zone_low,
+
+            "zone_high": zone_high,
+
+            "interacting": interacting,
+
+            "distance": round(
+                distance,
+                8,
+            ),
+
+            "distance_atr": round(
+                distance_atr,
+                4,
+            ),
+
+            "quality": quality,
+
+            "origin_index": metadata.get(
+                "origin_index"
+            ),
+
+            "metadata": metadata,
+
+        }
+
+    # ==================================================
+    # PROCESS
+    # ==================================================
+
+    def process(self, state):
+
+        market = self._market(
+            state
+        )
+
+        # ==================================================
+        # READ CANONICAL RAW ENGINE RESULTS
+        # ==================================================
+
+        bos_result = market.get(
+            "bos_result",
+            {},
+        )
+
+        choch_result = market.get(
+            "choch_result",
+            {},
+        )
+
+        liquidity_result = market.get(
+            "liquidity_result",
+            {},
+        )
+
+        order_block_result = market.get(
+            "order_block_result",
+            {},
+        )
+
+        fvg_result = market.get(
+            "fvg_result",
+            {},
+        )
+
+        bos_metadata = self._metadata(
+            bos_result
+        )
+
+        choch_metadata = self._metadata(
+            choch_result
+        )
+
+        liquidity_metadata = self._metadata(
+            liquidity_result
+        )
+
+        order_block_metadata = self._metadata(
+            order_block_result
+        )
+
+        fvg_metadata = self._metadata(
+            fvg_result
+        )
+
+        print("\n========== STRUCTURAL LIFECYCLE TRACE ==========")
+
+        print("LIQUIDITY :", liquidity_metadata.get("lifecycle"))
+        print("ORDER BLOCK :", order_block_metadata.get("lifecycle"))
+        print("FVG :", fvg_metadata.get("lifecycle"))
+
+        print("LIQUIDITY SIGNAL :", liquidity_result.get("signal"))
+        print("ORDER BLOCK SIGNAL :", order_block_result.get("signal"))
+        print("FVG SIGNAL :", fvg_result.get("signal"))
+
+        print("===============================================\n")
+
+        # ==================================================
+        # BASIC MARKET FACTS
+        # ==================================================
+
+        price = self._float(
+            market.get(
+                "price",
+                getattr(
+                    state,
+                    "price",
+                    0.0,
+                ),
+            )
+        )
+
+        atr = self._float(
+            getattr(
+                state,
+                "atr",
+                0.0,
+            )
+        )
+
+        trend = str(
+            market.get(
+                "trend",
+                getattr(
+                    state,
+                    "trend",
+                    "UNKNOWN",
+                ),
+            )
+        ).upper().strip()
+
+        regime = str(
+            market.get(
+                "regime",
+                getattr(
+                    state,
+                    "regime",
+                    "UNKNOWN",
+                ),
+            )
+        ).upper().strip()
+
+        bos_signal = self._signal(
+            bos_result
+        )
+
+        choch_signal = self._signal(
+            choch_result
+        )
+
+
+        # ==================================================
+        # STRUCTURAL MEMORY
+        # ==================================================
+        #
+        # CHOCH metadata retains the last confirmed
+        # structural direction while a character change
+        # remains unconfirmed.
+        #
+        # A WAITING CHOCH does not erase prior structure.
+        # The prior structure remains authoritative until
+        # BOS / CHOCH confirms a new structural direction.
+        # ==================================================
+
+        choch_status = str(
+            choch_metadata.get(
+                "status",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        prior_structure = str(
+            choch_metadata.get(
+                "prior_structure",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        # ==================================================
+        # STRUCTURAL DIRECTION
+        # ==================================================
+        #
+        # Direction authority hierarchy:
+        #
+        # 1. Confirmed CHOCH
+        # 2. Confirmed BOS
+        # 3. Protected prior structure
+        # 4. Trend / regime agreement
+        # 5. Trend
+        # 6. Regime
+        #
+        # Context direction is intentionally excluded.
+        # Macro context cannot overwrite canonical
+        # structural direction.
+        # ==================================================
+
+        direction = "NEUTRAL"
+
+        if choch_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = choch_signal
+
+        elif bos_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = bos_signal
+
+        elif (
+            choch_status == "WAITING"
+            and prior_structure in (
+                "BULLISH",
+                "BEARISH",
+            )
+        ):
+
+            direction = prior_structure
+
+        elif (
+            trend == regime
+            and trend in (
+                "BULLISH",
+                "BEARISH",
+            )
+        ):
+
+            direction = trend
+
+        elif trend in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = trend
+
+        elif regime in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = regime
+
+        # ==================================================
+        # STRUCTURE STATE
+        # ==================================================
+
+        structure_state = "UNDEFINED"
+
+        if choch_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            structure_state = "CHARACTER_CHANGE"
+
+        elif bos_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            structure_state = "STRUCTURE_BREAK"
+
+        elif (
+            choch_status == "WAITING"
+            and prior_structure in (
+                "BULLISH",
+                "BEARISH",
+            )
+        ):
+
+            structure_state = "PROTECTED"
+
+        elif direction in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            structure_state = "DIRECTIONAL"
+
+        # ==================================================
+        # TRIGGER STATUS
+        # ==================================================
+
+        bos_status = str(
+            bos_metadata.get(
+                "status",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        if choch_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            trigger_status = "CHOCH_CONFIRMED"
+
+        elif bos_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            trigger_status = "BOS_CONFIRMED"
+
+        elif (
+            bos_status == "WAITING"
+            or choch_status == "WAITING"
+        ):
+
+            trigger_status = "WAITING"
+
+        else:
+
+            trigger_status = "NONE"
+
+
+
+        # ==================================================
+        # EXECUTION TRIGGER
+        # ==================================================
+        #
+        # BOS / CHOCH define macro structural confirmation.
+        #
+        # Liquidity reclaim, Order Block rejection, and FVG
+        # mitigation rejection define execution-trigger
+        # evidence.
+        #
+        # This contract is diagnostic/context intelligence.
+        # It does not directly authorize execution.
+        # ==================================================
+
+        liquidity_signal = self._signal(
+            liquidity_result
+        )
+
+        order_block_signal = self._signal(
+            order_block_result
+        )
+
+        fvg_signal = self._signal(
+            fvg_result
+        )
+
+        liquidity_trigger_lifecycle = str(
+            liquidity_metadata.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        order_block_trigger_lifecycle = str(
+            order_block_metadata.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        fvg_trigger_lifecycle = str(
+            fvg_metadata.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        execution_trigger_status = "NONE"
+
+        execution_trigger_confirmed = False
+
+        execution_trigger_direction = "NEUTRAL"
+
+        execution_trigger_source = "NONE"
+
+        execution_trigger_lifecycle = "UNKNOWN"
+
+        execution_trigger_age = None
+
+        execution_trigger_reason = (
+            "No execution trigger confirmed"
+        )
+
+        trigger_candidates = []
+
+        # ----------------------------------------------
+        # LIQUIDITY RECLAIM / REJECTION
+        # ----------------------------------------------
+
+        if (
+            liquidity_signal
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and liquidity_trigger_lifecycle
+            == "CONFIRMED"
+        ):
+
+            trigger_candidates.append(
+                {
+                    "source": "LIQUIDITY",
+                    "direction": liquidity_signal,
+                    "lifecycle":
+                        liquidity_trigger_lifecycle,
+                    "quality": 3,
+                    "reason": (
+                        "Confirmed liquidity reclaim "
+                        "or rejection trigger"
+                    ),
+                    "pool_type":
+                        liquidity_metadata.get(
+                            "pool_type"
+                        ),
+                    "pool_level":
+                        self._float(
+                            liquidity_metadata.get(
+                                "pool_level",
+                                0.0,
+                            )
+                        ),
+                    "last_high":
+                        self._float(
+                            liquidity_metadata.get(
+                                "last_high",
+                                0.0,
+                            )
+                        ),
+                    "last_low":
+                        self._float(
+                            liquidity_metadata.get(
+                                "last_low",
+                                0.0,
+                            )
+                        ),
+                    "last_close":
+                        self._float(
+                            liquidity_metadata.get(
+                                "last_close",
+                                0.0,
+                            )
+                        ),
+                    "pool_origin_index":
+                        liquidity_metadata.get(
+                            "pool_origin_index"
+                        ),
+                    "pool_last_index":
+                        liquidity_metadata.get(
+                            "pool_last_index"
+                        ),
+                    "sweep_index":
+                        liquidity_metadata.get(
+                            "sweep_index"
+                        ),
+                    "confirmation_index":
+                        liquidity_metadata.get(
+                            "confirmation_index"
+                        ),
+                    "trigger_age":
+                        liquidity_metadata.get(
+                            "trigger_age"
+                        ),
+                }
+            )
+        # ----------------------------------------------
+        # ORDER BLOCK REJECTION
+        # ----------------------------------------------
+
+        if (
+            order_block_signal
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and order_block_trigger_lifecycle
+            == "CONFIRMED"
+        ):
+
+            trigger_candidates.append(
+                {
+                    "source": "ORDER_BLOCK",
+                    "direction": order_block_signal,
+                    "lifecycle":
+                        order_block_trigger_lifecycle,
+                    "quality": 4,
+                    "reason": (
+                        "Confirmed Order Block "
+                        "rejection trigger"
+                    ),
+                    "zone_low":
+                        self._float(
+                            order_block_metadata.get(
+                                "zone_low",
+                                0.0,
+                            )
+                        ),
+                    "zone_high":
+                        self._float(
+                            order_block_metadata.get(
+                                "zone_high",
+                                0.0,
+                            )
+                        ),
+                    "origin_index":
+                        order_block_metadata.get(
+                            "origin_index"
+                        ),
+                    "interaction_index":
+                        order_block_metadata.get(
+                            "interaction_index"
+                        ),
+                    "confirmation_index":
+                        order_block_metadata.get(
+                            "confirmation_index"
+                        ),
+                    "trigger_age":
+                        order_block_metadata.get(
+                            "trigger_age"
+                        ),
+                    "interacting":
+                        self._bool(
+                            order_block_metadata.get(
+                                "interacting",
+                                False,
+                            )
+                        ),
+                }
+            )
+        # ----------------------------------------------
+        # FVG MITIGATION REJECTION
+        # ----------------------------------------------
+
+        if (
+            fvg_signal
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and fvg_trigger_lifecycle
+            == "CONFIRMED"
+        ):
+
+            trigger_candidates.append(
+                {
+                    "source": "FVG",
+                    "direction": fvg_signal,
+                    "lifecycle":
+                        fvg_trigger_lifecycle,
+                    "quality": 3,
+                    "reason": (
+                        "Confirmed FVG mitigation "
+                        "rejection trigger"
+                    ),
+                    "zone_low":
+                        self._float(
+                            fvg_metadata.get(
+                                "zone_low",
+                                0.0,
+                            )
+                        ),
+                    "zone_high":
+                        self._float(
+                            fvg_metadata.get(
+                                "zone_high",
+                                0.0,
+                            )
+                        ),
+                    "origin_index":
+                        fvg_metadata.get(
+                            "origin_index"
+                        ),
+                    "interaction_index":
+                        fvg_metadata.get(
+                            "interaction_index"
+                        ),
+                    "confirmation_index":
+                        fvg_metadata.get(
+                            "confirmation_index"
+                        ),
+                    "trigger_age":
+                        fvg_metadata.get(
+                            "trigger_age"
+                        ),
+                    "interacting":
+                        self._bool(
+                            fvg_metadata.get(
+                                "interacting",
+                                False,
+                            )
+                        ),
+                }
+            )
+        # ----------------------------------------------
+        # DIRECTIONAL TRIGGER SELECTION
+        # ----------------------------------------------
+
+        directional_triggers = [
+            candidate
+            for candidate in trigger_candidates
+            if candidate.get(
+                "direction"
+            ) == direction
+        ]
+
+        if directional_triggers:
+
+            selected_trigger = max(
+                directional_triggers,
+                key=lambda candidate: (
+                    candidate.get(
+                        "quality",
+                        0,
+                    ),
+                ),
+            )
+
+            execution_trigger_status = "CONFIRMED"
+
+            execution_trigger_confirmed = True
+
+            execution_trigger_direction = (
+                selected_trigger.get(
+                    "direction",
+                    "NEUTRAL",
+                )
+            )
+
+            execution_trigger_source = (
+                selected_trigger.get(
+                    "source",
+                    "NONE",
+                )
+            )
+
+            execution_trigger_lifecycle = (
+                selected_trigger.get(
+                    "lifecycle",
+                    "UNKNOWN",
+                )
+            )
+
+            execution_trigger_age = (
+                selected_trigger.get(
+                    "trigger_age"
+                )
+            )
+
+            execution_trigger_reason = (
+                selected_trigger.get(
+                    "reason",
+                    "Execution trigger confirmed",
+                )
+            )
+
+        elif trigger_candidates:
+
+            # Opposing or otherwise non-aligned trigger candidates remain
+            # available in the diagnostic candidate pool, but they must
+            # never become the canonical execution trigger.
+            #
+            # Execution authority is only established by a confirmed
+            # trigger whose direction matches the canonical structural
+            # direction. This prevents stale/opposing triggers from
+            # masquerading as the current execution candidate.
+
+            execution_trigger_status = "NONE"
+            execution_trigger_confirmed = False
+            execution_trigger_direction = "NEUTRAL"
+            execution_trigger_source = "NONE"
+            execution_trigger_lifecycle = "UNKNOWN"
+            execution_trigger_age = None
+
+            if direction == "NEUTRAL":
+                execution_trigger_reason = (
+                    "No direction-aligned confirmed "
+                    "execution trigger"
+                )
+            else:
+                execution_trigger_reason = (
+                    "No direction-aligned confirmed "
+                    "execution trigger; opposing candidates "
+                    "retained as context"
+                )
+
+        # ==================================================
+        # LIQUIDITY CONTEXT
+        # ==================================================
+
+        liquidity_lifecycle = str(
+            liquidity_metadata.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        liquidity_type = str(
+            liquidity_metadata.get(
+                "pool_type",
+                "NONE",
+            )
+        ).upper().strip()
+
+        liquidity_level = self._float(
+            liquidity_metadata.get(
+                "pool_level",
+                0.0,
+            )
+        )
+
+        liquidity_touches = int(
+            self._float(
+                liquidity_metadata.get(
+                    "touches",
+                    0,
+                )
+            )
+        )
+
+        # ==================================================
+        # BUILD ZONE CANDIDATES
+        # ==================================================
+
+        candidates = []
+
+        order_block_candidate = self._zone_candidate(
+            "ORDER_BLOCK",
+            order_block_metadata,
+            price,
+            atr,
+        )
+
+        if order_block_candidate is not None:
+
+            candidates.append(
+                order_block_candidate
+            )
+
+        fvg_candidate = self._zone_candidate(
+            "FVG",
+            fvg_metadata,
+            price,
+            atr,
+        )
+
+        if fvg_candidate is not None:
+
+            candidates.append(
+                fvg_candidate
+            )
+
+        # ==================================================
+        # STRUCTURAL ZONE SELECTION
+        # ==================================================
+        #
+        # Zone existence is a market fact.
+        #
+        # A structural zone must remain visible even when
+        # its direction conflicts with the current canonical
+        # structural direction.
+        #
+        # Directional alignment is evaluated later by the
+        # readiness contract.
+        #
+        # This preserves the distinction:
+        #
+        #     ZONE EXISTENCE
+        #         !=
+        #     EXECUTION AUTHORITY
+        #
+        # Opposing zones remain canonical structural context
+        # but cannot become execution-ready because the
+        # readiness gates require directional alignment.
+        # ==================================================
+
+        directional_candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.get(
+                "direction"
+            ) == direction
+        ]
+
+        # ==================================================
+        # SELECT BEST STRUCTURAL ZONE
+        # ==================================================
+        #
+        # Selection priority:
+        #
+        # 1. Directionally aligned zones when available.
+        # 2. Otherwise preserve the best real opposing zone
+        #    as structural market context.
+        #
+        # Readiness remains the execution-authority gate.
+        # ==================================================
+
+        if directional_candidates:
+
+            zone_pool = directional_candidates
+
+        else:
+
+            zone_pool = candidates
+        # ==================================================
+        # FILTER NON-TRADABLE EXECUTION ZONES
+        # ==================================================
+
+        tradable_zone_pool = [
+            zone
+            for zone in zone_pool
+            if zone.get("lifecycle") not in (
+                "MITIGATED",
+                "FILLED",
+                "INVALID",
+                "INVALIDATED",
+                "BROKEN",
+           )
+        ]
+
+        if tradable_zone_pool:
+             zone_pool = tradable_zone_pool
+        selected_zone = None
+
+        if zone_pool:
+
+            selected_zone = max(
+                zone_pool,
+                key=lambda candidate: (
+                    candidate.get(
+                        "quality",
+                        0,
+                    ),
+                    -candidate.get(
+                        "distance_atr",
+                        0.0,
+                    ),
+                ),
+            )
+
+        # ==================================================
+        # NORMALIZE SELECTED ZONE
+        # ==================================================
+
+        zone_status = "NONE"
+
+        zone_type = "NONE"
+
+        zone_direction = "NEUTRAL"
+
+        zone_lifecycle = "UNKNOWN"
+
+        zone_low = 0.0
+
+        zone_high = 0.0
+
+        interacting = False
+
+        distance = 0.0
+
+        distance_atr = 0.0
+
+        location_quality = "NONE"
+
+        if selected_zone is not None:
+
+            zone_status = "AVAILABLE"
+
+            zone_type = selected_zone.get(
+                "type",
+                "NONE",
+            )
+
+            zone_direction = selected_zone.get(
+                "direction",
+                "NEUTRAL",
+            )
+
+            zone_lifecycle = selected_zone.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+
+            zone_low = selected_zone.get(
+                "zone_low",
+                0.0,
+            )
+
+            zone_high = selected_zone.get(
+                "zone_high",
+                0.0,
+            )
+
+            interacting = selected_zone.get(
+                "interacting",
+                False,
+            )
+
+
+            distance = selected_zone.get(
+                "distance",
+                0.0,
+            )
+
+            distance_atr = selected_zone.get(
+                "distance_atr",
+                0.0,
+            )
+
+            if interacting:
+
+                location_quality = "INTERACTING"
+
+            elif distance_atr <= 1.0:
+
+                location_quality = "NEAR"
+
+            elif distance_atr <= 2.0:
+
+                location_quality = "APPROACHING"
+
+            elif distance_atr <= 4.0:
+
+                location_quality = "EXTENDED"
+
+            else:
+
+                location_quality = "DISTANT"
+
+        # ==================================================
+        # EXECUTION TRIGGER PROVENANCE BINDING
+        # ==================================================
+        #
+        # A directionally confirmed execution trigger is
+        # evidence only.
+        #
+        # It becomes location-valid only when its structural
+        # provenance is bound to the selected execution zone.
+        #
+        # ORDER_BLOCK / FVG:
+        #     Trigger zone must match the selected zone.
+        #
+        # LIQUIDITY:
+        #     Confirmed liquidity level must be located inside
+        #     or immediately adjacent to the selected zone.
+        #
+        # This gate prevents a trigger from Location B from
+        # authorizing execution at Location A.
+        # ==================================================
+
+        # ==================================================
+        # EXECUTION TRIGGER FRESHNESS
+        # ==================================================
+        #
+        # trigger_age is normalized by the source engine.
+        #
+        # 0-1 candles:
+        #     Immediate / recent confirmation.
+        #
+        # 2-3 candles:
+        #     Confirmation is aging but still diagnostically
+        #     relevant.
+        #
+        # 4+ candles:
+        #     Execution event is stale.
+        #
+        # Freshness is diagnostic at this stage.
+        # It does not yet authorize or reject execution.
+        # ==================================================
+
+        execution_trigger_freshness = "UNKNOWN"
+
+        execution_trigger_fresh = False
+
+        if execution_trigger_age is not None:
+
+            try:
+
+                normalized_trigger_age = int(
+                    execution_trigger_age
+                )
+
+            except (
+                TypeError,
+                ValueError,
+            ):
+
+                normalized_trigger_age = None
+
+            if (
+                normalized_trigger_age is not None
+                and normalized_trigger_age >= 0
+            ):
+
+                execution_trigger_age = (
+                    normalized_trigger_age
+                )
+
+                if normalized_trigger_age <= 1:
+
+                    execution_trigger_freshness = (
+                        "FRESH"
+                    )
+
+                    execution_trigger_fresh = True
+
+                elif normalized_trigger_age <= 3:
+
+                    execution_trigger_freshness = (
+                        "AGING"
+                    )
+
+                else:
+
+                    execution_trigger_freshness = (
+                        "STALE"
+                    )
+
+            else:
+
+                execution_trigger_age = None
+
+        execution_trigger_location_valid = False
+
+        execution_trigger_selected_zone_match = False
+
+        execution_trigger_location_type = "NONE"
+
+        execution_trigger_zone_low = 0.0
+
+        execution_trigger_zone_high = 0.0
+
+        execution_trigger_origin_index = None
+
+        execution_trigger_pool_level = 0.0
+
+        if execution_trigger_confirmed:
+
+            selected_trigger_data = (
+                selected_trigger
+                if isinstance(
+                    selected_trigger,
+                    dict,
+                )
+                else {}
+            )
+
+            trigger_source = str(
+                selected_trigger_data.get(
+                    "source",
+                    "NONE",
+                )
+            ).upper().strip()
+
+            if trigger_source in (
+                "ORDER_BLOCK",
+                "FVG",
+            ):
+
+                trigger_low = self._float(
+                    selected_trigger_data.get(
+                        "zone_low",
+                        0.0,
+                    )
+                )
+
+                trigger_high = self._float(
+                    selected_trigger_data.get(
+                        "zone_high",
+                        0.0,
+                    )
+                )
+
+                trigger_origin_index = (
+                    selected_trigger_data.get(
+                        "origin_index"
+                    )
+                )
+
+                if trigger_low > trigger_high:
+
+                    trigger_low, trigger_high = (
+                        trigger_high,
+                        trigger_low,
+                    )
+
+                execution_trigger_location_type = (
+                    trigger_source
+                )
+
+                execution_trigger_zone_low = (
+                    trigger_low
+                )
+
+                execution_trigger_zone_high = (
+                    trigger_high
+                )
+
+                execution_trigger_origin_index = (
+                    trigger_origin_index
+                )
+
+                same_zone_type = (
+                    zone_type == trigger_source
+                )
+
+                same_origin = (
+                    trigger_origin_index is not None
+                    and selected_zone is not None
+                    and trigger_origin_index
+                    == selected_zone.get(
+                        "origin_index"
+                    )
+                )
+
+                same_bounds = (
+                    trigger_low > 0
+                    and trigger_high > 0
+                    and abs(
+                        trigger_low - zone_low
+                    ) <= 1e-8
+                    and abs(
+                        trigger_high - zone_high
+                    ) <= 1e-8
+                )
+
+                execution_trigger_selected_zone_match = (
+                    same_zone_type
+                    and (
+                        same_origin
+                        or same_bounds
+                    )
+                )
+
+                execution_trigger_location_valid = (
+                    execution_trigger_selected_zone_match
+                )
+
+            elif trigger_source == "LIQUIDITY":
+
+                pool_level = self._float(
+                    selected_trigger_data.get(
+                        "pool_level",
+                        0.0,
+                    )
+                )
+
+                execution_trigger_location_type = (
+                    "LIQUIDITY"
+                )
+
+                execution_trigger_pool_level = (
+                    pool_level
+                )
+
+                liquidity_binding_tolerance = (
+                    atr * 0.25
+                    if atr > 0
+                    else 0.0
+                )
+
+                liquidity_near_selected_zone = (
+                    pool_level > 0
+                    and zone_status == "AVAILABLE"
+                    and (
+                        zone_low
+                        - liquidity_binding_tolerance
+                    )
+                    <= pool_level
+                    <= (
+                        zone_high
+                        + liquidity_binding_tolerance
+                    )
+                )
+
+                execution_trigger_selected_zone_match = (
+                    liquidity_near_selected_zone
+                )
+
+                execution_trigger_location_valid = (
+                    liquidity_near_selected_zone
+                )
+
+            if not execution_trigger_location_valid:
+
+                execution_trigger_status = (
+                    "LOCATION_MISMATCH"
+                )
+
+                execution_trigger_reason = (
+                    "Confirmed execution trigger is not "
+                    "bound to the selected execution location"
+                )
+
+        # ==================================================
+        # READINESS
+        # ==================================================
+        #
+        # Readiness represents structural execution context.
+        #
+        # Macro structure:
+        #     BOS / CHOCH / protected structure
+        #
+        # Execution location:
+        #     aligned active Order Block or FVG
+        #
+        # Execution trigger:
+        #     liquidity reclaim/rejection
+        #     Order Block rejection
+        #     FVG mitigation rejection
+        #
+        # This engine still does not authorize trades.
+        # ==================================================
+
+        readiness = "WAITING"
+
+        structure_ready = (
+            structure_state
+            in (
+                "STRUCTURE_BREAK",
+                "CHARACTER_CHANGE",
+                "PROTECTED",
+            )
+        )
+
+        zone_ready = (
+            zone_status == "AVAILABLE"
+            and zone_direction == direction
+            and zone_lifecycle
+            not in (
+                "MITIGATED",
+                "FILLED",
+                "INVALID",
+                "INVALIDATED",
+                "BROKEN",
+            )
+        )
+
+        trigger_ready = (
+            execution_trigger_confirmed
+            and execution_trigger_direction
+            == direction
+            and execution_trigger_location_valid
+            and execution_trigger_fresh
+        )
+
+        if direction == "NEUTRAL":
+
+            readiness = "NO_DIRECTION"
+
+        elif zone_status == "NONE":
+
+            readiness = "NO_ZONE"
+
+        elif zone_direction != direction:
+
+            readiness = "CONFLICT"
+
+        elif zone_lifecycle in (
+            "MITIGATED",
+            "FILLED",
+            "INVALID",
+            "INVALIDATED",
+            "BROKEN",
+        ):
+
+            readiness = "INVALID_ZONE"
+
+        elif (
+            execution_trigger_confirmed
+            and execution_trigger_direction
+            == direction
+            and execution_trigger_location_valid
+            and execution_trigger_freshness
+            == "STALE"
+        ):
+
+            readiness = "STALE_TRIGGER"
+
+        elif (
+            execution_trigger_confirmed
+            and execution_trigger_direction
+            == direction
+            and execution_trigger_location_valid
+            and execution_trigger_freshness
+            == "AGING"
+        ):
+
+            readiness = "AGING_TRIGGER"
+
+        elif (
+            execution_trigger_confirmed
+            and execution_trigger_direction
+            == direction
+            and execution_trigger_location_valid
+            and execution_trigger_freshness
+            == "UNKNOWN"
+        ):
+
+            readiness = "UNKNOWN_TRIGGER_AGE"
+
+        elif (
+            interacting
+            and structure_ready
+            and zone_ready
+            and trigger_ready
+        ):
+
+            readiness = "CONFIRMED"
+
+        elif (
+            interacting
+            and zone_ready
+            and trigger_ready
+        ):
+
+            readiness = "TRIGGER_CONFIRMED"
+
+        elif interacting:
+
+            readiness = "ZONE_INTERACTION"
+
+        elif location_quality in (
+            "NEAR",
+            "APPROACHING",
+        ):
+
+            readiness = "APPROACHING"
+
+        else:
+
+            readiness = "WAITING"
+        # ==================================================
+        # REASONS
+        # ==================================================
+
+        reasons = []
+
+        if structure_state == "PROTECTED":
+
+            reasons.append(
+                f"{direction.title()} structure remains protected"
+            )
+
+        elif structure_state == "STRUCTURE_BREAK":
+
+            reasons.append(
+                f"{direction.title()} structural break confirmed"
+            )
+
+        elif structure_state == "CHARACTER_CHANGE":
+
+            reasons.append(
+                f"{direction.title()} change of character confirmed"
+            )
+
+        elif structure_state == "DIRECTIONAL":
+
+            reasons.append(
+                f"{direction.title()} directional structure detected"
+            )
+
+        if liquidity_lifecycle == "POOL_DETECTED":
+
+            liquidity_text = (
+                liquidity_type
+                .replace(
+                    "_",
+                    "-",
+                )
+                .lower()
+            )
+
+            reasons.append(
+                f"{liquidity_text.title()} liquidity pool detected"
+            )
+
+        if execution_trigger_confirmed:
+
+            reasons.append(
+                execution_trigger_reason
+            )
+
+        elif (
+            execution_trigger_status
+            == "DIRECTION_CONFLICT"
+        ):
+
+            reasons.append(
+                execution_trigger_reason
+            )
+
+        if selected_zone is not None:
+
+            lifecycle_text = (
+                zone_lifecycle
+                .replace(
+                    "_",
+                    " ",
+                )
+                .lower()
+            )
+
+            zone_text = (
+                zone_type
+                .replace(
+                    "_",
+                    " "
+                )
+            )
+
+            reasons.append(
+                f"{lifecycle_text.title()} "
+                f"{zone_direction.lower()} "
+                f"{zone_text} available"
+            )
+
+            if interacting:
+
+                reasons.append(
+                    "Price is interacting with structural zone"
+                )
+
+            elif location_quality == "NEAR":
+
+                reasons.append(
+                    "Price is near structural zone"
+                )
+
+            elif location_quality == "APPROACHING":
+
+                reasons.append(
+                    "Price is approaching structural zone"
+                )
+
+            elif location_quality == "EXTENDED":
+
+                reasons.append(
+                    "Price remains extended from structural zone"
+                )
+
+            elif location_quality == "DISTANT":
+
+                reasons.append(
+                    "Price is distant from structural zone"
+                )
+
+        else:
+
+            reasons.append(
+                "No valid structural zone available"
+            )
+
+        reasons = self._unique(
+            reasons
+        )
+
+        # ==================================================
+        # PHASE 2 CONTEXT SCORE
+        #
+        # Diagnostic only.
+        # Not added to InstitutionalScoreEngine v2.1.
+        # ==================================================
+
+        context_score = 0
+
+        policy = ExecutionPolicy.evaluate(
+            bos_confirmed=(structure_state == "STRUCTURE_BREAK"),
+            choch_confirmed=(structure_state == "CHARACTER_CHANGE"),
+            zone_interaction=interacting,
+            liquidity_state=liquidity_trigger_lifecycle,
+            order_block_state=order_block_trigger_lifecycle,
+            fvg_state=fvg_trigger_lifecycle,
+            structure_direction=direction,
+            trigger_direction=execution_trigger_direction,
+            zone_valid=execution_trigger_location_valid,
+            location_active=interacting,
+            execution_trigger_confirmed=execution_trigger_confirmed,
+            execution_trigger_conflict=(
+                execution_trigger_status == "DIRECTION_CONFLICT"
+            ),
+            conflict_count=(
+                1 if execution_trigger_status == "DIRECTION_CONFLICT" else 0
+            ),
+        )
+
+        # ==================================================
+        # ENTERPRISE CONTRACT
+        # ==================================================
+
+        structural_zone = {
+
+            "direction": direction,
+
+            "structure_state": structure_state,
+
+            "trigger_status": trigger_status,
+
+            "execution_trigger": {
+
+                "status":
+                    execution_trigger_status,
+
+                "confirmed":
+                    execution_trigger_confirmed,
+
+                "direction":
+                    execution_trigger_direction,
+
+                "source":
+                    execution_trigger_source,
+
+                "lifecycle":
+                    execution_trigger_lifecycle,
+
+                "trigger_age":
+                    execution_trigger_age,
+
+                "freshness":
+                    execution_trigger_freshness,
+
+                "fresh":
+                    execution_trigger_fresh,
+
+                "reason":
+                    execution_trigger_reason,
+
+                "location_valid":
+                    execution_trigger_location_valid,
+
+                "selected_zone_match":
+                    execution_trigger_selected_zone_match,
+
+                "location_type":
+                    execution_trigger_location_type,
+
+                "zone_low":
+                    execution_trigger_zone_low,
+
+                "zone_high":
+                    execution_trigger_zone_high,
+
+                "origin_index":
+                    execution_trigger_origin_index,
+
+                "pool_level":
+                    execution_trigger_pool_level,
+
+                "candidates":
+                    trigger_candidates,
+
+            },
+
+            "zone_status": zone_status,
+
+            "zone_type": zone_type,
+
+            "zone_direction": zone_direction,
+
+            "zone_lifecycle": zone_lifecycle,
+
+            "zone_low": zone_low,
+
+            "zone_high": zone_high,
+
+            "interacting": interacting,
+
+            "distance": distance,
+
+            "distance_atr": distance_atr,
+
+            "liquidity_lifecycle": liquidity_lifecycle,
+
+            "liquidity_type": liquidity_type,
+
+            "liquidity_level": liquidity_level,
+
+            "liquidity_touches": liquidity_touches,
+
+            "location_quality": location_quality,
+
+            "readiness": readiness,
+
+            "score": context_score,
+
+            "reasons": reasons,
+
+            "candidates": candidates,
+
+        }
+
+        state.structural_zone = structural_zone
+
+        market[
+            "structural_zone"
+        ] = structural_zone
+
+        # ==================================================
+        # DEBUG
+        # ==================================================
+
+        print()
+
+        print(
+            "========== STRUCTURAL ZONE DEBUG =========="
+        )
+
+        print(
+            "Direction       :",
+            direction,
+        )
+
+        print(
+            "Structure State :",
+            structure_state,
+        )
+
+        print(
+            "Trigger Status  :",
+            trigger_status,
+        )
+
+        print(
+            "Zone Status     :",
+            zone_status,
+        )
+
+        print(
+            "Zone Type       :",
+            zone_type,
+        )
+
+        print(
+            "Zone Direction  :",
+            zone_direction,
+        )
+
+        print(
+            "Zone Lifecycle  :",
+            zone_lifecycle,
+        )
+
+        print(
+            "Zone Low        :",
+            zone_low,
+        )
+
+        print(
+            "Zone High       :",
+            zone_high,
+        )
+
+        print(
+            "Interacting     :",
+            interacting,
+        )
+
+        print(
+            "Distance        :",
+            distance,
+        )
+
+        print(
+            "Distance ATR    :",
+            distance_atr,
+        )
+
+        print(
+            "Liquidity Type  :",
+            liquidity_type,
+        )
+
+        print(
+            "Liquidity Level :",
+            liquidity_level,
+        )
+
+        print(
+            "Location Quality:",
+            location_quality,
+        )
+
+        print(
+            "Readiness       :",
+            readiness,
+        )
+
+        print(
+            "Exec Trigger    :",
+            execution_trigger_status,
+        )
+
+        print(
+            "Trigger Source  :",
+            execution_trigger_source,
+        )
+
+        print(
+            "Trigger Dir     :",
+            execution_trigger_direction,
+        )
+
+        print(
+            "Trigger Age     :",
+            execution_trigger_age,
+        )
+
+        print(
+            "Trigger Fresh   :",
+            execution_trigger_freshness,
+        )
+
+        print(
+            "Fresh Eligible  :",
+            execution_trigger_fresh,
+        )
+
+        print(
+            "Location Valid  :",
+            execution_trigger_location_valid,
+        )
+
+        print(
+            "Context Score   :",
+            context_score,
+        )
+
+        print(
+            "--------------------------------------------"
+        )
+
+        for reason in reasons:
+
+            print(
+                "•",
+                reason,
+            )
+
+        print(
+            "============================================"
+        )
+
+        print("Confirmed      :", execution_trigger_confirmed)
+        print("Reason         :", execution_trigger_reason)
+        print("Candidates     :", len(trigger_candidates))
+
+        return state

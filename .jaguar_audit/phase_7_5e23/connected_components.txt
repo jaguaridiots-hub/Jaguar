@@ -1,0 +1,30 @@
+COMPONENT 1
+core/logger.py
+
+COMPONENT 2
+core/market_state.py
+engine/smc_engine.py
+
+COMPONENT 3
+data/market_data.py
+market/adapter.py
+market/bse.py
+market/crypto.py
+market/forex.py
+market/mcx.py
+market/nse.py
+market/us.py
+
+COMPONENT 4
+engine/institutional_confluence.py
+engine/institutional_master.py
+
+COMPONENT 5
+engine/live_feed.py
+
+COMPONENT 6
+engine/state_manager.py
+
+COMPONENT 7
+indicators/indicator_engine.py
+

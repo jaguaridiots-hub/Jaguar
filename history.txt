@@ -1,0 +1,1674 @@
+    1  canonical_identity_records = [
+    2      record
+    3      for record in resolved_objects
+    4      if record["identity_with_canonical_atr"]
+    5  ]
+    6  print(
+    7      "CANONICAL_ATR_CALLABLE_PRESENT:",
+    8      callable(canonical_atr),
+    9  )
+   10  print(
+   11      "ATR_DATA_RUNTIME_RESOLVED_CALLABLE_COUNT:",
+   12      len(resolved_objects),
+   13  )
+   14  print(
+   15      "ATR_DATA_CANONICAL_ATR_IDENTITY_COUNT:",
+   16      len(canonical_identity_records),
+   17  )
+   18  section("ATR DATA TRANSITIVE LOCAL WRAPPER AUTHORITY")
+   19  local_definitions = {}
+   20  for node in ast.walk(tree):
+   21      if isinstance(
+   22          node,
+   23          (
+   24              ast.FunctionDef,
+   25              ast.AsyncFunctionDef,
+   26          ),
+   27      ):
+   28          local_definitions.setdefault(
+   29              node.name,
+   30              [],
+   31          ).append(node)
+   32  wrapper_records = []
+   33  for assignment in atr_data_assignments:
+   34      for call_record in assignment["call_records"]:
+   35          dotted = call_record["dotted_call_name"]
+   36          if not dotted or "." in dotted:
+   37              continue
+   38          for local_definition in local_definitions.get(
+   39              dotted,
+   40              [],
+   41          ):
+   42              return_records = []
+   43              for child in ast.walk(local_definition):
+   44                  if not isinstance(child, ast.Return):
+   45                      continue
+   46                  nested_return_calls = [
+   47                      return_child
+   48                      for return_child in ast.walk(child)
+   49                      if isinstance(return_child, ast.Call)
+   50                  ]
+   51                  return_call_records = []
+   52                  for return_call in nested_return_calls:
+   53                      return_dotted = call_name(
+   54                          return_call
+   55                      )
+   56                      return_root = (
+   57                          root_name_from_dotted(
+   58                              return_dotted
+   59                          )
+   60                      )
+   61                      matching_imports = [
+   62                          record
+   63                          for record in import_records
+   64                          if (
+   65                              record["local_name"]
+   66                              == return_root
+   67                          )
+   68                      ]
+   69                      return_call_records.append(
+   70                          {
+   71                              "line":
+   72                                  return_call.lineno,
+   73                              "dotted_call_name":
+   74                                  return_dotted,
+   75                              "call_source":
+   76                                  source_of(return_call),
+   77                              "matching_import_records":
+   78                                  matching_imports,
+   79                          }
+   80                      )
+   81                  return_records.append(
+   82                      {
+   83                          "line": child.lineno,
+   84                          "return_source":
+   85                              source_of(child.value),
+   86                          "return_call_records":
+   87                              return_call_records,
+   88                      }
+   89                  )
+   90              wrapper_record = {
+   91                  "assignment_line":
+   92                      assignment["line"],
+   93                  "assignment_rhs":
+   94                      assignment["rhs_source"],
+   95                  "wrapper_name":
+   96                      dotted,
+   97                  "wrapper_definition_line":
+   98                      local_definition.lineno,
+   99                  "wrapper_parameters": [
+  100                      argument.arg
+  101                      for argument
+  102                      in local_definition.args.args
+  103                  ],
+  104                  "return_records":
+  105                      return_records,
+  106                  "wrapper_source":
+  107                      source_of(local_definition),
+  108              }
+  109              wrapper_records.append(
+  110                  wrapper_record
+  111              )
+  112              print(
+  113                  "ATR_DATA_LOCAL_WRAPPER_RECORD:",
+  114                  wrapper_record,
+  115              )
+  116  transitive_atr_wrapper_records = []
+  117  for wrapper_record in wrapper_records:
+  118      for return_record in wrapper_record[
+  119          "return_records"
+  120      ]:
+  121          for return_call in return_record[
+  122              "return_call_records"
+  123          ]:
+  124              for import_record in return_call[
+  125                  "matching_import_records"
+  126              ]:
+  127                  if (
+  128                      import_record["module"]
+  129                      == "indicators.atr"
+  130                      and import_record["symbol"]
+  131                      == "atr"
+  132                  ):
+  133                      record = {
+  134                          "wrapper_name":
+  135                              wrapper_record[
+  136                                  "wrapper_name"
+  137                              ],
+  138                          "wrapper_definition_line":
+  139                              wrapper_record[
+  140                                  "wrapper_definition_line"
+  141                              ],
+  142                          "return_line":
+  143                              return_record["line"],
+  144                          "return_source":
+  145                              return_record[
+  146                                  "return_source"
+  147                              ],
+  148                          "return_call":
+  149                              return_call,
+  150                          "import_record":
+  151                              import_record,
+  152                      }
+  153                      transitive_atr_wrapper_records.append(
+  154                          record
+  155                      )
+  156                      print(
+  157                          "TRANSITIVE_ATR_WRAPPER_RECORD:",
+  158                          record,
+  159                      )
+  160  print(
+  161      "ATR_DATA_LOCAL_WRAPPER_RECORD_COUNT:",
+  162      len(wrapper_records),
+  163  )
+  164  print(
+  165      "TRANSITIVE_ATR_WRAPPER_RECORD_COUNT:",
+  166      len(transitive_atr_wrapper_records),
+  167  )
+  168  section("ATR DATA EXACT PRODUCER CAUSAL CLASSIFICATION")
+  169  single_assignment_authority = (
+  170      len(atr_data_assignments) == 1
+  171  )
+  172  runtime_identity_authority = (
+  173      len(canonical_identity_records) == 1
+  174  )
+  175  transitive_wrapper_authority = (
+  176      len(transitive_atr_wrapper_records) == 1
+  177  )
+  178  if (
+  179      single_assignment_authority
+  180      and runtime_identity_authority
+  181  ):
+  182      classification = (
+  183          "ATR_DATA_SINGLE_ASSIGNMENT_CALLABLE_IS_RUNTIME_"
+  184          "IDENTICAL_TO_INDICATORS_ATR_ATR"
+  185      )
+  186      next_owner = (
+  187          "ATR_INVALID_MINIMUM_DOMAIN_NATIVE_DICT_"
+  188          "FALLBACK_CONTRACT_OWNER"
+  189      )
+  190      causal_authority = True
+  191  elif (
+  192      single_assignment_authority
+  193      and transitive_wrapper_authority
+  194  ):
+  195      classification = (
+  196          "ATR_DATA_SINGLE_ASSIGNMENT_TRANSITIVELY_RETURNS_"
+  197          "IMPORTED_INDICATORS_ATR_ATR_PAYLOAD"
+  198      )
+  199      next_owner = (
+  200          "ATR_INVALID_MINIMUM_DOMAIN_NATIVE_DICT_"
+  201          "FALLBACK_CONTRACT_OWNER"
+  202      )
+  203      causal_authority = True
+  204  else:
+  205      classification = (
+  206          "ATR_DATA_EXACT_RHS_CALLABLE_PRODUCER_"
+  207          "IDENTITY_UNRESOLVED"
+  208      )
+  209      next_owner = (
+  210          "ATR_DATA_RHS_CALLABLE_BINDING_OWNER"
+  211      )
+  212      causal_authority = False
+  213  print(
+  214      "SINGLE_ATR_DATA_ASSIGNMENT_AUTHORITY:",
+  215      "PASS"
+  216      if single_assignment_authority
+  217      else "FAIL",
+  218  )
+  219  print(
+  220      "ATR_DATA_RUNTIME_CANONICAL_ATR_IDENTITY_AUTHORITY:",
+  221      "PASS"
+  222      if runtime_identity_authority
+  223      else "FAIL",
+  224  )
+  225  print(
+  226      "ATR_DATA_TRANSITIVE_ATR_WRAPPER_AUTHORITY:",
+  227      "PASS"
+  228      if transitive_wrapper_authority
+  229      else "FAIL",
+  230  )
+  231  print(
+  232      "R15_R17C_CLASSIFICATION:",
+  233      classification,
+  234  )
+  235  print(
+  236      "R15_R17C_NEXT_OWNER_CLASSIFICATION:",
+  237      next_owner,
+  238  )
+  239  print(
+  240      "R15_ATR_DATA_EXACT_PRODUCER_CAUSAL_AUTHORITY:",
+  241      "PASS"
+  242      if causal_authority
+  243      else "FAIL",
+  244  )
+  245  print("SOURCE_REPAIR_AUTHORIZED: NO")
+  246  print("SOURCE_REPAIR_APPLIED: NO")
+  247  section("POST-DIAGNOSTIC REPOSITORY AUTHORITY")
+  248  head_after = text(
+  249      git("rev-parse", "HEAD").stdout
+  250  ).strip()
+  251  parent_after = text(
+  252      git("rev-parse", "HEAD^").stdout
+  253  ).strip()
+  254  status_after = text(
+  255      git("status", "--porcelain=v1").stdout
+  256  )
+  257  cached_after = text(
+  258      git("diff", "--cached", "--name-only").stdout
+  259  )
+  260  bytes_preserved = True
+  261  for relative, original in before.items():
+  262      path = Path(relative)
+  263      current = (
+  264          path.read_bytes()
+  265          if path.exists()
+  266          else None
+  267      )
+  268      preserved = current == original
+  269      if not preserved:
+  270          bytes_preserved = False
+  271      print(
+  272          "TARGET_RECORD_AFTER:",
+  273          {
+  274              "path": relative,
+  275              "exists": path.exists(),
+  276              "sha256": (
+  277                  sha(current)
+  278                  if current is not None
+  279                  else None
+  280              ),
+  281              "bytes_preserved": (
+  282                  "PASS"
+  283                  if preserved
+  284                  else "FAIL"
+  285              ),
+  286          },
+  287      )
+  288  repository_authority = (
+  289      head_after == head_before
+  290      and parent_after == parent_before
+  291      and bytes_preserved
+  292      and status_after == status_before
+  293      and cached_after.strip() == ""
+  294  )
+  295  print("HEAD_AFTER:", head_after)
+  296  print(
+  297      "HEAD_PRESERVED:",
+  298      "PASS"
+  299      if head_after == head_before
+  300      else "FAIL",
+  301  )
+  302  print(
+  303      "PARENT_PRESERVED:",
+  304      "PASS"
+  305      if parent_after == parent_before
+  306      else "FAIL",
+  307  )
+  308  print(
+  309      "TARGET_BYTES_PRESERVED:",
+  310      "PASS"
+  311      if bytes_preserved
+  312      else "FAIL",
+  313  )
+  314  print(
+  315      "PORCELAIN_PRESERVED:",
+  316      "PASS"
+  317      if status_after == status_before
+  318      else "FAIL",
+  319  )
+  320  print(
+  321      "INDEX_EMPTY_AFTER_DIAGNOSTIC:",
+  322      "PASS"
+  323      if cached_after.strip() == ""
+  324      else "FAIL",
+  325  )
+  326  print(
+  327      "R15_POST_DIAGNOSTIC_REPOSITORY_AUTHORITY:",
+  328      "PASS"
+  329      if repository_authority
+  330      else "FAIL",
+  331  )
+  332  section("R15-R17C FINAL")
+  333  final_authority = (
+  334      causal_authority
+  335      and repository_authority
+  336  )
+  337  print(
+  338      "R15_R17C_TARGET_OWNER:",
+  339      "indicators/indicator_engine.py::update_market_state",
+  340  )
+  341  print(
+  342      "R15_R17C_TARGET_LOCAL_SYMBOL:",
+  343      "atr_data",
+  344  )
+  345  print(
+  346      "R15_R17C_CANONICAL_UPSTREAM_OWNER:",
+  347      "indicators/atr.py::atr",
+  348  )
+  349  print(
+  350      "R15_R17C_ATR_DATA_EXACT_ASSIGNMENT_COUNT:",
+  351      len(atr_data_assignments),
+  352  )
+  353  print(
+  354      "R15_R17C_ATR_DATA_CALL_IMPORT_BINDING_RECORD_COUNT:",
+  355      len(atr_data_call_import_records),
+  356  )
+  357  print(
+  358      "R15_R17C_ATR_DATA_RUNTIME_RESOLVED_CALLABLE_COUNT:",
+  359      len(resolved_objects),
+  360  )
+  361  print(
+  362      "R15_R17C_ATR_DATA_CANONICAL_ATR_IDENTITY_COUNT:",
+  363      len(canonical_identity_records),
+  364  )
+  365  print(
+  366      "R15_R17C_ATR_DATA_LOCAL_WRAPPER_RECORD_COUNT:",
+  367      len(wrapper_records),
+  368  )
+  369  print(
+  370      "R15_R17C_TRANSITIVE_ATR_WRAPPER_RECORD_COUNT:",
+  371      len(transitive_atr_wrapper_records),
+  372  )
+  373  print(
+  374      "R15_R17C_CLASSIFICATION:",
+  375      classification,
+  376  )
+  377  print(
+  378      "R15_R17C_NEXT_OWNER_CLASSIFICATION:",
+  379      next_owner,
+  380  )
+  381  print(
+  382      "R15_ATR_DATA_EXACT_PRODUCER_CAUSAL_AUTHORITY:",
+  383      "PASS"
+  384      if causal_authority
+  385      else "FAIL",
+  386  )
+  387  print(
+  388      "R15_POST_DIAGNOSTIC_REPOSITORY_AUTHORITY:",
+  389      "PASS"
+  390      if repository_authority
+  391      else "FAIL",
+  392  )
+  393  print(
+  394      "R15_R17C_FINAL_AUTHORITY:",
+  395      "PASS"
+  396      if final_authority
+  397      else "FAIL",
+  398  )
+  399  print("SOURCE_REPAIR_AUTHORIZED: NO")
+  400  print("SOURCE_REPAIR_APPLIED: NO")
+  401  print("STAGING_AUTHORIZED: NO")
+  402  print("COMMIT_AUTHORIZED: NO")
+  403  print("COMMIT_APPLIED: NO")
+  404  print("CLEANUP_AUTHORIZED: NO")
+  405  print(
+  406      "NEXT_ACTION:",
+  407      (
+  408          "REPORT_OUTPUT_ONLY_FOR_ATR_NATIVE_DICT_MINIMUM_DOMAIN_FALLBACK_REVIEW"
+  409          if final_authority
+  410          else "STOP_AND_REPORT_R15_R17C_AUTHORITY_FAILURE"
+  411      ),
+  412  )
+  413  PY
+  414  cd ~/Jaguar-OS/Jaguar
+  415  python - <<'PY'
+import ast
+import hashlib
+import subprocess
+from pathlib import Path
+
+PHASE = (
+    "PHASE 7.5E73B-R10-R4-R8-R15-R17D "
+    "ATR DATA EXACT RHS EXPRESSION AND RECURSIVE LOCAL "
+    "PRODUCER LINEAGE AUTHORITY DIAGNOSTIC"
+)
+
+EXPECTED_HEAD = "db017a77d82a8a8e5664d98108b7c3652c7c8479"
+EXPECTED_PARENT = "dc8d54c6630e594b00286de9c0e74310eeb27122"
+
+EXPECTED_HASHES = {
+    "indicators/indicator_engine.py":
+        "11964b156a6290ef6a5adca15781d79ace76f3477f8c6f907ded42fb10207d57",
+    "backtest/temporal_structural_validator.py":
+        "72d4c25a027da43d836af4d5098642372771b6ff5ad6752bfd2f396424b91df8",
+    "engine/institutional_master.py":
+        "dee3465dcc079cba50e41f3285bbda2801b2296a150eac5cdb75bf656e02efee",
+    "engine/ai_brain.py":
+        "e08baff5f2c5b22ae0057cdeb6f5d29536f5b3adac1ab2ad48e337427cb6062e",
+    "trade_state.json":
+        "909369d54d6fc6484add34c3f37a60727f6cd1799a824bc00740f2b21c4a435e",
+    "indicators/atr.py":
+        "6248b652f52567bd445a83e4a843164d176ccd6fbb04c6dc3f2bf64b503db7e1",
+}
+
+TARGET_PATH = Path("indicators/indicator_engine.py")
+
+PRESERVE = [
+    Path(path)
+    for path in EXPECTED_HASHES
+]
+
+
+def git(*args):
+    return subprocess.run(
+        ["git", *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+
+
+def text(data):
+    return data.decode(
+        "utf-8",
+        errors="replace",
+    )
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def section(name):
+    print()
+    print("=" * 100)
+    print(name)
+    print("=" * 100)
+
+
+def source_of(node):
+    if node is None:
+        return None
+
+    try:
+        return ast.unparse(node)
+    except Exception:
+        return None
+
+
+def assignment_targets(node):
+    if isinstance(node, ast.Assign):
+        return node.targets
+
+    if isinstance(node, ast.AnnAssign):
+        return [node.target]
+
+    if isinstance(node, ast.NamedExpr):
+        return [node.target]
+
+    return []
+
+
+def assignment_value(node):
+    if isinstance(
+        node,
+        (
+            ast.Assign,
+            ast.AnnAssign,
+            ast.NamedExpr,
+        ),
+    ):
+        return node.value
+
+    return None
+
+
+def assigned_names(node):
+    result = []
+
+    for target in assignment_targets(node):
+        for child in ast.walk(target):
+            if isinstance(child, ast.Name):
+                result.append(child.id)
+
+    return result
+
+
+def dotted_name(node):
+    if isinstance(node, ast.Name):
+        return node.id
+
+    if isinstance(node, ast.Attribute):
+        prefix = dotted_name(node.value)
+
+        if prefix is None:
+            return None
+
+        return f"{prefix}.{node.attr}"
+
+    return None
+
+
+def call_name(node):
+    if not isinstance(node, ast.Call):
+        return None
+
+    return dotted_name(node.func)
+
+
+def expression_name_loads(node):
+    return sorted(
+        [
+            {
+                "name": child.id,
+                "line": child.lineno,
+                "column": child.col_offset,
+                "source": source_of(child),
+            }
+            for child in ast.walk(node)
+            if (
+                isinstance(child, ast.Name)
+                and isinstance(child.ctx, ast.Load)
+            )
+        ],
+        key=lambda record: (
+            record["line"],
+            record["column"],
+            record["name"],
+        ),
+    )
+
+
+def build_parent_map(root):
+    result = {}
+
+    for parent in ast.walk(root):
+        for child in ast.iter_child_nodes(parent):
+            result[child] = parent
+
+    return result
+
+
+def enclosing_statement(node, parent_map):
+    current = node
+
+    while current in parent_map:
+        current = parent_map[current]
+
+        if isinstance(current, ast.stmt):
+            return current
+
+    return None
+
+
+def build_import_records(tree):
+    records = []
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                records.append(
+                    {
+                        "kind": "IMPORT_FROM",
+                        "module": node.module,
+                        "symbol": alias.name,
+                        "local_name": (
+                            alias.asname
+                            if alias.asname
+                            else alias.name
+                        ),
+                        "line": node.lineno,
+                        "source": source_of(node),
+                    }
+                )
+
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                records.append(
+                    {
+                        "kind": "IMPORT",
+                        "module": alias.name,
+                        "symbol": None,
+                        "local_name": (
+                            alias.asname
+                            if alias.asname
+                            else alias.name.split(".")[0]
+                        ),
+                        "line": node.lineno,
+                        "source": source_of(node),
+                    }
+                )
+
+    return records
+
+
+def assignment_records_for_name(
+    owner,
+    name,
+    before_line,
+):
+    records = []
+
+    for node in ast.walk(owner):
+        if not isinstance(
+            node,
+            (
+                ast.Assign,
+                ast.AnnAssign,
+                ast.NamedExpr,
+            ),
+        ):
+            continue
+
+        if node.lineno >= before_line:
+            continue
+
+        if name not in assigned_names(node):
+            continue
+
+        value = assignment_value(node)
+
+        records.append(
+            {
+                "name": name,
+                "line": node.lineno,
+                "column": node.col_offset,
+                "rhs_type": (
+                    type(value).__name__
+                    if value is not None
+                    else None
+                ),
+                "rhs_source": source_of(value),
+                "rhs_name_loads":
+                    expression_name_loads(value)
+                    if value is not None
+                    else [],
+                "rhs_call_records": [
+                    {
+                        "line": child.lineno,
+                        "column": child.col_offset,
+                        "call_name": call_name(child),
+                        "call_source": source_of(child),
+                    }
+                    for child in sorted(
+                        [
+                            child
+                            for child in ast.walk(value)
+                            if isinstance(child, ast.Call)
+                        ],
+                        key=lambda child: (
+                            child.lineno,
+                            child.col_offset,
+                        ),
+                    )
+                ]
+                if value is not None
+                else [],
+                "statement_source": source_of(node),
+            }
+        )
+
+    return sorted(
+        records,
+        key=lambda record: (
+            record["line"],
+            record["column"],
+        ),
+    )
+
+
+def parameter_names(definition):
+    result = []
+
+    result.extend(
+        argument.arg
+        for argument in definition.args.posonlyargs
+    )
+
+    result.extend(
+        argument.arg
+        for argument in definition.args.args
+    )
+
+    if definition.args.vararg is not None:
+        result.append(definition.args.vararg.arg)
+
+    result.extend(
+        argument.arg
+        for argument in definition.args.kwonlyargs
+    )
+
+    if definition.args.kwarg is not None:
+        result.append(definition.args.kwarg.arg)
+
+    return result
+
+
+print("=" * 100)
+print(PHASE)
+print("=" * 100)
+
+head_before = text(
+    git("rev-parse", "HEAD").stdout
+).strip()
+
+parent_before = text(
+    git("rev-parse", "HEAD^").stdout
+).strip()
+
+status_before = text(
+    git("status", "--porcelain=v1").stdout
+)
+
+cached_before = text(
+    git("diff", "--cached", "--name-only").stdout
+)
+
+before = {
+    str(path): (
+        path.read_bytes()
+        if path.exists()
+        else None
+    )
+    for path in PRESERVE
+}
+
+section("PRE-DIAGNOSTIC AUTHORITY")
+
+print("EXPECTED_HEAD:", EXPECTED_HEAD)
+print("HEAD_BEFORE:", head_before)
+print("EXPECTED_PARENT:", EXPECTED_PARENT)
+print("PARENT_BEFORE:", parent_before)
+
+hash_authority = True
+
+for path_string, expected_hash in EXPECTED_HASHES.items():
+    path = Path(path_string)
+
+    data = (
+        path.read_bytes()
+        if path.exists()
+        else None
+    )
+
+    actual_hash = (
+        sha(data)
+        if data is not None
+        else None
+    )
+
+    record = {
+        "path": str(path),
+        "exists": path.exists(),
+        "expected_sha256": expected_hash,
+        "actual_sha256": actual_hash,
+        "sha256_authority": (
+            "PASS"
+            if actual_hash == expected_hash
+            else "FAIL"
+        ),
+    }
+
+    if actual_hash != expected_hash:
+        hash_authority = False
+
+    print(
+        "PRE_DIAGNOSTIC_TARGET_RECORD:",
+        record,
+    )
+
+pre_authority = (
+    head_before == EXPECTED_HEAD
+    and parent_before == EXPECTED_PARENT
+    and hash_authority
+    and cached_before.strip() == ""
+)
+
+print(
+    "R15_R17D_PRE_DIAGNOSTIC_AUTHORITY:",
+    "PASS"
+    if pre_authority
+    else "FAIL",
+)
+
+if not pre_authority:
+    print(
+        "R15_R17D_ABORT_REASON: "
+        "PRE_DIAGNOSTIC_AUTHORITY_FAIL"
+    )
+    raise SystemExit(2)
+
+source = TARGET_PATH.read_text(
+    encoding="utf-8"
+)
+
+tree = ast.parse(source)
+
+parent_map = build_parent_map(tree)
+
+definitions = [
+    node
+    for node in ast.walk(tree)
+    if (
+        isinstance(
+            node,
+            (
+                ast.FunctionDef,
+                ast.AsyncFunctionDef,
+            ),
+        )
+        and node.name == "update_market_state"
+    )
+]
+
+if len(definitions) != 1:
+    print(
+        "R15_R17D_ABORT_REASON: "
+        "UPDATE_OWNER_AUTHORITY_FAIL"
+    )
+    raise SystemExit(3)
+
+definition = definitions[0]
+
+parameters = set(
+    parameter_names(definition)
+)
+
+import_records = build_import_records(tree)
+
+section("ATR DATA EXACT RHS EXPRESSION AUTHORITY")
+
+atr_data_assignments = []
+
+for node in ast.walk(definition):
+    if not isinstance(
+        node,
+        (
+            ast.Assign,
+            ast.AnnAssign,
+            ast.NamedExpr,
+        ),
+    ):
+        continue
+
+    if "atr_data" not in assigned_names(node):
+        continue
+
+    value = assignment_value(node)
+
+    statement = enclosing_statement(
+        node,
+        parent_map,
+    )
+
+    record = {
+        "line": node.lineno,
+        "column": node.col_offset,
+        "rhs_type": (
+            type(value).__name__
+            if value is not None
+            else None
+        ),
+        "rhs_source": source_of(value),
+        "rhs_name_load_records":
+            expression_name_loads(value)
+            if value is not None
+            else [],
+        "rhs_call_count": (
+            sum(
+                1
+                for child in ast.walk(value)
+                if isinstance(child, ast.Call)
+            )
+            if value is not None
+            else 0
+        ),
+        "statement_line": (
+            statement.lineno
+            if statement is not None
+            else None
+        ),
+        "statement_source": source_of(statement),
+    }
+
+    atr_data_assignments.append(record)
+
+    print(
+        "ATR_DATA_EXACT_RHS_RECORD:",
+        record,
+    )
+
+print(
+    "ATR_DATA_EXACT_ASSIGNMENT_COUNT:",
+    len(atr_data_assignments),
+)
+
+section("ATR DATA RHS ROOT SYMBOL AUTHORITY")
+
+rhs_root_records = []
+
+for assignment in atr_data_assignments:
+    for load_record in assignment[
+        "rhs_name_load_records"
+    ]:
+        name = load_record["name"]
+
+        local_assignments = assignment_records_for_name(
+            definition,
+            name,
+            assignment["line"],
+        )
+
+        matching_imports = [
+            record
+            for record in import_records
+            if record["local_name"] == name
+        ]
+
+        record = {
+            "atr_data_assignment_line":
+                assignment["line"],
+            "atr_data_rhs":
+                assignment["rhs_source"],
+            "root_name":
+                name,
+            "root_load_line":
+                load_record["line"],
+            "is_update_parameter":
+                name in parameters,
+            "local_assignment_count":
+                len(local_assignments),
+            "local_assignment_records":
+                local_assignments,
+            "import_binding_count":
+                len(matching_imports),
+            "import_bindings":
+                matching_imports,
+        }
+
+        rhs_root_records.append(record)
+
+        print(
+            "ATR_DATA_RHS_ROOT_RECORD:",
+            record,
+        )
+
+print(
+    "ATR_DATA_RHS_ROOT_RECORD_COUNT:",
+    len(rhs_root_records),
+)
+
+section("ATR DATA RECURSIVE LOCAL PRODUCER LINEAGE AUTHORITY")
+
+lineage_records = []
+
+terminal_records = []
+
+visited = set()
+
+
+def trace_local_name(
+    name,
+    before_line,
+    depth,
+    path,
+):
+    key = (
+        name,
+        before_line,
+    )
+
+    if key in visited:
+        terminal = {
+            "terminal_kind": "CYCLE_OR_REVISIT",
+            "name": name,
+            "before_line": before_line,
+            "depth": depth,
+            "path": path,
+        }
+
+        terminal_records.append(terminal)
+
+        print(
+            "ATR_DATA_LINEAGE_TERMINAL_RECORD:",
+            terminal,
+        )
+
+        return
+
+    visited.add(key)
+
+    local_assignments = assignment_records_for_name(
+        definition,
+        name,
+        before_line,
+    )
+
+    matching_imports = [
+        record
+        for record in import_records
+        if record["local_name"] == name
+    ]
+
+    if local_assignments:
+        selected = local_assignments[-1]
+
+        record = {
+            "depth": depth,
+            "name": name,
+            "before_line": before_line,
+            "path": path,
+            "classification":
+                "LOCAL_ASSIGNMENT",
+            "selected_assignment":
+                selected,
+        }
+
+        lineage_records.append(record)
+
+        print(
+            "ATR_DATA_LINEAGE_RECORD:",
+            record,
+        )
+
+        child_names = [
+            load["name"]
+            for load in selected[
+                "rhs_name_loads"
+            ]
+        ]
+
+        if not child_names:
+            terminal = {
+                "terminal_kind":
+                    "LOCAL_ASSIGNMENT_WITHOUT_NAME_LOAD",
+                "name": name,
+                "before_line": before_line,
+                "depth": depth,
+                "path": path,
+                "selected_assignment":
+                    selected,
+            }
+
+            terminal_records.append(terminal)
+
+            print(
+                "ATR_DATA_LINEAGE_TERMINAL_RECORD:",
+                terminal,
+            )
+
+        for child_name in child_names:
+            trace_local_name(
+                child_name,
+                selected["line"],
+                depth + 1,
+                path + [
+                    {
+                        "name": name,
+                        "assignment_line":
+                            selected["line"],
+                        "rhs":
+                            selected["rhs_source"],
+                    }
+                ],
+            )
+
+        return
+
+    if name in parameters:
+        terminal = {
+            "terminal_kind": "UPDATE_PARAMETER",
+            "name": name,
+            "before_line": before_line,
+            "depth": depth,
+            "path": path,
+        }
+
+        terminal_records.append(terminal)
+
+        print(
+            "ATR_DATA_LINEAGE_TERMINAL_RECORD:",
+            terminal,
+        )
+
+        return
+
+    if matching_imports:
+        terminal = {
+            "terminal_kind": "IMPORT_BINDING",
+            "name": name,
+            "before_line": before_line,
+            "depth": depth,
+            "path": path,
+            "import_bindings":
+                matching_imports,
+        }
+
+        terminal_records.append(terminal)
+
+        print(
+            "ATR_DATA_LINEAGE_TERMINAL_RECORD:",
+            terminal,
+        )
+
+        return
+
+    terminal = {
+        "terminal_kind": "UNRESOLVED_NAME",
+        "name": name,
+        "before_line": before_line,
+        "depth": depth,
+        "path": path,
+    }
+
+    terminal_records.append(terminal)
+
+    print(
+        "ATR_DATA_LINEAGE_TERMINAL_RECORD:",
+        terminal,
+    )
+
+
+for assignment in atr_data_assignments:
+    for load_record in assignment[
+        "rhs_name_load_records"
+    ]:
+        trace_local_name(
+            load_record["name"],
+            assignment["line"],
+            0,
+            [
+                {
+                    "name": "atr_data",
+                    "assignment_line":
+                        assignment["line"],
+                    "rhs":
+                        assignment["rhs_source"],
+                }
+            ],
+        )
+
+print(
+    "ATR_DATA_RECURSIVE_LINEAGE_RECORD_COUNT:",
+    len(lineage_records),
+)
+
+print(
+    "ATR_DATA_RECURSIVE_TERMINAL_RECORD_COUNT:",
+    len(terminal_records),
+)
+
+section("ATR DATA CALL-BEARING LOCAL PRODUCER AUTHORITY")
+
+call_bearing_lineage_records = []
+
+for lineage_record in lineage_records:
+    assignment = lineage_record[
+        "selected_assignment"
+    ]
+
+    for call_record in assignment[
+        "rhs_call_records"
+    ]:
+        dotted = call_record["call_name"]
+
+        root = (
+            dotted.split(".")[0]
+            if dotted
+            else None
+        )
+
+        matching_imports = [
+            record
+            for record in import_records
+            if record["local_name"] == root
+        ]
+
+        record = {
+            "lineage_depth":
+                lineage_record["depth"],
+            "local_name":
+                lineage_record["name"],
+            "assignment_line":
+                assignment["line"],
+            "assignment_rhs":
+                assignment["rhs_source"],
+            "call_name":
+                dotted,
+            "call_source":
+                call_record["call_source"],
+            "root_name":
+                root,
+            "matching_import_records":
+                matching_imports,
+        }
+
+        call_bearing_lineage_records.append(
+            record
+        )
+
+        print(
+            "ATR_DATA_CALL_BEARING_LINEAGE_RECORD:",
+            record,
+        )
+
+exact_atr_import_call_records = [
+    record
+    for record in call_bearing_lineage_records
+    if any(
+        (
+            binding["kind"] == "IMPORT_FROM"
+            and binding["module"] == "indicators.atr"
+            and binding["symbol"] == "atr"
+        )
+        for binding in record[
+            "matching_import_records"
+        ]
+    )
+]
+
+for record in exact_atr_import_call_records:
+    print(
+        "ATR_DATA_EXACT_ATR_IMPORT_CALL_LINEAGE_RECORD:",
+        record,
+    )
+
+print(
+    "ATR_DATA_CALL_BEARING_LINEAGE_RECORD_COUNT:",
+    len(call_bearing_lineage_records),
+)
+
+print(
+    "ATR_DATA_EXACT_ATR_IMPORT_CALL_LINEAGE_RECORD_COUNT:",
+    len(exact_atr_import_call_records),
+)
+
+section("ATR DATA NON-CALL PRODUCER CAUSAL CLASSIFICATION")
+
+single_assignment_authority = (
+    len(atr_data_assignments) == 1
+)
+
+rhs_non_call_authority = (
+    single_assignment_authority
+    and atr_data_assignments[0][
+        "rhs_call_count"
+    ] == 0
+)
+
+exact_atr_lineage_authority = (
+    len(exact_atr_import_call_records) == 1
+)
+
+parameter_terminal_records = [
+    record
+    for record in terminal_records
+    if record["terminal_kind"] == "UPDATE_PARAMETER"
+]
+
+import_terminal_records = [
+    record
+    for record in terminal_records
+    if record["terminal_kind"] == "IMPORT_BINDING"
+]
+
+unresolved_terminal_records = [
+    record
+    for record in terminal_records
+    if record["terminal_kind"] == "UNRESOLVED_NAME"
+]
+
+if (
+    single_assignment_authority
+    and rhs_non_call_authority
+    and exact_atr_lineage_authority
+):
+    classification = (
+        "ATR_DATA_NON_CALL_RHS_TRANSITIVELY_PROJECTS_"
+        "IMPORTED_INDICATORS_ATR_ATR_CALL_RESULT"
+    )
+
+    next_owner = (
+        "ATR_INVALID_MINIMUM_DOMAIN_NATIVE_DICT_"
+        "FALLBACK_CONTRACT_OWNER"
+    )
+
+    causal_authority = True
+
+elif (
+    single_assignment_authority
+    and rhs_non_call_authority
+    and len(parameter_terminal_records) >= 1
+):
+    classification = (
+        "ATR_DATA_NON_CALL_RHS_TRANSITIVELY_REACHES_"
+        "UPDATE_PARAMETER_LINEAGE"
+    )
+
+    next_owner = (
+        "ATR_DATA_PARAMETER_TO_LOCAL_PRODUCER_OWNER"
+    )
+
+    causal_authority = True
+
+elif (
+    single_assignment_authority
+    and rhs_non_call_authority
+    and len(import_terminal_records) >= 1
+):
+    classification = (
+        "ATR_DATA_NON_CALL_RHS_TRANSITIVELY_REACHES_"
+        "IMPORT_BINDING_WITHOUT_EXACT_ATR_CALL_PROOF"
+    )
+
+    next_owner = (
+        "ATR_DATA_IMPORT_BOUND_PRODUCER_SEMANTIC_OWNER"
+    )
+
+    causal_authority = True
+
+else:
+    classification = (
+        "ATR_DATA_NON_CALL_RHS_RECURSIVE_LOCAL_"
+        "PRODUCER_LINEAGE_UNRESOLVED"
+    )
+
+    next_owner = (
+        "ATR_DATA_EXACT_RHS_EXPRESSION_SEMANTIC_OWNER"
+    )
+
+    causal_authority = False
+
+print(
+    "SINGLE_ATR_DATA_ASSIGNMENT_AUTHORITY:",
+    "PASS"
+    if single_assignment_authority
+    else "FAIL",
+)
+
+print(
+    "ATR_DATA_EXACT_RHS_NON_CALL_AUTHORITY:",
+    "PASS"
+    if rhs_non_call_authority
+    else "FAIL",
+)
+
+print(
+    "ATR_DATA_EXACT_ATR_IMPORT_CALL_LINEAGE_AUTHORITY:",
+    "PASS"
+    if exact_atr_lineage_authority
+    else "FAIL",
+)
+
+print(
+    "ATR_DATA_PARAMETER_TERMINAL_RECORD_COUNT:",
+    len(parameter_terminal_records),
+)
+
+print(
+    "ATR_DATA_IMPORT_TERMINAL_RECORD_COUNT:",
+    len(import_terminal_records),
+)
+
+print(
+    "ATR_DATA_UNRESOLVED_TERMINAL_RECORD_COUNT:",
+    len(unresolved_terminal_records),
+)
+
+print(
+    "R15_R17D_CLASSIFICATION:",
+    classification,
+)
+
+print(
+    "R15_R17D_NEXT_OWNER_CLASSIFICATION:",
+    next_owner,
+)
+
+print(
+    "R15_ATR_DATA_NON_CALL_PRODUCER_CAUSAL_AUTHORITY:",
+    "PASS"
+    if causal_authority
+    else "FAIL",
+)
+
+print("SOURCE_REPAIR_AUTHORIZED: NO")
+print("SOURCE_REPAIR_APPLIED: NO")
+
+section("POST-DIAGNOSTIC REPOSITORY AUTHORITY")
+
+head_after = text(
+    git("rev-parse", "HEAD").stdout
+).strip()
+
+parent_after = text(
+    git("rev-parse", "HEAD^").stdout
+).strip()
+
+status_after = text(
+    git("status", "--porcelain=v1").stdout
+)
+
+cached_after = text(
+    git("diff", "--cached", "--name-only").stdout
+)
+
+bytes_preserved = True
+
+for relative, original in before.items():
+    path = Path(relative)
+
+    current = (
+        path.read_bytes()
+        if path.exists()
+        else None
+    )
+
+    preserved = current == original
+
+    if not preserved:
+        bytes_preserved = False
+
+    print(
+        "TARGET_RECORD_AFTER:",
+        {
+            "path": relative,
+            "exists": path.exists(),
+            "sha256": (
+                sha(current)
+                if current is not None
+                else None
+            ),
+            "bytes_preserved": (
+                "PASS"
+                if preserved
+                else "FAIL"
+            ),
+        },
+    )
+
+repository_authority = (
+    head_after == head_before
+    and parent_after == parent_before
+    and bytes_preserved
+    and status_after == status_before
+    and cached_after.strip() == ""
+)
+
+print("HEAD_AFTER:", head_after)
+
+print(
+    "HEAD_PRESERVED:",
+    "PASS"
+    if head_after == head_before
+    else "FAIL",
+)
+
+print(
+    "PARENT_PRESERVED:",
+    "PASS"
+    if parent_after == parent_before
+    else "FAIL",
+)
+
+print(
+    "TARGET_BYTES_PRESERVED:",
+    "PASS"
+    if bytes_preserved
+    else "FAIL",
+)
+
+print(
+    "PORCELAIN_PRESERVED:",
+    "PASS"
+    if status_after == status_before
+    else "FAIL",
+)
+
+print(
+    "INDEX_EMPTY_AFTER_DIAGNOSTIC:",
+    "PASS"
+    if cached_after.strip() == ""
+    else "FAIL",
+)
+
+print(
+    "R15_POST_DIAGNOSTIC_REPOSITORY_AUTHORITY:",
+    "PASS"
+    if repository_authority
+    else "FAIL",
+)
+
+section("R15-R17D FINAL")
+
+final_authority = (
+    causal_authority
+    and repository_authority
+)
+
+print(
+    "R15_R17D_TARGET_OWNER:",
+    "indicators/indicator_engine.py::update_market_state",
+)
+
+print(
+    "R15_R17D_TARGET_LOCAL_SYMBOL:",
+    "atr_data",
+)
+
+print(
+    "R15_R17D_ATR_DATA_EXACT_ASSIGNMENT_COUNT:",
+    len(atr_data_assignments),
+)
+
+print(
+    "R15_R17D_ATR_DATA_EXACT_RHS_TYPE:",
+    (
+        atr_data_assignments[0]["rhs_type"]
+        if len(atr_data_assignments) == 1
+        else None
+    ),
+)
+
+print(
+    "R15_R17D_ATR_DATA_EXACT_RHS_SOURCE:",
+    (
+        atr_data_assignments[0]["rhs_source"]
+        if len(atr_data_assignments) == 1
+        else None
+    ),
+)
+
+print(
+    "R15_R17D_ATR_DATA_EXACT_RHS_CALL_COUNT:",
+    (
+        atr_data_assignments[0]["rhs_call_count"]
+        if len(atr_data_assignments) == 1
+        else None
+    ),
+)
+
+print(
+    "R15_R17D_ATR_DATA_RHS_ROOT_RECORD_COUNT:",
+    len(rhs_root_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_RECURSIVE_LINEAGE_RECORD_COUNT:",
+    len(lineage_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_RECURSIVE_TERMINAL_RECORD_COUNT:",
+    len(terminal_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_CALL_BEARING_LINEAGE_RECORD_COUNT:",
+    len(call_bearing_lineage_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_EXACT_ATR_IMPORT_CALL_LINEAGE_RECORD_COUNT:",
+    len(exact_atr_import_call_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_PARAMETER_TERMINAL_RECORD_COUNT:",
+    len(parameter_terminal_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_IMPORT_TERMINAL_RECORD_COUNT:",
+    len(import_terminal_records),
+)
+
+print(
+    "R15_R17D_ATR_DATA_UNRESOLVED_TERMINAL_RECORD_COUNT:",
+    len(unresolved_terminal_records),
+)
+
+print(
+    "R15_R17D_CLASSIFICATION:",
+    classification,
+)
+
+print(
+    "R15_R17D_NEXT_OWNER_CLASSIFICATION:",
+    next_owner,
+)
+
+print(
+    "R15_ATR_DATA_NON_CALL_PRODUCER_CAUSAL_AUTHORITY:",
+    "PASS"
+    if causal_authority
+    else "FAIL",
+)
+
+print(
+    "R15_POST_DIAGNOSTIC_REPOSITORY_AUTHORITY:",
+    "PASS"
+    if repository_authority
+    else "FAIL",
+)
+
+print(
+    "R15_R17D_FINAL_AUTHORITY:",
+    "PASS"
+    if final_authority
+    else "FAIL",
+)
+
+print("SOURCE_REPAIR_AUTHORIZED: NO")
+print("SOURCE_REPAIR_APPLIED: NO")
+print("STAGING_AUTHORIZED: NO")
+print("COMMIT_AUTHORIZED: NO")
+print("COMMIT_APPLIED: NO")
+print("CLEANUP_AUTHORIZED: NO")
+
+print(
+    "NEXT_ACTION:",
+    (
+        "REPORT_OUTPUT_ONLY_FOR_ATR_DATA_NON_CALL_PRODUCER_LINEAGE_REVIEW"
+        if final_authority
+        else "STOP_AND_REPORT_R15_R17D_AUTHORITY_FAILURE"
+    ),
+)
+
+PY
+
+  416  nano indicators/indicator_engine.py
+  417  find . -type f | grep -Ei "r15|diagnostic|authority|analy|inspect|trace|frontier"
+  418  history | tail -50
+  419  history > history.txt

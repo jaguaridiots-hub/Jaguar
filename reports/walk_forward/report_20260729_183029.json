@@ -1,0 +1,288 @@
+{
+  "folds": [
+    {
+      "symbol": "BTC-USD",
+      "regime": "COMPRESSION",
+      "fold": 1,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 500,
+      "val_size": 200,
+      "profile": {
+        "trades": 3,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "expectancy": -500.0054886666667,
+        "max_drawdown": 1000.0018900000077
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 30.0,
+        "profit_factor": 0.703572898875755,
+        "expectancy": -103.74937090000009,
+        "max_drawdown": 45249.97292500004
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "regime": "COMPRESSION",
+      "fold": 2,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 700,
+      "val_size": 200,
+      "profile": {
+        "trades": 200,
+        "win_rate": 53.0,
+        "profit_factor": 1.845738501376796,
+        "expectancy": 198.74872029499974,
+        "max_drawdown": 28500.065273
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 53.0,
+        "profit_factor": 1.845738501376796,
+        "expectancy": 198.74872029499974,
+        "max_drawdown": 28500.065273
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "regime": "COMPRESSION",
+      "fold": 3,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 900,
+      "val_size": 200,
+      "profile": {
+        "trades": 200,
+        "win_rate": 49.5,
+        "profit_factor": 1.4950541424530213,
+        "expectancy": 125.00110409499925,
+        "max_drawdown": 34999.925031000086
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 49.5,
+        "profit_factor": 1.4950541424530213,
+        "expectancy": 125.00110409499925,
+        "max_drawdown": 34999.925031000086
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "regime": "COMPRESSION",
+      "fold": 4,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 1100,
+      "val_size": 200,
+      "profile": {
+        "trades": 172,
+        "win_rate": 49.41860465116279,
+        "profit_factor": 1.5000014805875568,
+        "expectancy": 126.45374745930226,
+        "max_drawdown": 22750.04803800003
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 52.0,
+        "profit_factor": 1.6822940297712354,
+        "expectancy": 163.7502610099999,
+        "max_drawdown": 18250.036880000047
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "regime": "COMPRESSION",
+      "fold": 5,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 1300,
+      "val_size": 200,
+      "profile": {
+        "trades": 181,
+        "win_rate": 20.441988950276244,
+        "profit_factor": 0.3993055838342434,
+        "expectancy": -238.9503150110495,
+        "max_drawdown": 53250.04260499991
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 20.0,
+        "profit_factor": 0.38750025656751924,
+        "expectancy": -245.0000280099998,
+        "max_drawdown": 61250.07019099994
+      }
+    },
+    {
+      "symbol": "BTC-USD",
+      "regime": "COMPRESSION",
+      "fold": 6,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 1500,
+      "val_size": 200,
+      "profile": {
+        "trades": 197,
+        "win_rate": 57.868020304568525,
+        "profit_factor": 2.3192812465329413,
+        "expectancy": 277.9188204619286,
+        "max_drawdown": 33749.846388999984
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 57.49999999999999,
+        "profit_factor": 2.282357503352218,
+        "expectancy": 272.50012800499974,
+        "max_drawdown": 33999.828419
+      }
+    },
+    {
+      "symbol": "GC=F",
+      "regime": "COMPRESSION",
+      "fold": 1,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 500,
+      "val_size": 200,
+      "profile": {
+        "trades": 20,
+        "win_rate": 35.0,
+        "profit_factor": 0.9230583254670646,
+        "expectancy": -25.006043700000703,
+        "max_drawdown": 4749.8783630000235
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 24.5,
+        "profit_factor": 0.552968930748171,
+        "expectancy": -168.7542055399996,
+        "max_drawdown": 52000.58904999989
+      }
+    },
+    {
+      "symbol": "GC=F",
+      "regime": "COMPRESSION",
+      "fold": 2,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 700,
+      "val_size": 200,
+      "profile": {
+        "trades": 22,
+        "win_rate": 40.909090909090914,
+        "profit_factor": 1.0769226468993842,
+        "expectancy": 22.727144045456498,
+        "max_drawdown": 4499.999551999976
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 32.5,
+        "profit_factor": 0.75182984083192,
+        "expectancy": -83.75742115500071,
+        "max_drawdown": 38250.4891330001
+      }
+    },
+    {
+      "symbol": "GC=F",
+      "regime": "COMPRESSION",
+      "fold": 3,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 900,
+      "val_size": 200,
+      "profile": {
+        "trades": 29,
+        "win_rate": 37.93103448275862,
+        "profit_factor": 0.9444579462410196,
+        "expectancy": -17.237196620690042,
+        "max_drawdown": 6249.635779000019
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 26.5,
+        "profit_factor": 0.5680223901344142,
+        "expectancy": -158.7517678349988,
+        "max_drawdown": 48748.8973919998
+      }
+    },
+    {
+      "symbol": "GC=F",
+      "regime": "COMPRESSION",
+      "fold": 4,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 1100,
+      "val_size": 200,
+      "profile": {
+        "trades": 1,
+        "win_rate": 0.0,
+        "profit_factor": 0.0,
+        "expectancy": -499.99934400000495,
+        "max_drawdown": 0
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 16.5,
+        "profit_factor": 0.3323280677565062,
+        "expectancy": -278.75303061,
+        "max_drawdown": 63249.87800400003
+      }
+    },
+    {
+      "symbol": "GC=F",
+      "regime": "COMPRESSION",
+      "fold": 5,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 1300,
+      "val_size": 200,
+      "profile": {
+        "trades": 158,
+        "win_rate": 37.9746835443038,
+        "profit_factor": 1.0561148510347929,
+        "expectancy": 17.402706518988225,
+        "max_drawdown": 22500.600098999876
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 31.0,
+        "profit_factor": 0.7789766179004719,
+        "expectancy": -76.25306301499899,
+        "max_drawdown": 42500.59791199982
+      }
+    },
+    {
+      "symbol": "GC=F",
+      "regime": "COMPRESSION",
+      "fold": 6,
+      "train_period": "2026-07-29 \u2192 2026-07-29",
+      "val_period": "2026-07-29 \u2192 2026-07-29",
+      "train_size": 1500,
+      "val_size": 200,
+      "profile": {
+        "trades": 182,
+        "win_rate": 37.91208791208791,
+        "profit_factor": 0.9734099049731103,
+        "expectancy": -8.254615846154081,
+        "max_drawdown": 16500.001741000047
+      },
+      "default": {
+        "trades": 200,
+        "win_rate": 39.0,
+        "profit_factor": 1.0122626028801633,
+        "expectancy": 3.740093184999637,
+        "max_drawdown": 19500.002222000036
+      }
+    }
+  ],
+  "summary": {
+    "total_folds": 12,
+    "passes": 6,
+    "avg_pf_improvement": 0.011703237229311575,
+    "avg_wr_improvement": -1.0037074371459325,
+    "avg_expectancy_change": -14.160181707824307,
+    "avg_drawdown_change": -21479.192305999986
+  }
+}

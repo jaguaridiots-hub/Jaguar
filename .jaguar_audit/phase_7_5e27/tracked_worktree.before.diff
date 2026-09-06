@@ -1,0 +1,3370 @@
+diff --git a/core/logger.py b/core/logger.py
+index 474c87c..d91dcb5 100644
+--- a/core/logger.py
++++ b/core/logger.py
+@@ -1,11 +1,28 @@
+ import logging
+ 
+-logging.basicConfig(
+ 
++logging.basicConfig(
+     level=logging.INFO,
+-
+     format="%(asctime)s | %(levelname)s | %(message)s"
+-
+ )
+ 
+-logger = logging.getLogger("Jaguar")
++
++class JaguarLogger:
++
++    def __init__(self, name="Jaguar"):
++        self.logger = logging.getLogger(name)
++
++    def info(self, message):
++        self.logger.info(message)
++
++    def warning(self, message):
++        self.logger.warning(message)
++
++    def error(self, message):
++        self.logger.error(message)
++
++    def debug(self, message):
++        self.logger.debug(message)
++
++
++logger = JaguarLogger()
+diff --git a/core/market_state.py b/core/market_state.py
+index 25d2476..41f217c 100644
+--- a/core/market_state.py
++++ b/core/market_state.py
+@@ -2,9 +2,9 @@ class MarketState:
+ 
+     def __init__(self):
+ 
+-        # =========================
++        # ==================================================
+         # MARKET
+-        # =========================
++        # ==================================================
+ 
+         self.symbol = ""
+         self.timeframe = ""
+@@ -14,9 +14,9 @@ class MarketState:
+         self.spread = 0.0
+         self.volume = 0.0
+ 
+-        # =========================
++        # ==================================================
+         # INDICATORS
+-        # =========================
++        # ==================================================
+ 
+         self.ema20 = 0.0
+         self.ema50 = 0.0
+@@ -26,16 +26,16 @@ class MarketState:
+         self.rsi = 0.0
+         self.atr = 0.0
+ 
+-        # =========================
++        # ==================================================
+         # TREND
+-        # =========================
++        # ==================================================
+ 
+         self.trend = "UNKNOWN"
+         self.regime = "UNKNOWN"
+ 
+-        # =========================
+-        # SMC
+-        # =========================
++        # ==================================================
++        # SMART MONEY CONCEPTS
++        # ==================================================
+ 
+         self.bos = False
+         self.choch = False
+@@ -46,28 +46,49 @@ class MarketState:
+         self.discount = False
+         self.premium = False
+ 
+-        # =========================
++        # ==================================================
++        # CANONICAL STRUCTURAL MEMORY
++        #
++        # Persistent across analytical pipeline cycles.
++        #
++        # Current-cycle market facts belong in state.market.
++        # Structural character memory belongs on MarketState
++        # because institutional_master rebuilds state.market.
++        # ==================================================
++
++        self.structural_memory = {
++            "direction": "NEUTRAL",
++            "state": "UNDEFINED",
++            "protected_level": 0.0,
++            "protected_pivot_index": None,
++            "established_by": "NONE",
++            "last_transition": "NONE",
++            "last_high_index": None,
++            "last_low_index": None,
++        }
++
++        # ==================================================
+         # GANN
+-        # =========================
++        # ==================================================
+ 
+         self.gann = {}
+ 
+-        # =========================
++        # ==================================================
+         # FIBONACCI
+-        # =========================
++        # ==================================================
+ 
+         self.fibonacci = {}
+ 
+-        # =========================
++        # ==================================================
+         # SUPPORT / RESISTANCE
+-        # =========================
++        # ==================================================
+ 
+         self.support = 0.0
+         self.resistance = 0.0
+ 
+-        # =========================
+-        # AI
+-        # =========================
++        # ==================================================
++        # AI (LEGACY - KEEP FOR COMPATIBILITY)
++        # ==================================================
+ 
+         self.ai_score = 0
+         self.smc_score = 0
+@@ -75,9 +96,9 @@ class MarketState:
+         self.confidence = ""
+         self.decision = ""
+ 
+-        # =========================
+-        # TRADE
+-        # =========================
++        # ==================================================
++        # TRADE (LEGACY)
++        # ==================================================
+ 
+         self.entry = 0.0
+         self.stoploss = 0.0
+@@ -91,17 +112,104 @@ class MarketState:
+         self.pnl = 0.0
+         self.pnl_percent = 0.0
+ 
+-        # =========================
++        # ==================================================
+         # PERFORMANCE
+-        # =========================
++        # ==================================================
+ 
+         self.win_rate = 0.0
+         self.total_trades = 0
+ 
++        # ==================================================
++        # ENTERPRISE STATE (NEW ARCHITECTURE)
++        # ==================================================
++
++        self.metadata = {
++            "version": "2.0",
++            "engine": "Jaguar Quant X",
++            "symbol": "",
++            "timeframe": ""
++        }
++
++        self.market_data = {}
++
++        self.market = {
++            "trend": self.trend,
++            "regime": self.regime,
++            "structure": {},
++            "liquidity": {},
++            "order_blocks": {},
++            "fair_value_gaps": {},
++            "wyckoff": {},
++            "gann": self.gann,
++            "fibonacci": self.fibonacci,
++            "support": self.support,
++            "resistance": self.resistance,
++            "session": {},
++            "volume_profile": {},
++            "momentum": {}
++        }
++
++        self.institutional = {
++            "score": 0,
++            "grade": "F",
++            "confidence": 0,
++            "alignment": 0,
++            "reasons": [],
++            "warnings": []
++        }
++
++        self.brain = {
++            "context": {},
++            "narrative": "",
++            "regime": "UNKNOWN",
++            "conflicts": [],
++            "summary": ""
++        }
++
++        self.idm = {
++            "decision": "WAIT",
++            "confidence": 0,
++            "priority": "LOW",
++            "reasons": []
++        }
++
++        self.trade = {
++            "entry": 0.0,
++            "stop_loss": 0.0,
++            "targets": [],
++            "risk_reward": 0.0,
++            "status": "PENDING"
++        }
++
++        self.risk = {
++            "approved": False,
++            "position_size": 0.0,
++            "risk_percent": 0.0,
++            "reason": ""
++        }
++
++        self.execution = {
++            "ready": False,
++            "status": "WAIT",
++            "broker": "",
++            "order_id": ""
++        }
++
++        self.analytics = {
++            "trade_count": 0,
++            "win_rate": 0.0,
++            "profit_factor": 0.0,
++            "expectancy": 0.0,
++            "sharpe_ratio": 0.0,
++            "max_drawdown": 0.0
++        }
++
+     def summary(self):
+ 
+         return {
+ 
++            # Legacy Summary
++
+             "Symbol": self.symbol,
+             "Timeframe": self.timeframe,
+             "Price": self.price,
+@@ -136,6 +244,15 @@ class MarketState:
+             "Position": self.position,
+ 
+             "Win Rate": self.win_rate,
+-            "Trades": self.total_trades
++            "Trades": self.total_trades,
++
++            # Enterprise Summary
+ 
++            "Institutional": self.institutional,
++            "Brain": self.brain,
++            "IDM": self.idm,
++            "Trade": self.trade,
++            "Risk": self.risk,
++            "Execution": self.execution,
++            "Analytics": self.analytics
+         }
+diff --git a/data/market_data.py b/data/market_data.py
+index fec681d..77c6350 100644
+--- a/data/market_data.py
++++ b/data/market_data.py
+@@ -1,36 +1,87 @@
++"""
++Jaguar Quant X Enterprise
++Canonical Binance Market Data Provider
++
++Provides normalized Binance kline candles.
++
++Canonical candle contract:
++
++{
++    "time": int,
++    "close_time": int,
++    "open": float,
++    "high": float,
++    "low": float,
++    "close": float,
++    "volume": float,
++}
++
++IMPORTANT:
++- Candle identity is preserved.
++- Open time is the canonical candle ID.
++- No network request is executed at import time.
++"""
++
+ import requests
+ 
++
+ BASE = "https://api.binance.com/api/v3/klines"
+ 
+ SYMBOL = "BTCUSDT"
++
+ INTERVAL = "15m"
+ 
+ 
+-def get_klines(symbol=SYMBOL, interval=INTERVAL, limit=300):
++def get_klines(
++    symbol=SYMBOL,
++    interval=INTERVAL,
++    limit=300,
++):
+ 
+     url = (
+-        f"{BASE}?symbol={symbol}"
++        f"{BASE}"
++        f"?symbol={symbol}"
+         f"&interval={interval}"
+         f"&limit={limit}"
+     )
+ 
+-    response = requests.get(url, timeout=10)
++    response = requests.get(
++        url,
++        timeout=10,
++    )
++
+     response.raise_for_status()
+ 
+     klines = response.json()
+ 
+     candles = []
+ 
+-    for k in klines:
+-        candles.append({
+-            "open": float(k[1]),
+-            "high": float(k[2]),
+-            "low": float(k[3]),
+-            "close": float(k[4]),
+-            "volume": float(k[5]),
+-        })
+-
+-    return candles
++    for kline in klines:
+ 
++        candles.append(
++            {
++                "time": int(
++                    kline[0]
++                ),
++                "close_time": int(
++                    kline[6]
++                ),
++                "open": float(
++                    kline[1]
++                ),
++                "high": float(
++                    kline[2]
++                ),
++                "low": float(
++                    kline[3]
++                ),
++                "close": float(
++                    kline[4]
++                ),
++                "volume": float(
++                    kline[5]
++                ),
++            }
++        )
+ 
+-candles = get_klines()
++    return candles
+diff --git a/engine/institutional_confluence.py b/engine/institutional_confluence.py
+index 36ad0fd..fbc7041 100644
+--- a/engine/institutional_confluence.py
++++ b/engine/institutional_confluence.py
+@@ -1,3 +1,161 @@
++"""
++Jaguar Quant X Enterprise
++Institutional Confluence Engine V2
++
++Purpose
++-------
++Separate directional market bias from executable trade setup.
++
++Context engines may establish direction.
++Structural engines must confirm market structure.
++Execution-location engines identify actionable price locations.
++
++A strong directional score alone must never create an
++executable BUY or SELL decision.
++"""
++
++
++def _signal(result, default="NEUTRAL"):
++
++    if isinstance(result, dict):
++        return str(
++            result.get("signal", default)
++        ).upper()
++
++    if isinstance(result, str):
++        return result.upper()
++
++    return default
++
++
++def _score(result):
++
++    if not isinstance(result, dict):
++        return 0.0
++
++    try:
++        return float(
++            result.get("score", 0) or 0
++        )
++    except (TypeError, ValueError):
++        return 0.0
++
++
++def _confidence(result):
++
++    if not isinstance(result, dict):
++        return 0.0
++
++    try:
++        value = float(
++            result.get("confidence", 0.0) or 0.0
++        )
++    except (TypeError, ValueError):
++        return 0.0
++
++    return max(
++        0.0,
++        min(1.0, value),
++    )
++
++
++def _weight(result):
++    """
++    Safely extract an engine weight.
++
++    Explicit zero is preserved because weight=0.0 means
++    the engine has no scoring authority.
++    """
++
++    if not isinstance(result, dict):
++        return 1.0
++
++    value = result.get(
++        "weight",
++        1.0,
++    )
++
++    if value is None:
++        value = 1.0
++
++    try:
++        value = float(value)
++
++    except (TypeError, ValueError):
++        return 1.0
++
++    return max(
++        0.0,
++        value,
++    )
++
++def _reasons(result):
++
++    if not isinstance(result, dict):
++        return []
++
++    reasons = result.get("reasons", [])
++
++    if not isinstance(reasons, list):
++        return []
++
++    return reasons
++
++
++def _weighted_score(result):
++
++    score = _score(result)
++    confidence = _confidence(result)
++    weight = _weight(result)
++
++    if score == 0:
++        return 0.0
++
++    confidence_factor = max(
++        0.25,
++        confidence,
++    )
++
++    return (
++        score
++        * weight
++        * confidence_factor
++    )
++
++def _directional_weighted_score(result):
++    """
++    Return directional scoring contribution.
++
++    Only explicitly BULLISH or BEARISH engine signals
++    may influence directional market bias.
++
++    NEUTRAL, SIDEWAYS, UNKNOWN, and other non-directional
++    signals contribute zero directional pressure.
++
++    The canonical signal owns direction.
++    The numerical score owns magnitude.
++    """
++
++    signal = _signal(result)
++
++    if signal not in (
++        "BULLISH",
++        "BEARISH",
++    ):
++        return 0.0
++
++    magnitude = abs(
++        _weighted_score(result)
++    )
++
++    if magnitude == 0:
++        return 0.0
++
++    if signal == "BULLISH":
++        return magnitude
++
++    return -magnitude
++
+ def analyze(
+     ai,
+     regime,
+@@ -9,12 +167,96 @@ def analyze(
+     fvg,
+     fib,
+     gann,
++    structural_zone=None,
+ ):
++    # ======================================
++    # Canonical Structural Contract
++    # ======================================
+ 
+-    score = 0
+-    reasons = []
++    if not isinstance(
++        structural_zone,
++        dict,
++    ):
++        structural_zone = {}
++
++    structural_direction = str(
++        structural_zone.get(
++            "direction",
++            "NEUTRAL",
++        )
++    ).upper().strip()
++
++    structure_state = str(
++        structural_zone.get(
++            "structure_state",
++            "UNDEFINED",
++        )
++    ).upper().strip()
++
++    trigger_status = str(
++        structural_zone.get(
++            "trigger_status",
++            "NONE",
++        )
++    ).upper().strip()
++
++    zone_status = str(
++        structural_zone.get(
++            "zone_status",
++            "NONE",
++        )
++    ).upper().strip()
++
++    zone_direction = str(
++        structural_zone.get(
++            "zone_direction",
++            "NEUTRAL",
++        )
++    ).upper().strip()
++
++    location_quality = str(
++        structural_zone.get(
++            "location_quality",
++            "NONE",
++        )
++    ).upper().strip()
++
++    readiness = str(
++        structural_zone.get(
++            "readiness",
++            "WAITING",
++        )
++    ).upper().strip()
++
++    interacting = bool(
++        structural_zone.get(
++            "interacting",
++            False,
++        )
++    )
++    # ======================================
++    # Engine Groups
++    # ======================================
++
++    context_engines = (
++        ai,
++        regime,
++        fib,
++        gann,
++    )
++
++    structure_engines = (
++        bos,
++        choch,
++        liquidity,
++    )
++
++    location_engines = (
++        order_block,
++        fvg,
++    )
+ 
+-    engines = [
++    all_engines = (
+         ai,
+         regime,
+         smc,
+@@ -25,33 +267,242 @@ def analyze(
+         fvg,
+         fib,
+         gann,
+-    ]
++    )
++
++    # ======================================
++    # Directional Context
++    # ======================================
++    #
++    # Directional authority belongs only to
++    # explicitly directional engine signals.
++    #
++    # NEUTRAL / SIDEWAYS engines may retain
++    # analytical scores but cannot create
++    # bullish or bearish market pressure.
++    # ======================================
++
++    context_score = sum(
++        _directional_weighted_score(result)
++        for result in context_engines
++    )
++
++    if context_score > 0:
++        direction = "BULLISH"
++
++    elif context_score < 0:
++        direction = "BEARISH"
++
++    else:
++        direction = "NEUTRAL"
++
++    # ======================================
++    # Canonical Signals
++    # ======================================
++
++    bos_signal = _signal(bos)
++    choch_signal = _signal(choch)
++    liquidity_signal = _signal(liquidity)
++
++    order_block_signal = _signal(order_block)
++    fvg_signal = _signal(fvg)
++
++    # ======================================
++    # Canonical Structural Confirmation
++    # ======================================
++    #
++    # StructuralZoneEngine owns interpreted structural truth.
++    #
++    # Raw BOS / CHOCH / Liquidity signals remain diagnostic
++    # specialist facts but do not independently override the
++    # canonical structural contract.
++    # ======================================
++
++    bullish_structure = (
++        structural_direction == "BULLISH"
++        and structure_state
++        not in (
++            "UNDEFINED",
++            "NEUTRAL",
++            "UNKNOWN",
++        )
++    )
++
++    bearish_structure = (
++        structural_direction == "BEARISH"
++        and structure_state
++        not in (
++            "UNDEFINED",
++            "NEUTRAL",
++            "UNKNOWN",
++        )
++    )
++
++    # ======================================
++    # Canonical Execution Location
++    # ======================================
++    #
++    # Location must align with canonical context direction.
++    #
++    # An active directional zone with confirmed interaction
++    # is valid execution-location evidence.
++    # ======================================
++
++    bullish_location = (
++        zone_direction == "BULLISH"
++        and (
++            interacting
++            or location_quality
++            in (
++                "INTERACTING",
++                "AT_ZONE",
++                "INSIDE_ZONE",
++            )
++        )
++    )
++
++    bearish_location = (
++        zone_direction == "BEARISH"
++        and (
++            interacting
++            or location_quality
++            in (
++                "INTERACTING",
++                "AT_ZONE",
++                "INSIDE_ZONE",
++            )
++        )
++    )
++
++    # ======================================
++    # Weighted Analytical Score
++    # ======================================
+ 
+-    for engine in engines:
+-        if engine:
+-            score += engine.get("score", 0)
+-            reasons.extend(engine.get("reasons", []))
++    weighted_score = sum(
++        _weighted_score(result)
++        for result in (
++            ai,
++            regime,
++            bos,
++            choch,
++            liquidity,
++            order_block,
++            fvg,
++            fib,
++            gann,
++        )
++    )
+ 
+-    # Probability
+-    probability = max(50, min(95, 60 + score * 3))
++    analytical_score = int(
++        round(weighted_score)
++    )
++    # ======================================
++    # Setup Gates
++    # ======================================
+ 
++    bullish_setup = (
++        direction == "BULLISH"
++        and bullish_structure
++        and bullish_location
++    )
++
++    bearish_setup = (
++        direction == "BEARISH"
++        and bearish_structure
++        and bearish_location
++    )
++
++    # ======================================
+     # Decision
+-    if score >= 10:
+-        decision = "🟢 STRONG BUY"
++    # ======================================
++
++    if bullish_setup:
++
++        if analytical_score >= 10:
++            decision = "🟢 STRONG BUY"
++        else:
++            decision = "🟢 BUY"
++
++    elif bearish_setup:
+ 
+-    elif score >= 5:
+-        decision = "🟢 BUY"
++        if analytical_score <= -10:
++            decision = "🔴 STRONG SELL"
++        else:
++            decision = "🔴 SELL"
+ 
+-    elif score <= -10:
+-        decision = "🔴 STRONG SELL"
++    elif direction == "BULLISH":
++        decision = "🟡 BULLISH BIAS - WAIT"
+ 
+-    elif score <= -5:
+-        decision = "🔴 SELL"
++    elif direction == "BEARISH":
++        decision = "🟡 BEARISH BIAS - WAIT"
+ 
+     else:
+         decision = "⚪ NO TRADE"
+ 
+-    # Confidence
++    # ======================================
++    # Directional Confidence Model
++    # ======================================
++    #
++    # Confidence must measure confirmation of
++    # the CURRENT canonical context direction.
++    #
++    # Opposing structural or location evidence
++    # must never increase directional confidence.
++    # ======================================
++
++    direction_confirmed = (
++        direction
++        in (
++            "BULLISH",
++            "BEARISH",
++        )
++    )
++
++
++    structure_confirmed = (
++        bullish_structure
++        if direction == "BULLISH"
++        else bearish_structure
++        if direction == "BEARISH"
++        else False
++    )
++
++    location_confirmed = (
++        bullish_location
++        if direction == "BULLISH"
++        else bearish_location
++        if direction == "BEARISH"
++        else False
++    )
++
++    setup_confirmed = (
++        bullish_setup
++        if direction == "BULLISH"
++        else bearish_setup
++        if direction == "BEARISH"
++        else False
++    )
++
++    confirmations = sum(
++        (
++            direction_confirmed,
++            structure_confirmed,
++            location_confirmed,
++            setup_confirmed,
++        )
++    )
++
++    probability = {
++        0: 50,
++        1: 60,
++        2: 70,
++        3: 80,
++        4: 90,
++    }.get(
++        confirmations,
++        50,
++    )
++
++
+     if probability >= 90:
+         confidence = "A+"
+ 
+@@ -67,13 +518,178 @@ def analyze(
+     else:
+         confidence = "D"
+ 
+-    # Remove duplicate reasons
+-    reasons = list(dict.fromkeys(reasons))
++    # ======================================
++    # Reasons
++    # ======================================
++    reasons = []
++
++    # ======================================
++    # REASON AUTHORITY
++    # ======================================
++    #
++    # Reasons must describe the CURRENT
++    # canonical directional context.
++    #
++    # SMC reasons are intentionally excluded
++    # because SMC is an aggregated compatibility
++    # result whose reasons already contain
++    # specialist narratives.
++    #
++    # Specialist reasons are admitted only when
++    # their active directional signal aligns with
++    # the current canonical direction.
++    #
++    # Non-directional context engines may retain
++    # diagnostic reasons because they do not claim
++    # opposing structural authority.
++    # ======================================
++
++    # --------------------------------------
++    # CONTEXT REASONS
++    # --------------------------------------
++
++    for result in (
++        ai,
++        regime,
++        fib,
++        gann,
++    ):
++        result_signal = _signal(result)
++
++        if result_signal in (
++            "BULLISH",
++            "BEARISH",
++        ):
++
++            if result_signal == direction:
++                reasons.extend(
++                    _reasons(result)
++                )
++
++        else:
++            reasons.extend(
++                _reasons(result)
++            )
++
++    # --------------------------------------
++    # STRUCTURAL REASONS
++    # --------------------------------------
++
++    for result in (
++        bos,
++        choch,
++        liquidity,
++    ):
++        if _signal(result) == direction:
++            reasons.extend(
++                _reasons(result)
++            )
++
++    # --------------------------------------
++    # EXECUTION LOCATION REASONS
++    # --------------------------------------
++
++    for result in (
++        order_block,
++        fvg,
++    ):
++        if _signal(result) == direction:
++            reasons.extend(
++                _reasons(result)
++            )
++
++    # --------------------------------------
++    # CANONICAL STRUCTURAL ZONE REASONS
++    # --------------------------------------
++
++    structural_reasons = structural_zone.get(
++        "reasons",
++        [],
++    )
++
++    if not isinstance(
++        structural_reasons,
++        list,
++    ):
++        structural_reasons = []
++
++    if structural_direction == direction:
++        reasons.extend(
++            structural_reasons
++        )
++
++    # --------------------------------------
++    # REMOVE DUPLICATES
++    # --------------------------------------
++
++    reasons = list(
++        dict.fromkeys(reasons)
++    )
++
++
++    if (
++        direction == "BULLISH"
++        and not bullish_structure
++    ):
++        reasons.append(
++            "Bullish bias awaiting structural confirmation"
++        )
++
++    if (
++        direction == "BEARISH"
++        and not bearish_structure
++    ):
++        reasons.append(
++            "Bearish bias awaiting structural confirmation"
++        )
++
++    if (
++        direction == "BULLISH"
++        and bullish_structure
++        and not bullish_location
++    ):
++        if location_quality in ("NEAR", "APPROACHING"):
++            reasons.append(
++                "Bullish structure approaching execution location"
++            )
++        else:
++            reasons.append(
++                "Bullish structure awaiting execution location"
++            )
++
++    if (
++        direction == "BEARISH"
++        and bearish_structure
++        and not bearish_location
++    ):
++        if location_quality in ("NEAR", "APPROACHING"):
++            reasons.append(
++                "Bearish structure approaching execution location"
++            )
++        else:
++            reasons.append(
++                "Bearish structure awaiting execution location"
++            )
+ 
+     return {
+         "decision": decision,
+-        "score": score,
++
++        # Canonical directional context authority.
++        "score": context_score,
++        "context_score": context_score,
++
++        # Analytical evidence balance.
++        "analytical_score": analytical_score,
++        "weighted_score": weighted_score,
++
+         "probability": probability,
+         "confidence": confidence,
+         "reasons": reasons,
++        "direction": direction,
++
++        "structure_confirmed": structure_confirmed,
++
++        "location_confirmed": location_confirmed,
++
++        "setup_confirmed": setup_confirmed,
+     }
+diff --git a/engine/institutional_master.py b/engine/institutional_master.py
+index 42ab367..114be07 100644
+--- a/engine/institutional_master.py
++++ b/engine/institutional_master.py
+@@ -1,6 +1,42 @@
++"""
++Jaguar Quant X Enterprise
++Institutional Master v2.3
++
++Canonical enterprise orchestration layer.
++
++Enterprise authority:
++
++    Specialist Engines
++        ->
++    Canonical Structural Contract
++        ->
++    SMC Aggregation
++        ->
++    Institutional Confluence
++        ->
++    Enterprise Adapter
++        ->
++    Institutional Score
++        ->
++    IDM
++        ->
++    Trade Planner V2
++        ->
++    Risk Manager V2
++        ->
++    Execution Gateway V2
++
++Structural specialist engines are executed exactly once per
++institutional analysis cycle.
++
++Legacy analytics are preserved for diagnostics and compatibility.
++They are not execution authorities.
++"""
++
++from copy import deepcopy
++
+ from engine.ai_brain import analyze as ai_analyze
+ from engine.market_regime import analyze as regime_analyze
+-from engine.smc_engine import analyze as smc_analyze
+ 
+ from engine.bos_engine import analyze as bos_analyze
+ from engine.choch_engine import analyze as choch_analyze
+@@ -13,17 +49,312 @@ from engine.gann_engine import analyze as gann_analyze
+ 
+ from engine.institutional_confluence import analyze as confluence
+ 
+-from engine.trade_planner import analyze as planner
+-from engine.risk_engine import analyze as risk
++from engine.trade_planner import analyze as legacy_planner
++from engine.risk_engine import analyze as legacy_risk
++
++from intelligence.enterprise_adapter import EnterpriseAdapter
++
++from intelligence.structural_zone_engine import (
++    StructuralZoneEngine,
++)
++
++adapter = EnterpriseAdapter()
++
++structural_zone_engine = StructuralZoneEngine()
++
++# ============================================================
++# ENGINE RESULT HELPERS
++# ============================================================
++
++def _signal(result, default="NEUTRAL"):
++    """
++    Normalize an engine result into a directional signal.
++    """
++
++    if isinstance(result, dict):
++        return str(
++            result.get(
++                "signal",
++                default,
++            )
++        ).upper().strip()
++
++    if isinstance(result, str):
++        return result.upper().strip()
++
++    return default
++
++
++def _score(result):
++    """
++    Safely extract an engine score.
++    """
++
++    if not isinstance(result, dict):
++        return 0
++
++    try:
++        return int(
++            result.get(
++                "score",
++                0,
++            )
++            or 0
++        )
++
++    except (TypeError, ValueError):
++        return 0
++
++
++def _confidence(result):
++    """
++    Safely extract an engine confidence value.
++    """
++
++    if not isinstance(result, dict):
++        return 0.0
++
++    try:
++        return float(
++            result.get(
++                "confidence",
++                0.0,
++            )
++            or 0.0
++        )
++
++    except (TypeError, ValueError):
++        return 0.0
++
++
++def _reasons(result):
++    """
++    Safely extract engine reasons.
++    """
++
++    if not isinstance(result, dict):
++        return []
++
++    reasons = result.get(
++        "reasons",
++        [],
++    )
++
++    if not isinstance(reasons, list):
++        return []
++
++    return reasons
++
++
++def _metadata(result):
++    """
++    Safely extract engine metadata.
++    """
++
++    if not isinstance(result, dict):
++        return {}
++
++    metadata = result.get(
++        "metadata",
++        {},
++    )
++
++    if not isinstance(metadata, dict):
++        return {}
++
++    return metadata
++
++
++def _confirmed(result):
++    """
++    True only when a specialist engine emits an active
++    directional structural signal.
++    """
++
++    return _signal(result) in (
++        "BULLISH",
++        "BEARISH",
++    )
++
++
++def _direction(result):
++    """
++    Return canonical directional market fact.
++    """
++
++    signal = _signal(result)
++
++    if signal == "BULLISH":
++        return "BULLISH"
++
++    if signal == "BEARISH":
++        return "BEARISH"
+ 
++    return "NEUTRAL"
++
++
++# ============================================================
++# SMC AGGREGATION
++# ============================================================
++
++def _aggregate_smc(
++    bos,
++    choch,
++    liquidity,
++    order_block,
++    fvg,
++):
++    """
++    Aggregate already-computed structural specialist results.
++
++    IMPORTANT:
++
++    This function does not execute structural detectors.
++
++    BOS, CHOCH, Liquidity, Order Block, and FVG remain the
++    analytical and scoring authorities.
++
++    The SMC result is descriptive and compatibility-only.
++    """
++
++    structural_results = (
++        bos,
++        choch,
++        liquidity,
++        order_block,
++        fvg,
++    )
++
++    reasons = []
++
++    for result in structural_results:
++        reasons.extend(
++            _reasons(result)
++        )
++
++    reasons = list(
++        dict.fromkeys(reasons)
++    )
++
++    raw_score = sum(
++        _score(result)
++        for result in structural_results
++    )
++
++    bullish_count = sum(
++        1
++        for result in structural_results
++        if _direction(result) == "BULLISH"
++    )
++
++    bearish_count = sum(
++        1
++        for result in structural_results
++        if _direction(result) == "BEARISH"
++    )
++
++    active_count = (
++        bullish_count
++        + bearish_count
++    )
++
++    if raw_score > 0:
++        signal = "BULLISH"
++
++    elif raw_score < 0:
++        signal = "BEARISH"
++
++    else:
++        signal = "NEUTRAL"
++
++    if active_count > 0:
++        confidence = sum(
++            _confidence(result)
++            for result in structural_results
++            if _confirmed(result)
++        ) / active_count
++
++    else:
++        confidence = 0.0
++
++    return {
++        "name": "SMC Aggregator",
++        "signal": signal,
++
++        # Deliberately zero.
++        # Specialist engines own scoring authority.
++        "score": 0,
++
++        "confidence": confidence,
++        "weight": 0.0,
++        "reasons": reasons,
++
++        "metadata": {
++            "raw_score": raw_score,
++            "bullish_count": bullish_count,
++            "bearish_count": bearish_count,
++            "active_count": active_count,
++
++            "bos": _direction(bos),
++            "choch": _direction(choch),
++            "liquidity": _direction(liquidity),
++            "order_block": _direction(order_block),
++            "fvg": _direction(fvg),
++        },
++
++        # Legacy compatibility fields
++        "bos": _direction(bos),
++        "choch": _direction(choch),
++        "liquidity": _direction(liquidity),
++        "order_block": _direction(order_block),
++        "fvg": _direction(fvg),
++
++        "premium": False,
++        "discount": False,
++    }
++
++
++# ============================================================
++# INSTITUTIONAL MASTER
++# ============================================================
+ 
+ def analyze(state, capital=100000):
+ 
++    # ========================================================
++    # ENSURE CANONICAL CONTAINERS
++    # ========================================================
++
++    if (
++        not hasattr(state, "market")
++        or not isinstance(
++            state.market,
++            dict,
++        )
++    ):
++        state.market = {}
++
++    if (
++        not hasattr(state, "metadata")
++        or not isinstance(
++            state.metadata,
++            dict,
++        )
++    ):
++        state.metadata = {}
++
++    # ========================================================
++    # PRIMARY ANALYTICAL ENGINES
++    # ========================================================
++
+     ai = ai_analyze(state)
+ 
+     regime = regime_analyze(state)
+ 
+-    smc = smc_analyze(state)
++    # ========================================================
++    # CANONICAL STRUCTURAL SPECIALIST ENGINES
++    #
++    # EXECUTE EXACTLY ONCE.
++    # ========================================================
+ 
+     bos = bos_analyze(state)
+ 
+@@ -35,10 +366,268 @@ def analyze(state, capital=100000):
+ 
+     fvg = fvg_analyze(state)
+ 
++    # ========================================================
++    # CANONICAL STRUCTURAL RESULTS CONTRACT
++    # ========================================================
++
++    structural_results = {
++        "bos": bos,
++        "choch": choch,
++        "liquidity": liquidity,
++        "order_block": order_block,
++        "fvg": fvg,
++    }
++
++    state.market[
++        "structural_results"
++    ] = structural_results
++
++    # ========================================================
++    # SMC AGGREGATION
++    #
++    # Uses already-computed specialist results.
++    # No detector is executed again.
++    # ========================================================
++
++    smc = _aggregate_smc(
++        bos,
++        choch,
++        liquidity,
++        order_block,
++        fvg,
++    )
++
++    state.market[
++        "smc_result"
++    ] = smc
++
++    # ========================================================
++    # FIBONACCI / GANN
++    # ========================================================
++
+     fib = fib_analyze(state)
+ 
+     gann = gann_analyze(state)
+ 
++    state.fibonacci = fib
++
++    state.gann = gann
++
++    # ========================================================
++    # NORMALIZE REGIME
++    # ========================================================
++
++    regime_signal = _signal(
++        regime
++    )
++
++    if regime_signal in (
++        "BULLISH",
++        "BEARISH",
++        "SIDEWAYS",
++    ):
++        state.trend = regime_signal
++
++    else:
++        state.trend = "UNKNOWN"
++
++    state.regime = regime_signal
++
++    # ========================================================
++    # LEGACY BOOLEAN STRUCTURAL COMPATIBILITY
++    # ========================================================
++
++    state.bos = _confirmed(
++        bos
++    )
++
++    state.choch = _confirmed(
++        choch
++    )
++
++    state.liquidity = _confirmed(
++        liquidity
++    )
++
++    state.order_block = _confirmed(
++        order_block
++    )
++
++    state.fvg = _confirmed(
++        fvg
++    )
++
++    # ========================================================
++    # CANONICAL DIRECTIONAL MARKET FACTS
++    # ========================================================
++
++    state.market[
++        "bos_signal"
++    ] = _direction(
++        bos
++    )
++
++    state.market[
++        "choch_signal"
++    ] = _direction(
++        choch
++    )
++
++    state.market[
++        "liquidity_signal"
++    ] = _direction(
++        liquidity
++    )
++
++    state.market[
++        "order_block_signal"
++    ] = _direction(
++        order_block
++    )
++
++    state.market[
++        "fvg_signal"
++    ] = _direction(
++        fvg
++    )
++
++    # ========================================================
++    # CANONICAL BOOLEAN MARKET FACTS
++    # ========================================================
++
++    state.market[
++        "bos"
++    ] = _confirmed(
++        bos
++    )
++
++    state.market[
++        "choch"
++    ] = _confirmed(
++        choch
++    )
++
++    state.market[
++        "liquidity"
++    ] = _confirmed(
++        liquidity
++    )
++
++    state.market[
++        "order_block"
++    ] = _confirmed(
++        order_block
++    )
++
++    state.market[
++        "fvg"
++    ] = _confirmed(
++        fvg
++    )
++
++    # ========================================================
++    # CANONICAL RAW ENGINE RESULTS
++    # ========================================================
++
++    state.market[
++        "regime_result"
++    ] = regime
++
++    state.market[
++        "bos_result"
++    ] = bos
++
++    state.market[
++        "choch_result"
++    ] = choch
++
++    state.market[
++        "liquidity_result"
++    ] = liquidity
++
++    state.market[
++        "order_block_result"
++    ] = order_block
++
++    state.market[
++        "fvg_result"
++    ] = fvg
++
++    state.market[
++        "fibonacci_result"
++    ] = fib
++
++    state.market[
++        "gann_result"
++    ] = gann
++
++    # ========================================================
++    # STRUCTURAL SNAPSHOT
++    # ========================================================
++
++    state.market[
++        "structure"
++    ] = {
++        "bos": _direction(
++            bos
++        ),
++        "choch": _direction(
++            choch
++        ),
++        "liquidity": _direction(
++            liquidity
++        ),
++        "order_block": _direction(
++            order_block
++        ),
++        "fvg": _direction(
++            fvg
++        ),
++        "smc_direction": _direction(
++            smc
++        ),
++        "smc_raw_score": _metadata(
++            smc
++        ).get(
++            "raw_score",
++            0,
++        ),
++    }
++
++    # ========================================================
++    # CANONICAL STRUCTURAL ZONE AUTHORITY
++    #
++    # Structural specialist engines have already executed
++    # exactly once and their raw results are available in
++    # state.market.
++    #
++    # StructuralZoneEngine interprets those specialist facts
++    # into the canonical enterprise structural contract.
++    #
++    # This contract must exist before Institutional Confluence
++    # establishes canonical market context.
++    # ========================================================
++
++    state = structural_zone_engine.process(
++        state
++    )
++
++    structural_zone = getattr(
++        state,
++        "structural_zone",
++        {},
++    )
++
++    if not isinstance(
++        structural_zone,
++        dict,
++    ):
++        structural_zone = {}
++
++    # ========================================================
++    # DIRECTIONAL ANALYTICAL CONFLUENCE
++    # ========================================================
++
+     final = confluence(
+         ai,
+         regime,
+@@ -50,51 +639,295 @@ def analyze(state, capital=100000):
+         fvg,
+         fib,
+         gann,
++        structural_zone,
++    )
++
++    if not isinstance(
++        final,
++        dict,
++    ):
++        final = {}
++
++    # ========================================================
++    # CONTEXT RESULT
++    # ========================================================
++
++    context = {
++        # Canonical directional context authority.
++        "score": final.get(
++            "context_score",
++            final.get(
++                "score",
++                0.0,
++            ),
++        ),
++
++        "context_score": final.get(
++            "context_score",
++            final.get(
++                "score",
++                0.0,
++            ),
++        ),
++
++        # Analytical evidence balance.
++        "analytical_score": final.get(
++            "analytical_score",
++            0,
++        ),
++
++        "weighted_score": final.get(
++            "weighted_score",
++            0.0,
++        ),
++
++        "probability": final.get(
++            "probability",
++            0,
++        ),
++
++        "confidence": final.get(
++            "confidence",
++            "D",
++        ),
++
++        "decision": final.get(
++            "decision",
++            "⚪ NO TRADE",
++        ),
++
++        "direction": final.get(
++            "direction",
++            "NEUTRAL",
++        ),
++
++        "structure_confirmed": final.get(
++            "structure_confirmed",
++            False,
++        ),
++
++        "location_confirmed": final.get(
++            "location_confirmed",
++            False,
++        ),
++
++        "setup_confirmed": final.get(
++            "setup_confirmed",
++            False,
++        ),
++
++        "reasons": final.get(
++            "reasons",
++            [],
++        ),
++    }
++    # ========================================================
++    # EXPLICIT CONTEXT STATE
++    # ========================================================
++
++    state.context_score = context[
++        "score"
++    ]
++
++    state.context_probability = context[
++        "probability"
++    ]
++
++    state.context_confidence = context[
++        "confidence"
++    ]
++
++    state.context_decision = context[
++        "decision"
++    ]
++
++    state.context_direction = context[
++        "direction"
++    ]
++
++    state.context_structure_confirmed = context[
++        "structure_confirmed"
++    ]
++
++    state.context_location_confirmed = context[
++        "location_confirmed"
++    ]
++
++    state.context_setup_confirmed = context[
++        "setup_confirmed"
++    ]
++
++    # ========================================================
++    # COMPATIBILITY STATE
++    #
++    # Required by EnterpriseAdapter.
++    # Compatibility-only.
++    # ========================================================
++
++    state.ai_score = context[
++        "score"
++    ]
++
++    state.probability = context[
++        "probability"
++    ]
++
++    state.confidence = context[
++        "confidence"
++    ]
++
++    state.decision = context[
++        "decision"
++    ]
++
++    # ========================================================
++    # CANONICAL ENTERPRISE PIPELINE
++    # ========================================================
++
++    state = adapter.process(
++        state
+     )
+ 
+-    state.ai_score = final["score"]
+-    state.probability = final["probability"]
+-    state.confidence = final["confidence"]
+-    state.decision = final["decision"]
++    # ========================================================
++    # SAFE ENTERPRISE CONTAINERS
++    # ========================================================
++
++    institutional = getattr(
++        state,
++        "institutional",
++        {},
++    )
+ 
+-    plan = planner(state)
++    if not isinstance(
++        institutional,
++        dict,
++    ):
++        institutional = {}
+ 
+-    risk_report = risk(
++    idm = getattr(
+         state,
+-        plan,
+-        capital
++        "idm",
++        {},
+     )
+ 
++    if not isinstance(
++        idm,
++        dict,
++    ):
++        idm = {}
++
++    # ========================================================
++    # CANONICAL ENTERPRISE RESULT
++    # ========================================================
++
++    enterprise = {
++        "score": institutional.get(
++            "score",
++            0,
++        ),
++
++        "grade": institutional.get(
++            "grade",
++            "F",
++        ),
++
++        "confidence": institutional.get(
++            "confidence",
++            0,
++        ),
++
++        "decision": idm.get(
++            "decision",
++            "WAIT",
++        ),
++
++        "priority": idm.get(
++            "priority",
++            "LOW",
++        ),
++
++        "approved": idm.get(
++            "approved",
++            False,
++        ),
++
++        "reasons": idm.get(
++            "reasons",
++            [],
++        ),
++
++        "trade": getattr(
++            state,
++            "trade",
++            {},
++        ),
++
++        "risk": getattr(
++            state,
++            "risk",
++            {},
++        ),
++
++        "execution": getattr(
++            state,
++            "execution",
++            {},
++        ),
++    }
++
++    # ========================================================
++    # ISOLATED LEGACY DIAGNOSTIC PIPELINE
++    #
++    # IMPORTANT:
++    #
++    # Legacy analytics are compatibility-only.
++    #
++    # They execute against a deep state snapshot and therefore
++    # cannot mutate canonical enterprise state, IDM authority,
++    # enterprise trade plans, risk approval, or execution
++    # authorization.
++    # ========================================================
++
++    legacy_state = deepcopy(
++        state
++    )
++
++    legacy_plan = legacy_planner(
++        legacy_state
++    )
++
++    legacy_risk_report = legacy_risk(
++        legacy_state,
++        legacy_plan,
++        capital,
++    )
++    # ========================================================
++    # FINAL RESULT
++    # ========================================================
++
+     return {
++        "context": context,
+ 
+-        "decision": final,
++        # Backward compatibility.
++        # Existing callers may still use report["decision"].
++        "decision": context,
+ 
+-        "plan": plan,
++        "enterprise": enterprise,
+ 
+-        "risk": risk_report,
++        "plan": legacy_plan,
+ 
+-        "engines": {
++        "risk": legacy_risk_report,
+ 
++        "engines": {
+             "AI": ai,
+-
+             "Regime": regime,
+-
+             "SMC": smc,
+-
+             "BOS": bos,
+-
+             "CHOCH": choch,
+-
+             "Liquidity": liquidity,
+-
+             "OrderBlock": order_block,
+-
+             "FVG": fvg,
+-
+             "Fibonacci": fib,
+-
+-            "Gann": gann
+-
+-        }
+-
++            "Gann": gann,
++        },
+     }
+diff --git a/engine/live_feed.py b/engine/live_feed.py
+index 6246d66..286b536 100644
+--- a/engine/live_feed.py
++++ b/engine/live_feed.py
+@@ -4,7 +4,13 @@ import time
+ 
+ class LiveFeed:
+ 
+-    def __init__(self, state, plan=None, trade_status=None, symbol="btcusdt"):
++    def __init__(
++        self,
++        state,
++        plan=None,
++        trade_status=None,
++        symbol="btcusdt",
++    ):
+         self.state = state
+         self.plan = plan
+         self.trade_status = trade_status or {}
+@@ -13,21 +19,181 @@ class LiveFeed:
+         self.thread = None
+ 
+     def dashboard(self):
+-        print("\n" + "=" * 60)
+-        print("                 JAGUAR LIVE FEED")
+-        print("=" * 60)
+ 
+-        print(f"Symbol      : {self.symbol}")
+-        print(f"Price       : {self.state.price}")
+-        print(f"Decision    : {self.state.decision}")
+-        print(f"Confidence  : {self.state.confidence}")
+-        print(f"Probability : {self.state.probability}%")
+-        print(f"AI Score    : {self.state.ai_score}")
++        # ==================================================
++        # CANONICAL ENTERPRISE SNAPSHOTS
++        # ==================================================
+ 
+-        print("-" * 60)
++        institutional = getattr(
++            self.state,
++            "institutional",
++            {},
++        )
++
++        if not isinstance(
++            institutional,
++            dict,
++        ):
++            institutional = {}
++
++        idm = getattr(
++            self.state,
++            "idm",
++            {},
++        )
++
++        if not isinstance(
++            idm,
++            dict,
++        ):
++            idm = {}
++
++        execution = getattr(
++            self.state,
++            "execution",
++            {},
++        )
++
++        if not isinstance(
++            execution,
++            dict,
++        ):
++            execution = {}
++
++        # ==================================================
++        # CANONICAL ENTERPRISE METRICS
++        # ==================================================
++
++        direction = institutional.get(
++            "direction",
++            "NEUTRAL",
++        )
++
++        score = institutional.get(
++            "score",
++            0,
++        )
++
++        grade = institutional.get(
++            "grade",
++            "F",
++        )
++
++        confidence = institutional.get(
++            "confidence",
++            0,
++        )
++
++        decision = idm.get(
++            "decision",
++            "WAIT",
++        )
++
++        priority = idm.get(
++            "priority",
++            "LOW",
++        )
++
++        approved = idm.get(
++            "approved",
++            False,
++        )
++
++        execution_status = execution.get(
++            "status",
++            "WAIT",
++        )
++
++        ready = execution.get(
++            "ready",
++            False,
++        )
++
++        reason = execution.get(
++            "reason",
++            "",
++        )
++
++        # ==================================================
++        # JAGUAR LIVE FEED
++        # ==================================================
++
++        print(
++            "\n"
++            + "=" * 60
++        )
++
++        print(
++            "                 JAGUAR LIVE FEED"
++        )
++
++        print(
++            "=" * 60
++        )
++
++        print(
++            f"Symbol       : {self.symbol}"
++        )
++
++        print(
++            f"Price        : {getattr(self.state, 'price', 0)}"
++        )
++
++        print(
++            f"Bias         : {direction}"
++        )
++
++        print(
++            f"Decision     : {decision}"
++        )
++
++        print(
++            f"Priority     : {priority}"
++        )
++
++        print(
++            f"Approved     : {approved}"
++        )
++
++        print(
++            f"Score        : {score}"
++        )
++
++        print(
++            f"Grade        : {grade}"
++        )
++
++        print(
++            f"Confidence   : {confidence}"
++        )
++
++        print(
++            f"Execution    : {execution_status}"
++        )
++
++        print(
++            f"Ready        : {ready}"
++        )
++
++        if reason:
++
++            print(
++                f"Reason       : {reason}"
++            )
++
++        print(
++            "-" * 60
++        )
++
++        # ==================================================
++        # TRADE PLAN
++        # ==================================================
+ 
+         if self.plan:
+-            print("TRADE PLAN")
++
++            print(
++                "TRADE PLAN"
++            )
+ 
+             keys = [
+                 "Direction",
+@@ -36,48 +202,85 @@ class LiveFeed:
+                 "TP1",
+                 "TP2",
+                 "TP3",
+-                "RiskReward"
++                "RiskReward",
+             ]
+ 
+             for key in keys:
++
+                 if key in self.plan:
+-                    print(f"{key:12}: {self.plan[key]}")
++
++                    print(
++                        f"{key:12}: "
++                        f"{self.plan[key]}"
++                    )
+ 
+         else:
+-            print("NO TRADE PLAN")
+ 
+-        print("-" * 60)
++            print(
++                "NO TRADE PLAN"
++            )
++
++        print(
++            "-" * 60
++        )
++
++        # ==================================================
++        # TRADE STATUS
++        # ==================================================
+ 
+-        print("TRADE STATUS")
++        print(
++            "TRADE STATUS"
++        )
+ 
+         if self.trade_status:
+-            for k, v in self.trade_status.items():
+-                print(f"{k:12}: {v}")
++
++            for key, value in self.trade_status.items():
++
++                print(
++                    f"{key:12}: {value}"
++                )
++
+         else:
+-            print("No Active Trade")
+ 
+-        print("=" * 60)
++            print(
++                "No Active Trade"
++            )
++
++        print(
++            "=" * 60
++        )
+ 
+     def loop(self):
++
+         while self.running:
++
+             self.dashboard()
++
+             time.sleep(5)
+ 
+     def start(self):
++
+         if self.running:
++
+             return
+ 
+         self.running = True
+ 
+         self.thread = threading.Thread(
+             target=self.loop,
+-            daemon=False
++            daemon=False,
+         )
+ 
+         self.thread.start()
+ 
+     def stop(self):
++
+         self.running = False
+ 
+         if self.thread is not None:
+-            self.thread.join(timeout=2)
++
++            self.thread.join(
++                timeout=2
++            )
++
++            self.thread = None
+diff --git a/engine/smc_engine.py b/engine/smc_engine.py
+index f2dcca7..55771e5 100644
+--- a/engine/smc_engine.py
++++ b/engine/smc_engine.py
+@@ -1,111 +1,132 @@
+-from analysis.support_resistance_engine import support_resistance
++"""
++Jaguar Quant X Enterprise
++SMC Aggregation Engine
+ 
++Single-source-of-truth aggregator for Smart Money Concepts.
+ 
+-def analyze(state):
+-    reasons = []
+-    score = 0
++This engine does NOT independently detect BOS, CHOCH, liquidity,
++order blocks, or fair value gaps.
+ 
+-    price = state.price
+-    ema20 = state.ema20
+-    ema50 = state.ema50
++Dedicated structural engines are the analytical authorities.
++"""
+ 
+-    levels = support_resistance()
++from engine.bos_engine import analyze as bos_analyze
++from engine.choch_engine import analyze as choch_analyze
++from engine.liquidity_engine import analyze as liquidity_analyze
++from engine.order_block_engine import analyze as ob_analyze
++from engine.fvg_engine import analyze as fvg_analyze
+ 
+-    support = levels["support"]
+-    resistance = levels["resistance"]
+ 
+-    # -----------------------------
+-    # Break of Structure (BOS)
+-    # -----------------------------
+-    if price > ema20 > ema50:
+-        bos = "BULLISH"
+-        score += 2
+-        reasons.append("Bullish BOS")
++def _signal(result, default="NEUTRAL"):
++    if isinstance(result, dict):
++        return str(result.get("signal", default)).upper()
+ 
+-    elif price < ema20 < ema50:
+-        bos = "BEARISH"
+-        score -= 2
+-        reasons.append("Bearish BOS")
++    if isinstance(result, str):
++        return result.upper()
+ 
+-    else:
+-        bos = "NONE"
+-
+-    # -----------------------------
+-    # Change of Character
+-    # -----------------------------
+-    choch = False
+-
+-    if bos == "BULLISH" and price < ema20:
+-        choch = True
+-        reasons.append("Bearish CHoCH")
+-
+-    elif bos == "BEARISH" and price > ema20:
+-        choch = True
+-        reasons.append("Bullish CHoCH")
+-
+-    # -----------------------------
+-    # Order Block
+-    # -----------------------------
+-    if abs(price - support) < abs(price - resistance):
+-        order_block = "BULLISH"
+-        score += 1
+-        reasons.append("Bullish Order Block")
+-    else:
+-        order_block = "BEARISH"
+-        score -= 1
+-        reasons.append("Bearish Order Block")
+-
+-    # -----------------------------
+-    # Liquidity
+-    # -----------------------------
+-    if abs(price - support) < state.atr:
+-        liquidity = "EQUAL LOW"
+-        score += 1
+-        reasons.append("Equal Low Liquidity")
+-
+-    elif abs(price - resistance) < state.atr:
+-        liquidity = "EQUAL HIGH"
+-        score -= 1
+-        reasons.append("Equal High Liquidity")
++    return default
+ 
+-    else:
+-        liquidity = "NONE"
+ 
+-    # -----------------------------
+-    # Fair Value Gap
+-    # -----------------------------
+-    fvg = abs(resistance - support) > state.atr * 2
++def _score(result):
++    if not isinstance(result, dict):
++        return 0
++
++    try:
++        return int(result.get("score", 0) or 0)
++    except (TypeError, ValueError):
++        return 0
++
++
++def _reasons(result):
++    if not isinstance(result, dict):
++        return []
++
++    reasons = result.get("reasons", [])
+ 
+-    if fvg:
+-        score += 1
+-        reasons.append("Fair Value Gap")
++    if not isinstance(reasons, list):
++        return []
+ 
+-    # -----------------------------
+-    # Premium / Discount
+-    # -----------------------------
+-    midpoint = (support + resistance) / 2
++    return reasons
+ 
+-    premium = False
+-    discount = False
+ 
+-    if price > midpoint:
+-        premium = True
+-        reasons.append("Premium Zone")
++def analyze(state):
++    """
++    Aggregate canonical SMC engine results.
++
++    Important:
++    This engine is descriptive only.
++
++    The dedicated engines remain the scoring authorities in
++    institutional confluence and enterprise scoring.
++    """
++
++    bos = bos_analyze(state)
++    choch = choch_analyze(state)
++    liquidity = liquidity_analyze(state)
++    order_block = ob_analyze(state)
++    fvg = fvg_analyze(state)
++
++    reasons = []
++
++    for result in (
++        bos,
++        choch,
++        liquidity,
++        order_block,
++        fvg,
++    ):
++        reasons.extend(_reasons(result))
++
++    reasons = list(dict.fromkeys(reasons))
++
++    raw_score = sum(
++        _score(result)
++        for result in (
++            bos,
++            choch,
++            liquidity,
++            order_block,
++            fvg,
++        )
++    )
++
++    if raw_score > 0:
++        signal = "BULLISH"
++    elif raw_score < 0:
++        signal = "BEARISH"
+     else:
+-        discount = True
+-        score += 1
+-        reasons.append("Discount Zone")
++        signal = "NEUTRAL"
+ 
+     return {
+-        "bos": bos,
+-        "choch": choch,
+-        "order_block": order_block,
+-        "fvg": fvg,
+-        "liquidity": liquidity,
+-        "premium": premium,
+-        "discount": discount,
+-        "score": score,
+-        "reasons": reasons
++        "name": "SMC Aggregator",
++        "signal": signal,
++
++        # Deliberately zero.
++        # Dedicated engines own scoring authority.
++        "score": 0,
++
++        "confidence": 0.0,
++        "weight": 0.0,
++
++        "reasons": reasons,
++
++        "metadata": {
++            "raw_score": raw_score,
++            "bos": _signal(bos),
++            "choch": _signal(choch),
++            "liquidity": _signal(liquidity),
++            "order_block": _signal(order_block),
++            "fvg": _signal(fvg),
++        },
++
++        # Legacy compatibility fields
++        "bos": _signal(bos),
++        "choch": _signal(choch),
++        "liquidity": _signal(liquidity),
++        "order_block": _signal(order_block),
++        "fvg": _signal(fvg),
++        "premium": False,
++        "discount": False,
+     }
+ 
+ 
+@@ -114,9 +135,4 @@ if __name__ == "__main__":
+ 
+     state = MarketState()
+ 
+-    state.price = 63000
+-    state.ema20 = 62950
+-    state.ema50 = 62800
+-    state.atr = 180
+-
+     print(analyze(state))
+diff --git a/engine/state_manager.py b/engine/state_manager.py
+index d3ddd3b..2711621 100644
+--- a/engine/state_manager.py
++++ b/engine/state_manager.py
+@@ -1,38 +1,421 @@
++"""
++Jaguar Quant X
++Trade State Manager V2
++
++Responsible for persistent position state.
++
++The state manager never creates a trade.
++It only stores, validates, restores, and clears
++an existing position lifecycle.
++"""
++
+ import json
+ import os
++import time
++
+ 
+ FILE = "trade_state.json"
+ 
++STATE_VERSION = 2
++
++
++# ===================================================
++# INTERNAL HELPERS
++# ===================================================
++
++def _to_float(value, default=0.0):
++
++    try:
++
++        if value is None:
++            return default
++
++        return float(value)
++
++    except (TypeError, ValueError):
++
++        return default
++
++
++def _normalize_position(value):
++
++    value = str(
++        value or "NONE"
++    ).upper().strip()
++
++    if value not in [
++        "LONG",
++        "SHORT",
++        "NONE",
++    ]:
++
++        return "NONE"
++
++    return value
++
++
++def _is_valid_trade(
++    position,
++    entry,
++    stop_loss,
++    take_profit,
++):
++
++    if position == "NONE":
++
++        return False
++
++    if entry <= 0:
++
++        return False
++
++    if stop_loss <= 0:
++
++        return False
++
++    if take_profit <= 0:
++
++        return False
++
++
++    if position == "LONG":
++
++        if stop_loss >= entry:
++
++            return False
++
++        if take_profit <= entry:
++
++            return False
++
++
++    elif position == "SHORT":
++
++        if stop_loss <= entry:
++
++            return False
++
++        if take_profit >= entry:
++
++            return False
++
++
++    return True
++
++
++# ===================================================
++# SAVE POSITION
++# ===================================================
++
++def save(
++    position,
++    symbol=None,
++):
++
++    position_type = _normalize_position(
++        getattr(
++            position,
++            "position",
++            "NONE",
++        )
++    )
++
++
++    entry = _to_float(
++        getattr(
++            position,
++            "entry",
++            0.0,
++        )
++    )
++
++
++    stop_loss = _to_float(
++        getattr(
++            position,
++            "stop_loss",
++            0.0,
++        )
++    )
++
++
++    take_profit = _to_float(
++        getattr(
++            position,
++            "take_profit",
++            0.0,
++        )
++    )
++
++
++    pnl = _to_float(
++        getattr(
++            position,
++            "pnl",
++            0.0,
++        )
++    )
++
++
++    if not _is_valid_trade(
++        position_type,
++        entry,
++        stop_loss,
++        take_profit,
++    ):
++
++        return False
++
+ 
+-def save(position):
+     data = {
+-        "position": position.position,
+-        "entry": position.entry,
+-        "stop_loss": position.stop_loss,
+-        "take_profit": position.take_profit,
+-        "pnl": position.pnl,
++
++        "version": STATE_VERSION,
++
++        "symbol": str(
++            symbol or ""
++        ).upper(),
++
++        "position": position_type,
++
++        "entry": entry,
++
++        "stop_loss": stop_loss,
++
++        "take_profit": take_profit,
++
++        "pnl": pnl,
++
++        "updated_at": int(
++            time.time()
++        ),
++
+     }
+ 
+-    with open(FILE, "w") as f:
+-        json.dump(data, f, indent=4)
+ 
++    temp_file = FILE + ".tmp"
++
++
++    try:
++
++        with open(
++            temp_file,
++            "w",
++        ) as file:
++
++            json.dump(
++                data,
++                file,
++                indent=4,
++            )
++
++
++        os.replace(
++            temp_file,
++            FILE,
++        )
++
++
++        return True
++
++
++    except (
++        OSError,
++        TypeError,
++        ValueError,
++    ):
++
++        if os.path.exists(
++            temp_file
++        ):
++
++            try:
++
++                os.remove(
++                    temp_file
++                )
++
++            except OSError:
++
++                pass
++
++
++        return False
++
++
++# ===================================================
++# LOAD POSITION
++# ===================================================
++
++def load(
++    position,
++    symbol=None,
++):
++
++    if not os.path.exists(
++        FILE
++    ):
++
++        return False
++
++
++    try:
++
++        with open(
++            FILE,
++            "r",
++        ) as file:
++
++            data = json.load(
++                file
++            )
++
++
++    except (
++        OSError,
++        json.JSONDecodeError,
++    ):
++
++        clear()
++
++        return False
++
++
++    if not isinstance(
++        data,
++        dict,
++    ):
++
++        clear()
+ 
+-def load(position):
+-    if not os.path.exists(FILE):
+         return False
+ 
+-    with open(FILE, "r") as f:
+-        data = json.load(f)
+ 
+-    position.position = data["position"]
+-    position.entry = data["entry"]
+-    position.stop_loss = data["stop_loss"]
+-    position.take_profit = data["take_profit"]
+-    position.pnl = data["pnl"]
++    version = data.get(
++        "version"
++    )
++
++
++    if version != STATE_VERSION:
++
++        clear()
++
++        return False
++
++
++    saved_symbol = str(
++        data.get(
++            "symbol",
++            "",
++        )
++    ).upper()
++
++
++    expected_symbol = str(
++        symbol or ""
++    ).upper()
++
++
++    if (
++        expected_symbol
++        and saved_symbol != expected_symbol
++    ):
++
++        clear()
++
++        return False
++
++
++    position_type = _normalize_position(
++        data.get(
++            "position"
++        )
++    )
++
++
++    entry = _to_float(
++        data.get(
++            "entry"
++        )
++    )
++
++
++    stop_loss = _to_float(
++        data.get(
++            "stop_loss"
++        )
++    )
++
++
++    take_profit = _to_float(
++        data.get(
++            "take_profit"
++        )
++    )
++
++
++    pnl = _to_float(
++        data.get(
++            "pnl"
++        )
++    )
++
++
++    if not _is_valid_trade(
++        position_type,
++        entry,
++        stop_loss,
++        take_profit,
++    ):
++
++        clear()
++
++        return False
++
++
++    position.position = position_type
++
++    position.entry = entry
++
++    position.stop_loss = stop_loss
++
++    position.take_profit = take_profit
++
++    position.pnl = pnl
++
+ 
+     return True
+ 
+ 
++# ===================================================
++# CLEAR POSITION STATE
++# ===================================================
++
+ def clear():
+-    if os.path.exists(FILE):
+-        os.remove(FILE)
++
++    removed = False
++
++
++    for file_path in [
++        FILE,
++        FILE + ".tmp",
++    ]:
++
++        if os.path.exists(
++            file_path
++        ):
++
++            try:
++
++                os.remove(
++                    file_path
++                )
++
++                removed = True
++
++
++            except OSError:
++
++                pass
++
++
++    return removed
+diff --git a/indicators/indicator_engine.py b/indicators/indicator_engine.py
+index 41fd5eb..0c6aba3 100644
+--- a/indicators/indicator_engine.py
++++ b/indicators/indicator_engine.py
+@@ -1,3 +1,11 @@
++"""
++Jaguar Quant X
++Indicator Engine
++
++Central indicator calculation engine and
++MarketState compatibility bridge.
++"""
++
+ from indicators.ema import ema
+ from indicators.rsi import rsi
+ from indicators.volume import volume
+@@ -9,11 +17,17 @@ from indicators.supertrend import supertrend
+ from indicators.bollinger import bollinger
+ from indicators.vwap import vwap
+ 
++
+ class IndicatorEngine:
+ 
+     @staticmethod
+     def calculate(candles):
+ 
++        if not candles:
++            raise ValueError(
++                "IndicatorEngine requires candle data"
++            )
++
+         return {
+             "ema": ema(candles),
+             "rsi": rsi(candles),
+@@ -26,3 +40,202 @@ class IndicatorEngine:
+             "bollinger": bollinger(candles),
+             "vwap": vwap(candles),
+         }
++
++
++# ==========================================
++# Internal Helpers
++# ==========================================
++
++def _to_float(value, default=0.0):
++
++    try:
++        if value is None:
++            return default
++
++        return float(value)
++
++    except (TypeError, ValueError):
++        return default
++
++
++def _first_value(data, keys, default=0.0):
++
++    if not isinstance(data, dict):
++        return default
++
++    for key in keys:
++
++        if key in data and data[key] is not None:
++            return data[key]
++
++    return default
++
++
++# ==========================================
++# MarketState Compatibility Bridge
++# ==========================================
++
++def update_market_state(state, candles=None):
++
++    # ======================================
++    # Resolve Candle Data
++    # ======================================
++
++    if candles is None:
++
++        market = getattr(state, "market", {}) or {}
++
++        candles = market.get("candles", [])
++
++    if not candles:
++        raise ValueError(
++            "No candles available for indicator calculation"
++        )
++
++    # ======================================
++    # Calculate Indicators
++    # ======================================
++
++    indicators = IndicatorEngine.calculate(candles)
++
++    # ======================================
++    # Store Enterprise Indicator Facts
++    # ======================================
++
++    state.indicators = indicators
++
++    # ======================================
++    # EMA
++    # ======================================
++
++    ema_data = indicators.get("ema", {}) or {}
++
++    state.ema20 = _to_float(
++        _first_value(
++            ema_data,
++            ["ema20", "EMA20", "20"]
++        )
++    )
++
++    state.ema50 = _to_float(
++        _first_value(
++            ema_data,
++            ["ema50", "EMA50", "50"]
++        )
++    )
++
++    state.ema100 = _to_float(
++        _first_value(
++            ema_data,
++            ["ema100", "EMA100", "100"]
++        )
++    )
++
++    state.ema200 = _to_float(
++        _first_value(
++            ema_data,
++            ["ema200", "EMA200", "200"]
++        )
++    )
++
++    # ======================================
++    # RSI
++    # ======================================
++
++    rsi_data = indicators.get("rsi", 0.0)
++
++    if isinstance(rsi_data, dict):
++
++        state.rsi = _to_float(
++            _first_value(
++                rsi_data,
++                ["rsi", "RSI", "value"]
++            )
++        )
++
++    else:
++
++        state.rsi = _to_float(rsi_data)
++
++    # ======================================
++    # ATR
++    # ======================================
++
++    atr_data = indicators.get("atr", 0.0)
++
++    if isinstance(atr_data, dict):
++
++        state.atr = _to_float(
++            _first_value(
++                atr_data,
++                ["atr", "ATR", "value"]
++            )
++        )
++
++    else:
++
++        state.atr = _to_float(atr_data)
++
++    # ======================================
++    # Volume
++    # ======================================
++
++    volume_data = indicators.get("volume", {})
++
++    if isinstance(volume_data, dict):
++
++        volume_value = _first_value(
++            volume_data,
++            ["volume", "Volume", "value"],
++            default=None
++        )
++
++        if volume_value is not None:
++            state.volume = _to_float(volume_value)
++
++    # ======================================
++    # Fibonacci
++    # ======================================
++
++    fib_data = indicators.get("fibonacci", {})
++
++    if isinstance(fib_data, dict):
++        state.fibonacci = fib_data
++
++    # ======================================
++    # Enterprise Market Sync
++    # ======================================
++
++    if (
++        not hasattr(state, "market")
++        or not isinstance(
++            state.market,
++            dict,
++        )
++    ):
++        state.market = {}
++
++    # Canonical analytical candle authority.
++    #
++    # Structural specialist engines resolve candles
++    # from state.market["candles"] through
++    # engine.structure_utils.get_candles().
++    #
++    # Preserve the exact normalized candle dataset
++    # used by the indicator calculation cycle.
++    state.market["candles"] = candles
++
++    state.market["ema20"] = state.ema20
++    state.market["ema50"] = state.ema50
++    state.market["ema100"] = state.ema100
++    state.market["ema200"] = state.ema200
++
++    state.market["rsi"] = state.rsi
++    state.market["atr"] = state.atr
++    state.market["volume"] = state.volume
++
++    # ======================================
++    # Return Updated State
++    # ======================================
++
++    return state
+diff --git a/market/adapter.py b/market/adapter.py
+index bcd689b..2103cf9 100644
+--- a/market/adapter.py
++++ b/market/adapter.py
+@@ -33,3 +33,14 @@ class MarketAdapter:
+             raise Exception(f"Unsupported Market : {market}")
+ 
+         return get_data(symbol)
++
++# ==========================================
++# Legacy Compatibility Functions
++# ==========================================
++
++def detect_market(symbol):
++    return MarketAdapter.get_market(symbol)
++
++
++def load_market(symbol):
++    return MarketAdapter.load(symbol)
+diff --git a/market/bse.py b/market/bse.py
+index 76dafc0..79bebf0 100644
+--- a/market/bse.py
++++ b/market/bse.py
+@@ -3,3 +3,7 @@ def get_data(symbol):
+         "market": "BSE",
+         "symbol": symbol
+     }
++
++def get_bse(symbol):
++    return get_data(symbol)
++
+diff --git a/market/crypto.py b/market/crypto.py
+index 6ce27bd..a69bde0 100644
+--- a/market/crypto.py
++++ b/market/crypto.py
+@@ -14,3 +14,10 @@ def get_data(symbol="BTCUSDT"):
+         "volume": latest["volume"],
+         "candles": candles,
+     }
++
++# ==========================================
++# Legacy Compatibility Functions
++# ==========================================
++
++def get_crypto(symbol="BTCUSDT"):
++    return get_data(symbol)
+diff --git a/market/forex.py b/market/forex.py
+index 5f4fb02..0ec442c 100644
+--- a/market/forex.py
++++ b/market/forex.py
+@@ -3,3 +3,7 @@ def get_data(symbol):
+         "market": "FOREX",
+         "symbol": symbol
+     }
++
++def get_forex(symbol):
++    return get_data(symbol)
++
+diff --git a/market/mcx.py b/market/mcx.py
+index f86711a..26aad1e 100644
+--- a/market/mcx.py
++++ b/market/mcx.py
+@@ -3,3 +3,6 @@ def get_data(symbol):
+         "market": "MCX",
+         "symbol": symbol
+     }
++
++def get_mcx(symbol):
++    return get_data(symbol)
+diff --git a/market/nse.py b/market/nse.py
+index a64deb8..81dbbb6 100644
+--- a/market/nse.py
++++ b/market/nse.py
+@@ -14,3 +14,6 @@ def get_data(symbol):
+         "volume": float(hist["Volume"].iloc[-1]),
+         "candles": hist.tail(300).to_dict("records")
+     }
++
++def get_nse(symbol):
++    return get_data(symbol)
+diff --git a/market/us.py b/market/us.py
+index 5120b93..740bb3e 100644
+--- a/market/us.py
++++ b/market/us.py
+@@ -3,3 +3,6 @@ def get_data(symbol):
+         "market": "US",
+         "symbol": symbol
+     }
++
++def get_us(symbol):
++    return get_data(symbol)

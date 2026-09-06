@@ -1,0 +1,955 @@
+
+====================================================================================================
+SLICE E1 - IMPORTS AND RUNTIME CONSTANTS
+====================================================================================================
+     1	import time
+     2	
+     3	from core.kernel import JaguarKernel
+     4	from core.logger import JaguarLogger
+     5	from core.registry import ModuleRegistry
+     6	from core.event_bus import EventBus
+     7	
+     8	from indicators.indicator_engine import (
+     9	    update_market_state,
+    10	)
+    11	
+    12	from engine.institutional_master import (
+    13	    analyze as institutional_master,
+    14	)
+    15	
+    16	from engine.trade_manager import TradeManager
+    17	from engine.position_manager import PositionManager
+    18	from engine.trade_journal import TradeJournal
+    19	from engine.performance import Performance
+    20	from engine.live_feed import LiveFeed
+    21	
+    22	from engine.state_manager import (
+    23	    save,
+    24	    load,
+    25	    clear,
+    26	)
+    27	
+    28	from market.live_loader import update_state
+    29	
+    30	
+    31	SYMBOL = "BTCUSDT"
+    32	TIMEFRAME = "15m"
+    33	
+    34	
+    35	# ==================================================
+    36	# HEADER
+    37	# ==================================================
+    38	
+
+====================================================================================================
+SLICE E2 - BOOTSTRAP THROUGH INDICATORS
+====================================================================================================
+    39	print("=" * 50)
+    40	print("              JAGUAR QUANT X v2.0")
+    41	print("=" * 50)
+    42	
+    43	
+    44	# ==================================================
+    45	# LOGGER
+    46	# ==================================================
+    47	
+    48	log = JaguarLogger()
+    49	
+    50	log.info(
+    51	    "Starting Jaguar Quant X..."
+    52	)
+    53	
+    54	
+    55	# ==================================================
+    56	# KERNEL
+    57	# ==================================================
+    58	
+    59	kernel = JaguarKernel()
+    60	
+    61	kernel.initialize(
+    62	    SYMBOL,
+    63	    TIMEFRAME,
+    64	)
+    65	
+    66	
+    67	# ==================================================
+    68	# MODULE REGISTRY
+    69	# ==================================================
+    70	
+    71	registry = ModuleRegistry()
+    72	
+    73	modules = [
+    74	    "Kernel",
+    75	    "Market Data",
+    76	    "Indicators",
+    77	    "Gann Engine",
+    78	    "SMC Engine",
+    79	    "AI Brain",
+    80	    "Probability Engine",
+    81	    "Risk Engine",
+    82	    "Trade Engine",
+    83	]
+    84	
+    85	for module in modules:
+    86	
+    87	    registry.register(module)
+    88	
+    89	registry.show()
+    90	
+    91	
+    92	# ==================================================
+    93	# EVENT BUS
+    94	# ==================================================
+    95	
+    96	bus = EventBus()
+    97	
+    98	bus.publish(
+    99	    "startup",
+   100	    "All Systems Online",
+   101	)
+   102	
+   103	
+   104	print("\n" + "=" * 50)
+   105	
+   106	print(
+   107	    "Jaguar Quant X Ready To Trade"
+   108	)
+   109	
+   110	print("=" * 50)
+   111	
+   112	
+   113	# ==================================================
+   114	# CANONICAL STARTUP MARKET HYDRATION
+   115	# ==================================================
+   116	
+   117	state = kernel.get_state()
+   118	
+   119	state = update_state(
+   120	    state,
+   121	    SYMBOL,
+   122	)
+   123	
+   124	candles = state.market["candles"]
+   125	
+   126	latest = candles[-1]
+   127	
+   128	
+   129	# ==================================================
+   130	# LIVE MARKET
+   131	# ==================================================
+   132	
+   133	print(
+   134	    "\n========= LIVE MARKET ========="
+   135	)
+   136	
+   137	print(
+   138	    "Symbol     :",
+   139	    state.symbol,
+   140	)
+   141	
+   142	print(
+   143	    "Timeframe  :",
+   144	    state.timeframe,
+   145	)
+   146	
+   147	print(
+   148	    "Price      :",
+   149	    state.price,
+   150	)
+   151	
+   152	print(
+   153	    "High       :",
+   154	    latest["high"],
+   155	)
+   156	
+   157	print(
+   158	    "Low        :",
+   159	    latest["low"],
+   160	)
+   161	
+   162	print(
+   163	    "Volume     :",
+   164	    state.volume,
+   165	)
+   166	
+   167	
+   168	# ==================================================
+   169	# INDICATORS
+   170	# ==================================================
+   171	
+   172	state = update_market_state(
+   173	    state,
+   174	)
+   175	
+   176	print(
+   177	    "\n========= INDICATORS ========="
+   178	)
+   179	
+   180	print(
+   181	    "EMA20  :",
+   182	    state.ema20,
+   183	)
+   184	
+   185	print(
+   186	    "EMA50  :",
+   187	    state.ema50,
+   188	)
+   189	
+   190	print(
+   191	    "EMA100 :",
+   192	    state.ema100,
+   193	)
+   194	
+   195	print(
+   196	    "EMA200 :",
+   197	    state.ema200,
+   198	)
+   199	
+   200	print(
+   201	    "RSI    :",
+   202	    state.rsi,
+   203	)
+   204	
+   205	print(
+   206	    "ATR    :",
+   207	    state.atr,
+   208	)
+   209	
+   210	print(
+   211	    "Volume :",
+   212	    state.volume,
+   213	)
+   214	
+   215	# ==================================================
+   216	# JAGUAR MASTER ANALYSIS
+   217	# ==================================================
+   218	
+
+====================================================================================================
+SLICE E3 - INSTITUTIONAL REPORT CONTRACT
+====================================================================================================
+   219	report = institutional_master(
+   220	    state
+   221	)
+   222	
+   223	
+   224	context = report.get(
+   225	    "context",
+   226	    report.get(
+   227	        "decision",
+   228	        {},
+   229	    ),
+   230	)
+   231	
+   232	enterprise = report.get(
+   233	    "enterprise",
+   234	    {},
+   235	)
+   236	
+   237	plan = report.get(
+   238	    "plan",
+   239	    {},
+   240	)
+   241	
+   242	risk = report.get(
+   243	    "risk",
+   244	    {},
+   245	)
+   246	
+   247	# ==================================================
+   248	# MARKET CONTEXT
+   249	# ==================================================
+   250	
+   251	context_direction = context.get(
+   252	    "direction",
+   253	    "NEUTRAL",
+   254	)
+   255	
+   256	context_decision = context.get(
+   257	    "decision",
+   258	    "WAIT",
+   259	)
+   260	
+   261	context_grade = context.get(
+   262	    "confidence",
+   263	    "D",
+   264	)
+   265	
+   266	context_probability = context.get(
+   267	    "probability",
+   268	    0,
+   269	)
+   270	
+   271	context_score = context.get(
+   272	    "score",
+   273	    0,
+   274	)
+   275	
+   276	
+   277	print(
+   278	    "\n========== MARKET CONTEXT =========="
+   279	)
+   280	
+   281	print(
+   282	    "Bias          :",
+   283	    context_direction,
+   284	)
+   285	
+   286	print(
+   287	    "Setup Status  :",
+   288	    context_decision,
+   289	)
+   290	
+   291	print(
+   292	    "Context Grade :",
+   293	    context_grade,
+   294	)
+   295	
+   296	print(
+   297	    "Probability   :",
+   298	    f"{context_probability}%",
+   299	)
+   300	
+   301	print(
+   302	    "Context Score :",
+   303	    context_score,
+   304	)
+   305	
+   306	# ==================================================
+   307	# ENTERPRISE DECISION
+   308	# ==================================================
+   309	
+   310	execution = enterprise.get(
+   311	    "execution",
+   312	    {},
+   313	)
+   314	
+   315	enterprise_trade = enterprise.get(
+   316	    "trade",
+   317	    {},
+   318	)
+   319	
+   320	enterprise_risk = enterprise.get(
+   321	    "risk",
+   322	    {},
+   323	)
+   324	
+   325	enterprise_approved = enterprise.get(
+   326	    "approved",
+   327	    False,
+   328	)
+   329	
+   330	
+   331	print(
+   332	    "\n========== ENTERPRISE DECISION =========="
+   333	)
+   334	
+   335	print(
+   336	    "Score         :",
+   337	    enterprise.get(
+   338	        "score",
+   339	        0,
+   340	    ),
+   341	)
+   342	
+   343	print(
+   344	    "Grade         :",
+   345	    enterprise.get(
+   346	        "grade",
+   347	        "F",
+   348	    ),
+   349	)
+   350	
+   351	print(
+   352	    "Confidence    :",
+   353	    enterprise.get(
+   354	        "confidence",
+   355	        0,
+   356	    ),
+   357	)
+   358	
+   359	print(
+   360	    "IDM Decision  :",
+   361	    enterprise.get(
+   362	        "decision",
+   363	        "WAIT",
+   364	    ),
+   365	)
+   366	
+   367	print(
+   368	    "Priority      :",
+   369	    enterprise.get(
+   370	        "priority",
+   371	        "LOW",
+   372	    ),
+   373	)
+   374	
+   375	print(
+   376	    "Approved      :",
+   377	    enterprise_approved,
+   378	)
+   379	
+   380	print(
+   381	    "Execution     :",
+   382	    execution.get(
+   383	        "status",
+   384	        "WAIT",
+   385	    ),
+   386	)
+   387	
+   388	print(
+   389	    "Ready         :",
+   390	    execution.get(
+   391	        "ready",
+   392	        False,
+   393	    ),
+   394	)
+   395	
+   396	print(
+   397	    "Reason        :",
+   398	    execution.get(
+   399	        "reason",
+   400	        "",
+   401	    ),
+   402	)
+   403	
+   404	# ==================================================
+   405	# SUPPORT / RESISTANCE
+   406	# ==================================================
+   407	
+
+====================================================================================================
+SLICE E4 - GANN AND TRADE PLAN REPORTING
+====================================================================================================
+   408	gann = report["engines"]["Gann"]
+   409	
+   410	gann_metadata = gann.get(
+   411	    "metadata",
+   412	    {},
+   413	)
+   414	
+   415	support = gann_metadata.get(
+   416	    "support",
+   417	    0,
+   418	)
+   419	
+   420	resistance = gann_metadata.get(
+   421	    "resistance",
+   422	    0,
+   423	)
+   424	
+   425	
+   426	print(
+   427	    "\n====== SUPPORT / RESISTANCE ======"
+   428	)
+   429	
+   430	print(
+   431	    "Support    :",
+   432	    round(support, 2),
+   433	)
+   434	
+   435	print(
+   436	    "Resistance :",
+   437	    round(resistance, 2),
+   438	)
+   439	
+   440	
+   441	# ==================================================
+   442	# TRADE PLAN
+   443	# ==================================================
+   444	
+   445	print(
+   446	    "\n========== TRADE PLAN =========="
+   447	)
+   448	
+   449	
+   450	if plan and plan.get("Direction"):
+   451	
+   452	    print(
+   453	        "Direction     :",
+   454	        plan.get("Direction"),
+   455	    )
+   456	
+   457	    print(
+   458	        "Entry         :",
+   459	        plan.get("Entry"),
+   460	    )
+   461	
+   462	    print(
+   463	        "Stop Loss     :",
+   464	        plan.get("StopLoss"),
+   465	    )
+   466	
+   467	    print(
+   468	        "TP1           :",
+   469	        plan.get("TP1"),
+   470	    )
+   471	
+   472	    print(
+   473	        "TP2           :",
+   474	        plan.get("TP2"),
+   475	    )
+   476	
+   477	    print(
+   478	        "TP3           :",
+   479	        plan.get("TP3"),
+   480	    )
+   481	
+   482	    print(
+   483	        "Risk Reward   :",
+   484	        plan.get("RiskReward"),
+   485	    )
+   486	
+   487	    print(
+   488	        "Position Size :",
+   489	        plan.get("PositionSize"),
+   490	    )
+   491	
+   492	    print(
+   493	        "Risk Amount   :",
+   494	        plan.get("RiskAmount"),
+   495	    )
+   496	
+   497	else:
+   498	
+   499	    print(
+   500	        "NO TRADE PLAN"
+   501	    )
+   502	
+   503	
+   504	# ==================================================
+   505	# TRADING COMPONENTS
+   506	# ==================================================
+   507	
+
+====================================================================================================
+SLICE E5 - MANAGER INITIALIZATION AND EXECUTION ADMISSION
+====================================================================================================
+   508	performance = Performance()
+   509	
+   510	journal = TradeJournal()
+   511	
+   512	position = PositionManager()
+   513	
+   514	manager = TradeManager()
+   515	
+   516	
+   517	# ==================================================
+   518	# RESTORE POSITION
+   519	# ==================================================
+   520	
+   521	position_loaded = load(position)
+   522	
+   523	
+   524	if position_loaded:
+   525	
+   526	    print(
+   527	        "\nExisting trade state loaded."
+   528	    )
+   529	
+   530	
+   531	# ==================================================
+   532	# DEFAULT TRADE STATUS
+   533	# ==================================================
+   534	
+   535	trade_status = {
+   536	
+   537	    "Action": "NO TRADE",
+   538	
+   539	    "StopLoss": 0,
+   540	
+   541	    "BreakEven": False,
+   542	
+   543	    "Trailing": False,
+   544	
+   545	}
+   546	
+   547	
+   548	# ==================================================
+   549	# NEW TRADE
+   550	# ==================================================
+   551	
+   552	execution_ready = execution.get(
+   553	    "ready",
+   554	    False,
+   555	)
+   556	
+   557	
+   558	if (
+   559	    plan
+   560	    and plan.get("Direction")
+   561	    and execution_ready
+   562	):
+   563	
+   564	    trade_status = manager.manage(
+   565	        state,
+   566	        plan,
+   567	    )
+   568	
+   569	    journal.save(
+   570	        state,
+   571	        plan,
+   572	    )
+   573	
+   574	    if position.position == "NONE":
+   575	
+   576	        direction = plan.get(
+   577	            "Direction",
+   578	            "",
+   579	        )
+   580	
+   581	        if "BUY" in direction:
+   582	
+   583	            position.open_trade(
+   584	                "LONG",
+   585	                plan["Entry"],
+   586	                plan["StopLoss"],
+   587	                plan["TP1"],
+   588	            )
+   589	
+   590	            save(position)
+   591	
+   592	        elif "SELL" in direction:
+   593	
+   594	            position.open_trade(
+   595	                "SHORT",
+   596	                plan["Entry"],
+   597	                plan["StopLoss"],
+   598	                plan["TP1"],
+   599	            )
+   600	
+   601	            save(position)
+   602	
+   603	
+   604	# ==================================================
+   605	# ACTIVE POSITION LOOP
+   606	# ==================================================
+   607	
+
+====================================================================================================
+SLICE E6 - ACTIVE POSITION LIFECYCLE
+====================================================================================================
+   608	if position.position != "NONE":
+   609	
+   610	    print(
+   611	        "\n========== POSITION ACTIVE =========="
+   612	    )
+   613	
+   614	    try:
+   615	
+   616	        while position.position != "NONE":
+   617	
+   618	            state = update_state(
+   619	                state,
+   620	                SYMBOL,
+   621	            )
+   622	
+   623	            position.update(
+   624	                state.price
+   625	            )
+   626	
+   627	            save(position)
+   628	
+   629	            trade_status = manager.manage(
+   630	                state,
+   631	                plan,
+   632	            )
+   633	
+   634	            new_stop = trade_status.get(
+   635	                "StopLoss"
+   636	            )
+   637	
+   638	            if isinstance(
+   639	                new_stop,
+   640	                (int, float),
+   641	            ) and new_stop > 0:
+   642	
+   643	                position.stop_loss = new_stop
+   644	
+   645	            status = position.status()
+   646	
+   647	
+   648	            print(
+   649	                "\n===== LIVE MARKET ====="
+   650	            )
+   651	
+   652	            print(
+   653	                "Symbol :",
+   654	                state.symbol,
+   655	            )
+   656	
+   657	            print(
+   658	                "Price  :",
+   659	                state.price,
+   660	            )
+   661	
+   662	            print(
+   663	                "High   :",
+   664	                state.high,
+   665	            )
+   666	
+   667	            print(
+   668	                "Low    :",
+   669	                state.low,
+   670	            )
+   671	
+   672	            print(
+   673	                "Volume :",
+   674	                state.volume,
+   675	            )
+   676	
+   677	            print(
+   678	                "PnL    :",
+   679	                status.get(
+   680	                    "PnL",
+   681	                    0,
+   682	                ),
+   683	            )
+   684	
+   685	            print(
+   686	                "Action :",
+   687	                trade_status.get(
+   688	                    "Action",
+   689	                    "WAIT",
+   690	                ),
+   691	            )
+   692	
+   693	            print(
+   694	                "Stop Loss :",
+   695	                trade_status.get(
+   696	                    "StopLoss",
+   697	                    0,
+   698	                ),
+   699	            )
+   700	
+   701	            print(
+   702	                "BreakEven :",
+   703	                trade_status.get(
+   704	                    "BreakEven",
+   705	                    False,
+   706	                ),
+   707	            )
+   708	
+   709	            print(
+   710	                "Trailing :",
+   711	                trade_status.get(
+   712	                    "Trailing",
+   713	                    False,
+   714	                ),
+   715	            )
+   716	
+   717	
+   718	            if trade_status.get(
+   719	                "Action"
+   720	            ) in (
+   721	                "EXIT",
+   722	                "STOP LOSS",
+   723	            ):
+   724	
+   725	                position.close_trade()
+   726	
+   727	                clear()
+   728	
+   729	                print(
+   730	                    "\nTrade Closed"
+   731	                )
+   732	
+   733	                break
+   734	
+   735	
+   736	            time.sleep(5)
+   737	
+   738	
+   739	    except KeyboardInterrupt:
+   740	
+   741	        print(
+   742	            "\nStopping active trade monitor..."
+   743	        )
+   744	
+   745	
+   746	# ==================================================
+   747	# NO POSITION
+   748	# ==================================================
+   749	
+   750	else:
+   751	
+   752	    print(
+   753	        "\nNo Position"
+   754	    )
+   755	
+   756	
+   757	# ==================================================
+   758	# TRADE MANAGER REPORT
+   759	# ==================================================
+   760	
+
+====================================================================================================
+SLICE E7 - TRADE MANAGER AND PERFORMANCE
+====================================================================================================
+   761	print(
+   762	    "\n======== TRADE MANAGER ========"
+   763	)
+   764	
+   765	print(
+   766	    "Action      :",
+   767	    trade_status.get(
+   768	        "Action",
+   769	        "NO TRADE",
+   770	    ),
+   771	)
+   772	
+   773	print(
+   774	    "Stop Loss   :",
+   775	    trade_status.get(
+   776	        "StopLoss",
+   777	        0,
+   778	    ),
+   779	)
+   780	
+   781	print(
+   782	    "Break Even  :",
+   783	    trade_status.get(
+   784	        "BreakEven",
+   785	        False,
+   786	    ),
+   787	)
+   788	
+   789	print(
+   790	    "Trailing SL :",
+   791	    trade_status.get(
+   792	        "Trailing",
+   793	        False,
+   794	    ),
+   795	)
+   796	
+   797	
+   798	# ==================================================
+   799	# PERFORMANCE
+   800	# ==================================================
+   801	
+   802	stats = performance.summary()
+   803	
+   804	
+   805	print(
+   806	    "\n========== PERFORMANCE =========="
+   807	)
+   808	
+   809	print(
+   810	    "Total Trades :",
+   811	    stats.get(
+   812	        "Trades",
+   813	        0,
+   814	    ),
+   815	)
+   816	
+   817	print(
+   818	    "Wins         :",
+   819	    stats.get(
+   820	        "Wins",
+   821	        0,
+   822	    ),
+   823	)
+   824	
+   825	print(
+   826	    "Losses       :",
+   827	    stats.get(
+   828	        "Losses",
+   829	        0,
+   830	    ),
+   831	)
+   832	
+   833	print(
+   834	    "Win Rate     :",
+   835	    f'{stats.get("WinRate", 0)}%',
+   836	)
+   837	
+   838	print(
+   839	    "=" * 34
+   840	)
+   841	
+   842	
+   843	# ==================================================
+   844	# LEGACY ANALYSIS REASONS
+   845	# ==================================================
+   846	
+
+====================================================================================================
+SLICE E8 - REASON REPORTING
+====================================================================================================
+   847	print(
+   848	    "\nMarket Bias Reasons"
+   849	)
+   850	
+   851	reasons = context.get(
+   852	    "reasons",
+   853	    [],
+   854	)
+   855	
+   856	unique_reasons = list(
+   857	    dict.fromkeys(reasons)
+   858	)
+   859	
+   860	for reason in unique_reasons:
+   861	
+   862	    print(
+   863	        "✓",
+   864	        reason,
+   865	    )
+   866	
+   867	
+   868	# ==================================================
+   869	# ENTERPRISE REASONS
+   870	# ==================================================
+   871	
+   872	print(
+   873	    "\nEnterprise Reasons"
+   874	)
+   875	
+   876	idm_reasons = state.idm.get(
+   877	    "reasons",
+   878	    [],
+   879	)
+   880	
+   881	for reason in idm_reasons:
+   882	
+   883	    print(
+   884	        "•",
+   885	        reason,
+   886	    )
+   887	
+   888	
+   889	# ==================================================
+   890	# LIVE FEED
+   891	# ==================================================
+   892	
+
+====================================================================================================
+SLICE E9 - LIVE FEED LIFECYCLE
+====================================================================================================
+   893	print(
+   894	    "\n========== LIVE BINANCE FEED =========="
+   895	)
+   896	
+   897	
+   898	feed = LiveFeed(
+   899	    state,
+   900	    plan,
+   901	    trade_status,
+   902	    "btcusdt",
+   903	)
+   904	
+   905	feed.start()
+   906	
+   907	
+   908	try:
+   909	
+   910	    while True:
+   911	
+   912	        time.sleep(1)
+   913	
+   914	
+   915	except KeyboardInterrupt:
+   916	
+   917	    print(
+   918	        "\nStopping Jaguar..."
+   919	    )

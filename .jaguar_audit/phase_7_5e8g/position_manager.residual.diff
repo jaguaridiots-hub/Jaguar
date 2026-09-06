@@ -1,0 +1,14 @@
+diff --git a/engine/position_manager.py b/engine/position_manager.py
+index f66353f..ab831d8 100644
+--- a/engine/position_manager.py
++++ b/engine/position_manager.py
+@@ -27,9 +27,6 @@ class PositionManager:
+         elif self.position == "SHORT":
+             self.pnl = self.entry - current_price
+ 
+-
+-    def update_stop_loss(self, stop_loss):
+-        self.stop_loss = stop_loss
+     def status(self):
+         return {
+             "Position": self.position,

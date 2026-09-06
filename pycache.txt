@@ -1,0 +1,7 @@
+./core/__pycache__
+./market/__pycache__
+./indicators/__pycache__
+./config/__pycache__
+./strategy/__pycache__
+./ai/__pycache__
+./report/__pycache__

@@ -1,0 +1,705 @@
+"""
+Jaguar Quant X Enterprise
+Institutional Confluence Engine V2
+
+Purpose
+-------
+Separate directional market bias from executable trade setup.
+
+Context engines may establish direction.
+Structural engines must confirm market structure.
+Execution-location engines identify actionable price locations.
+
+A strong directional score alone must never create an
+executable BUY or SELL decision.
+"""
+
+
+def _signal(result, default="NEUTRAL"):
+
+    if isinstance(result, dict):
+        return str(
+            result.get("signal", default)
+        ).upper()
+
+    if isinstance(result, str):
+        return result.upper()
+
+    return default
+
+
+def _score(result):
+
+    if not isinstance(result, dict):
+        return 0.0
+
+    try:
+        return float(
+            result.get("score", 0) or 0
+        )
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _confidence(result):
+
+    if not isinstance(result, dict):
+        return 0.0
+
+    try:
+        value = float(
+            result.get("confidence", 0.0) or 0.0
+        )
+    except (TypeError, ValueError):
+        return 0.0
+
+    return max(
+        0.0,
+        min(1.0, value),
+    )
+
+
+def _weight(result):
+    """
+    Safely extract an engine weight.
+
+    Explicit zero is preserved because weight=0.0 means
+    the engine has no scoring authority.
+    """
+
+    if not isinstance(result, dict):
+        return 1.0
+
+    value = result.get(
+        "weight",
+        1.0,
+    )
+
+    if value is None:
+        value = 1.0
+
+    try:
+        value = float(value)
+
+    except (TypeError, ValueError):
+        return 1.0
+
+    return max(
+        0.0,
+        value,
+    )
+
+def _reasons(result):
+
+    if not isinstance(result, dict):
+        return []
+
+    reasons = result.get("reasons", [])
+
+    if not isinstance(reasons, list):
+        return []
+
+    return reasons
+
+
+def _weighted_score(result):
+
+    score = _score(result)
+    confidence = _confidence(result)
+    weight = _weight(result)
+
+    if score == 0:
+        return 0.0
+
+    confidence_factor = max(
+        0.25,
+        confidence,
+    )
+
+    return (
+        score
+        * weight
+        * confidence_factor
+    )
+
+def _directional_weighted_score(result):
+    """
+    Return directional scoring contribution.
+
+    Only explicitly BULLISH or BEARISH engine signals
+    may influence directional market bias.
+
+    NEUTRAL, SIDEWAYS, UNKNOWN, and other non-directional
+    signals contribute zero directional pressure.
+
+    The canonical signal owns direction.
+    The numerical score owns magnitude.
+    """
+
+    signal = _signal(result)
+
+    if signal not in (
+        "BULLISH",
+        "BEARISH",
+    ):
+        return 0.0
+
+    magnitude = abs(
+        _weighted_score(result)
+    )
+
+    if magnitude == 0:
+        return 0.0
+
+    if signal == "BULLISH":
+        return magnitude
+
+    return -magnitude
+
+def analyze(
+    ai,
+    regime,
+    smc,
+    bos,
+    choch,
+    liquidity,
+    order_block,
+    fvg,
+    fib,
+    gann,
+    structural_zone=None,
+):
+    # ======================================
+    # Canonical Structural Contract
+    # ======================================
+
+    if not isinstance(
+        structural_zone,
+        dict,
+    ):
+        structural_zone = {}
+
+    structural_direction = str(
+        structural_zone.get(
+            "direction",
+            "NEUTRAL",
+        )
+    ).upper().strip()
+
+    structure_state = str(
+        structural_zone.get(
+            "structure_state",
+            "UNDEFINED",
+        )
+    ).upper().strip()
+
+    trigger_status = str(
+        structural_zone.get(
+            "trigger_status",
+            "NONE",
+        )
+    ).upper().strip()
+
+    zone_status = str(
+        structural_zone.get(
+            "zone_status",
+            "NONE",
+        )
+    ).upper().strip()
+
+    zone_direction = str(
+        structural_zone.get(
+            "zone_direction",
+            "NEUTRAL",
+        )
+    ).upper().strip()
+
+    location_quality = str(
+        structural_zone.get(
+            "location_quality",
+            "NONE",
+        )
+    ).upper().strip()
+
+    readiness = str(
+        structural_zone.get(
+            "readiness",
+            "WAITING",
+        )
+    ).upper().strip()
+
+    interacting = bool(
+        structural_zone.get(
+            "interacting",
+            False,
+        )
+    )
+
+    print("\n===== CONFLUENCE INPUT =====")
+    print("direction        :", structural_direction)
+    print("structure_state  :", structure_state)
+    print("trigger_status   :", trigger_status)
+    print("zone_direction   :", zone_direction)
+    print("location_quality :", location_quality)
+    print("interacting      :", interacting)
+    print("============================\n")
+
+ # ======================================
+    # Engine Groups
+    # ======================================
+
+    context_engines = (
+        ai,
+        regime,
+        fib,
+        gann,
+    )
+
+    structure_engines = (
+        bos,
+        choch,
+        liquidity,
+    )
+
+    location_engines = (
+        order_block,
+        fvg,
+    )
+
+    all_engines = (
+        ai,
+        regime,
+        smc,
+        bos,
+        choch,
+        liquidity,
+        order_block,
+        fvg,
+        fib,
+        gann,
+    )
+
+    # ======================================
+    # Directional Context
+    # ======================================
+    #
+    # Directional authority belongs only to
+    # explicitly directional engine signals.
+    #
+    # NEUTRAL / SIDEWAYS engines may retain
+    # analytical scores but cannot create
+    # bullish or bearish market pressure.
+    # ======================================
+
+    context_score = sum(
+        _directional_weighted_score(result)
+        for result in context_engines
+    )
+
+    if context_score > 0:
+        direction = "BULLISH"
+
+    elif context_score < 0:
+        direction = "BEARISH"
+
+    else:
+        direction = "NEUTRAL"
+
+    # ======================================
+    # Canonical Signals
+    # ======================================
+
+    bos_signal = _signal(bos)
+    choch_signal = _signal(choch)
+    liquidity_signal = _signal(liquidity)
+
+    order_block_signal = _signal(order_block)
+    fvg_signal = _signal(fvg)
+
+    # ======================================
+    # Canonical Structural Confirmation
+    # ======================================
+    #
+    # StructuralZoneEngine owns interpreted structural truth.
+    #
+    # Raw BOS / CHOCH / Liquidity signals remain diagnostic
+    # specialist facts but do not independently override the
+    # canonical structural contract.
+    # ======================================
+
+    bullish_structure = (
+        structural_direction == "BULLISH"
+        and structure_state
+        not in (
+            "UNDEFINED",
+            "NEUTRAL",
+            "UNKNOWN",
+        )
+    )
+
+    bearish_structure = (
+        structural_direction == "BEARISH"
+        and structure_state
+        not in (
+            "UNDEFINED",
+            "NEUTRAL",
+            "UNKNOWN",
+        )
+    )
+
+    # ======================================
+    # Canonical Execution Location
+    # ======================================
+    #
+    # Location must align with canonical context direction.
+    #
+    # An active directional zone with confirmed interaction
+    # is valid execution-location evidence.
+    # ======================================
+
+    bullish_location = (
+        zone_direction == "BULLISH"
+        and (
+            interacting
+            or location_quality
+            in (
+                "INTERACTING",
+                "AT_ZONE",
+                "INSIDE_ZONE",
+            )
+        )
+    )
+
+    bearish_location = (
+        zone_direction == "BEARISH"
+        and (
+            interacting
+            or location_quality
+            in (
+                "INTERACTING",
+                "AT_ZONE",
+                "INSIDE_ZONE",
+            )
+        )
+    )
+
+    # ======================================
+    # Weighted Analytical Score
+    # ======================================
+
+    weighted_score = sum(
+        _weighted_score(result)
+        for result in (
+            ai,
+            regime,
+            bos,
+            choch,
+            liquidity,
+            order_block,
+            fvg,
+            fib,
+            gann,
+        )
+    )
+
+    analytical_score = int(
+        round(weighted_score)
+    )
+    # ======================================
+    # Setup Gates
+    # ======================================
+
+    bullish_setup = (
+        direction == "BULLISH"
+        and bullish_structure
+        and bullish_location
+    )
+
+    bearish_setup = (
+        direction == "BEARISH"
+        and bearish_structure
+        and bearish_location
+    )
+
+    # ======================================
+    # Decision
+    # ======================================
+
+    if bullish_setup:
+
+        if analytical_score >= 10:
+            decision = "🟢 STRONG BUY"
+        else:
+            decision = "🟢 BUY"
+
+    elif bearish_setup:
+
+        if analytical_score <= -10:
+            decision = "🔴 STRONG SELL"
+        else:
+            decision = "🔴 SELL"
+
+    elif direction == "BULLISH":
+        decision = "🟡 BULLISH BIAS - WAIT"
+
+    elif direction == "BEARISH":
+        decision = "🟡 BEARISH BIAS - WAIT"
+
+    else:
+        decision = "⚪ NO TRADE"
+
+    # ======================================
+    # Directional Confidence Model
+    # ======================================
+    #
+    # Confidence must measure confirmation of
+    # the CURRENT canonical context direction.
+    #
+    # Opposing structural or location evidence
+    # must never increase directional confidence.
+    # ======================================
+
+    direction_confirmed = (
+        direction
+        in (
+            "BULLISH",
+            "BEARISH",
+        )
+    )
+
+
+    structure_confirmed = (
+        bullish_structure
+        if direction == "BULLISH"
+        else bearish_structure
+        if direction == "BEARISH"
+        else False
+    )
+
+    location_confirmed = (
+        bullish_location
+        if direction == "BULLISH"
+        else bearish_location
+        if direction == "BEARISH"
+        else False
+    )
+
+    setup_confirmed = (
+        bullish_setup
+        if direction == "BULLISH"
+        else bearish_setup
+        if direction == "BEARISH"
+        else False
+    )
+
+    confirmations = sum(
+        (
+            direction_confirmed,
+            structure_confirmed,
+            location_confirmed,
+            setup_confirmed,
+        )
+    )
+
+    probability = {
+        0: 50,
+        1: 60,
+        2: 70,
+        3: 80,
+        4: 90,
+    }.get(
+        confirmations,
+        50,
+    )
+
+
+    if probability >= 90:
+        confidence = "A+"
+
+    elif probability >= 80:
+        confidence = "A"
+
+    elif probability >= 70:
+        confidence = "B"
+
+    elif probability >= 60:
+        confidence = "C"
+
+    else:
+        confidence = "D"
+
+    # ======================================
+    # Reasons
+    # ======================================
+    reasons = []
+
+    # ======================================
+    # REASON AUTHORITY
+    # ======================================
+    #
+    # Reasons must describe the CURRENT
+    # canonical directional context.
+    #
+    # SMC reasons are intentionally excluded
+    # because SMC is an aggregated compatibility
+    # result whose reasons already contain
+    # specialist narratives.
+    #
+    # Specialist reasons are admitted only when
+    # their active directional signal aligns with
+    # the current canonical direction.
+    #
+    # Non-directional context engines may retain
+    # diagnostic reasons because they do not claim
+    # opposing structural authority.
+    # ======================================
+
+    # --------------------------------------
+    # CONTEXT REASONS
+    # --------------------------------------
+
+    for result in (
+        ai,
+        regime,
+        fib,
+        gann,
+    ):
+        result_signal = _signal(result)
+
+        if result_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            if result_signal == direction:
+                reasons.extend(
+                    _reasons(result)
+                )
+
+        else:
+            reasons.extend(
+                _reasons(result)
+            )
+
+    # --------------------------------------
+    # STRUCTURAL REASONS
+    # --------------------------------------
+
+    for result in (
+        bos,
+        choch,
+        liquidity,
+    ):
+        if _signal(result) == direction:
+            reasons.extend(
+                _reasons(result)
+            )
+
+    # --------------------------------------
+    # EXECUTION LOCATION REASONS
+    # --------------------------------------
+
+    for result in (
+        order_block,
+        fvg,
+    ):
+        if _signal(result) == direction:
+            reasons.extend(
+                _reasons(result)
+            )
+
+    # --------------------------------------
+    # CANONICAL STRUCTURAL ZONE REASONS
+    # --------------------------------------
+
+    structural_reasons = structural_zone.get(
+        "reasons",
+        [],
+    )
+
+    if not isinstance(
+        structural_reasons,
+        list,
+    ):
+        structural_reasons = []
+
+    if structural_direction == direction:
+        reasons.extend(
+            structural_reasons
+        )
+
+    # --------------------------------------
+    # REMOVE DUPLICATES
+    # --------------------------------------
+
+    reasons = list(
+        dict.fromkeys(reasons)
+    )
+
+
+    if (
+        direction == "BULLISH"
+        and not bullish_structure
+    ):
+        reasons.append(
+            "Bullish bias awaiting structural confirmation"
+        )
+
+    if (
+        direction == "BEARISH"
+        and not bearish_structure
+    ):
+        reasons.append(
+            "Bearish bias awaiting structural confirmation"
+        )
+
+    if (
+        direction == "BULLISH"
+        and bullish_structure
+        and not bullish_location
+    ):
+        if location_quality in ("NEAR", "APPROACHING"):
+            reasons.append(
+                "Bullish structure approaching execution location"
+            )
+        else:
+            reasons.append(
+                "Bullish structure awaiting execution location"
+            )
+
+    if (
+        direction == "BEARISH"
+        and bearish_structure
+        and not bearish_location
+    ):
+        if location_quality in ("NEAR", "APPROACHING"):
+            reasons.append(
+                "Bearish structure approaching execution location"
+            )
+        else:
+            reasons.append(
+                "Bearish structure awaiting execution location"
+            )
+
+    return {
+        "decision": decision,
+
+        # Canonical directional context authority.
+        "score": context_score,
+        "context_score": context_score,
+
+        # Analytical evidence balance.
+        "analytical_score": analytical_score,
+        "weighted_score": weighted_score,
+
+        "probability": probability,
+        "confidence": confidence,
+        "reasons": reasons,
+        "direction": direction,
+
+        "structure_confirmed": structure_confirmed,
+
+        "location_confirmed": location_confirmed,
+
+        "setup_confirmed": setup_confirmed,
+    }

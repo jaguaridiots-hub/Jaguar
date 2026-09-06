@@ -1,0 +1,77 @@
+# ai/profiles.py
+
+PROFILES = {
+    "LEGACY": {
+        "smc": 1.0,
+        "structure": 1.0,
+        "mss": 1.0,
+        "equal_levels": 1.0,
+        "liquidity": 1.0,
+        "fvg": 1.0,
+        "order_block": 1.0,
+        "volume_profile": 1.0,
+        "session": 1.0,
+        "gann": 1.0,
+        "regime": 1.0,
+        "order_flow": 1.0,
+        "premium_discount": 1.0,
+        "wyckoff": 1.0,
+        "mtf": 1.0,
+    },
+    "SCALP": {
+        "smc": 1.5,
+        "structure": 2.0,
+        "mss": 1.333,
+        "equal_levels": 1.667,
+        "liquidity": 2.0,
+        "fvg": 2.0,
+        "order_block": 1.333,
+        "volume_profile": 1.5,
+        "session": 2.0,
+        "gann": 0.5,
+        "regime": 0.5,
+        "order_flow": 2.0,
+        "premium_discount": 1.5,
+        "wyckoff": 0.5,
+        "mtf": 0.5,
+    },
+    "SWING": {
+        "smc": 1.0,
+        "structure": 1.0,
+        "mss": 1.0,
+        "equal_levels": 1.0,
+        "liquidity": 1.5,
+        "fvg": 1.0,
+        "order_block": 1.0,
+        "volume_profile": 1.0,
+        "session": 1.0,
+        "gann": 1.0,
+        "regime": 1.0,
+        "order_flow": 1.5,
+        "premium_discount": 1.0,
+        "wyckoff": 1.0,
+        "mtf": 1.0,
+    },
+    "CLASSIC": {
+        "smc": 0.5,
+        "structure": 0.5,
+        "mss": 0.667,
+        "equal_levels": 0.667,
+        "liquidity": 0.5,
+        "fvg": 0.5,
+        "order_block": 0.667,
+        "volume_profile": 0.5,
+        "session": 0.5,
+        "gann": 2.0,
+        "regime": 2.0,
+        "order_flow": 0.5,
+        "premium_discount": 0.5,
+        "wyckoff": 2.0,
+        "mtf": 2.0,
+    }
+}
+
+def get_profile(mode):
+    if mode in PROFILES:
+        return PROFILES[mode]
+    return PROFILES["LEGACY"]

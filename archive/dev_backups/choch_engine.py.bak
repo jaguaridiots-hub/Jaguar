@@ -1,0 +1,302 @@
+"""
+Jaguar Quant X Enterprise
+Change of Character Engine v2.0
+
+Canonical swing-based CHOCH detector.
+
+CHOCH represents a break against the previously established
+structural character.
+
+Bullish structure:
+    Higher High + Higher Low
+
+Bearish CHOCH:
+    Close below the protected Higher Low
+
+Bearish structure:
+    Lower Low + Lower High
+
+Bullish CHOCH:
+    Close above the protected Lower High
+"""
+
+from core.engine_result import EngineResult
+
+from engine.structure_utils import (
+    structure_snapshot,
+)
+
+
+# ==========================================================
+# ENGINE
+# ==========================================================
+
+def analyze(state):
+
+    structure = structure_snapshot(
+        state,
+        left=2,
+        right=2,
+        lookback=100,
+    )
+
+    candles = structure[
+        "candles"
+    ]
+
+    highs = structure[
+        "highs"
+    ]
+
+    lows = structure[
+        "lows"
+    ]
+
+    if len(candles) < 20:
+
+        return EngineResult(
+            name="CHOCH",
+            signal="NEUTRAL",
+            score=0,
+            confidence=0.0,
+            weight=1.15,
+            reasons=[
+                "Not enough candles"
+            ],
+            metadata={
+                "status": "INSUFFICIENT_DATA",
+            },
+        ).to_dict()
+
+    if (
+        len(highs) < 2
+        or len(lows) < 2
+    ):
+
+        return EngineResult(
+            name="CHOCH",
+            signal="NEUTRAL",
+            score=0,
+            confidence=0.0,
+            weight=1.15,
+            reasons=[
+                "Insufficient confirmed swing structure"
+            ],
+            metadata={
+                "status": "STRUCTURAL_WAIT",
+                "swing_high_count": len(
+                    highs
+                ),
+                "swing_low_count": len(
+                    lows
+                ),
+            },
+        ).to_dict()
+
+    previous_high = highs[-2]
+
+    latest_high = highs[-1]
+
+    previous_low = lows[-2]
+
+    latest_low = lows[-1]
+
+    last = candles[-1]
+
+    last_close = float(
+        last.get(
+            "close",
+            0.0,
+        )
+        or 0.0
+    )
+
+    previous_high_price = float(
+        previous_high.get(
+            "price",
+            0.0,
+        )
+        or 0.0
+    )
+
+    latest_high_price = float(
+        latest_high.get(
+            "price",
+            0.0,
+        )
+        or 0.0
+    )
+
+    previous_low_price = float(
+        previous_low.get(
+            "price",
+            0.0,
+        )
+        or 0.0
+    )
+
+    latest_low_price = float(
+        latest_low.get(
+            "price",
+            0.0,
+        )
+        or 0.0
+    )
+
+    # ======================================================
+    # PRIOR STRUCTURAL CHARACTER
+    # ======================================================
+
+    bullish_structure = (
+        latest_high_price
+        > previous_high_price
+        and latest_low_price
+        > previous_low_price
+    )
+
+    bearish_structure = (
+        latest_high_price
+        < previous_high_price
+        and latest_low_price
+        < previous_low_price
+    )
+
+    signal = "NEUTRAL"
+
+    score = 0
+
+    confidence = 0.0
+
+    reasons = []
+
+    status = "WAITING"
+
+    protected_level = 0.0
+
+    prior_structure = "NEUTRAL"
+
+    # ======================================================
+    # BEARISH CHOCH
+    # ======================================================
+
+    if bullish_structure:
+
+        prior_structure = "BULLISH"
+
+        protected_level = (
+            latest_low_price
+        )
+
+        if (
+            latest_low["index"]
+            < len(candles) - 1
+            and last_close
+            < protected_level
+        ):
+
+            signal = "BEARISH"
+
+            score = -4
+
+            confidence = 0.85
+
+            status = "CONFIRMED"
+
+            reasons.append(
+                "Bearish CHOCH below protected higher low"
+            )
+
+        else:
+
+            reasons.append(
+                "Bullish structure remains protected"
+            )
+
+    # ======================================================
+    # BULLISH CHOCH
+    # ======================================================
+
+    elif bearish_structure:
+
+        prior_structure = "BEARISH"
+
+        protected_level = (
+            latest_high_price
+        )
+
+        if (
+            latest_high["index"]
+            < len(candles) - 1
+            and last_close
+            > protected_level
+        ):
+
+            signal = "BULLISH"
+
+            score = 4
+
+            confidence = 0.85
+
+            status = "CONFIRMED"
+
+            reasons.append(
+                "Bullish CHOCH above protected lower high"
+            )
+
+        else:
+
+            reasons.append(
+                "Bearish structure remains protected"
+            )
+
+    # ======================================================
+    # MIXED STRUCTURE
+    # ======================================================
+
+    else:
+
+        status = "MIXED_STRUCTURE"
+
+        reasons.append(
+            "No established directional structure for CHOCH"
+        )
+
+    # ======================================================
+    # RESULT
+    # ======================================================
+
+    return EngineResult(
+        name="CHOCH",
+        signal=signal,
+        score=score,
+        confidence=confidence,
+        weight=1.15,
+        reasons=reasons,
+        metadata={
+            "status": status,
+            "prior_structure": prior_structure,
+            "protected_level": protected_level,
+            "last_close": last_close,
+            "previous_high": previous_high,
+            "latest_high": latest_high,
+            "previous_low": previous_low,
+            "latest_low": latest_low,
+        },
+    ).to_dict()
+
+
+# ==========================================================
+# LOCAL TEST
+# ==========================================================
+
+if __name__ == "__main__":
+
+    from core.market_state import (
+        MarketState,
+    )
+
+    state = MarketState()
+
+    print(
+        analyze(state)
+    )

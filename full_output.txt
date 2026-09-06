@@ -1,0 +1,452 @@
+2026-07-21 12:49:16,891 | INFO | SYSTEM_START
+
+========== REGISTERED ENGINES ==========
+01. MarketEngine
+02. IndicatorEngine
+03. ScoreEngine
+04. StructureEngineRunner
+05. MSSEngineRunner
+06. SMCEngine
+07. LiquidityEngineRunner
+08. FVGEngineRunner
+09. OrderBlockEngineRunner
+10. PremiumDiscountEngineRunner
+11. WyckoffEngineRunner
+12. EqualLevelsEngineRunner
+13. VolumeProfileEngineRunner
+14. SessionEngineRunner
+15. TimeframeIndicatorEngineRunner
+16. MTFEngineRunner
+17. RegimeEngineRunner
+18. GannEngineRunner
+19. OrderFlowEngineRunner
+20. ProbabilityEngineV2Runner
+21. BrainEngine
+22. ConfluenceEngineRunner
+23. TradePlannerEngineRunner
+24. RiskManagerEngineRunner
+25. DecisionEngineRunner
+26. ExecutionTriggerEngineRunner
+27. ExecutionConfirmationEngine
+28. TradeValidatorEngineRunner
+29. MasterDecisionEngine
+30. ExecutionEngineRunner
+31. DashboardEngineRunner
+32. BacktestEngine
+========================================
+
+
+======================================================================
+JAGUAR QUANT X ENTERPRISE
+======================================================================
+[12:49:16] SYSTEM_START
+
+============================================================
+Running Engine : MarketEngine
+============================================================
+[12:49:16] MARKET_LOADING
+
+===== 15m =====
+<class 'dict'>
+dict_keys(['symbol', 'interval', 'candles'])
+
+===== 1h =====
+<class 'dict'>
+dict_keys(['symbol', 'interval', 'candles'])
+
+===== 4h =====
+<class 'dict'>
+dict_keys(['symbol', 'interval', 'candles'])
+
+===== 1d =====
+<class 'dict'>
+dict_keys(['symbol', 'interval', 'candles'])
+15m: 500 candles
+1h: 500 candles
+4h: 500 candles
+1d: 500 candles
+Loaded Timeframes: ['15m', '1h', '4h', '1d']
+[12:49:19] MARKET_READY
+✓ MarketEngine completed
+Time : 2.2031 sec
+
+============================================================
+Running Engine : IndicatorEngine
+============================================================
+[12:49:19] INDICATORS
+====== RSI ======
+76.4927821522322
+OVERBOUGHT
+====== Volume ======
+43.73522
+167.9423375
+LOW VOLUME
+====== Fibonacci ======
+0.0%: 65991.05
+23.6%: 65308.76
+38.2%: 64886.67
+50.0%: 64545.53
+61.8%: 64204.38
+78.6%: 63718.68
+100.0%: 63100.00
+[12:49:19] TECHNICAL_READY
+✓ IndicatorEngine completed
+Time : 0.0044 sec
+
+============================================================
+Running Engine : ScoreEngine
+============================================================
+[12:49:19] SCORE_READY
+✓ ScoreEngine completed
+Time : 0.0002 sec
+
+============================================================
+Running Engine : StructureEngineRunner
+============================================================
+[12:49:19] STRUCTURE_ANALYSIS
+[12:49:19] STRUCTURE_READY
+✓ StructureEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : MSSEngineRunner
+============================================================
+[12:49:19] MSS_ANALYSIS
+[12:49:19] MSS_READY
+✓ MSSEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : SMCEngine
+============================================================
+[12:49:19] SMC_ANALYSIS
+[12:49:19] SMC_READY
+✓ SMCEngine completed
+Time : 0.0003 sec
+
+============================================================
+Running Engine : LiquidityEngineRunner
+============================================================
+[12:49:19] LIQUIDITY_ANALYSIS
+[12:49:19] LIQUIDITY_READY
+✓ LiquidityEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : FVGEngineRunner
+============================================================
+[12:49:19] FVG_ANALYSIS
+[12:49:19] FVG_READY
+✓ FVGEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : OrderBlockEngineRunner
+============================================================
+[12:49:19] ORDERBLOCK_ANALYSIS
+[12:49:19] ORDERBLOCK_READY
+✓ OrderBlockEngineRunner completed
+Time : 0.0002 sec
+
+============================================================
+Running Engine : PremiumDiscountEngineRunner
+============================================================
+[12:49:19] PREMIUM_DISCOUNT_ANALYSIS
+[12:49:19] PREMIUM_DISCOUNT_READY
+✓ PremiumDiscountEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : WyckoffEngineRunner
+============================================================
+[12:49:19] WYCKOFF_ANALYSIS
+[12:49:19] WYCKOFF_READY
+✓ WyckoffEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : EqualLevelsEngineRunner
+============================================================
+[12:49:19] EQUAL_LEVELS_ANALYSIS
+[12:49:19] EQUAL_LEVELS_READY
+✓ EqualLevelsEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : VolumeProfileEngineRunner
+============================================================
+[12:49:19] VOLUME_PROFILE_ANALYSIS
+[12:49:19] VOLUME_PROFILE_READY
+✓ VolumeProfileEngineRunner completed
+Time : 0.0019 sec
+
+============================================================
+Running Engine : SessionEngineRunner
+============================================================
+[12:49:19] SESSION_ANALYSIS
+[12:49:19] SESSION_READY
+✓ SessionEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : TimeframeIndicatorEngineRunner
+============================================================
+[12:49:19] MTF_INDICATORS_ANALYSIS
+
+========== TIMEFRAME INDICATOR ENGINE ==========
+Available Timeframes: ['15m', '1h', '4h', '1d']
+
+----- 15m -----
+Candles: 500
+====== RSI ======
+76.4927821522322
+OVERBOUGHT
+====== Volume ======
+43.73522
+167.9423375
+LOW VOLUME
+====== Fibonacci ======
+0.0%: 65991.05
+23.6%: 65308.76
+38.2%: 64886.67
+50.0%: 64545.53
+61.8%: 64204.38
+78.6%: 63718.68
+100.0%: 63100.00
+Indicator Keys: ['ema', 'rsi', 'volume', 'fibonacci', 'atr', 'macd', 'adx', 'supertrend', 'bollinger', 'vwap']
+
+----- 1h -----
+Candles: 500
+====== RSI ======
+57.98581901213799
+NEUTRAL
+====== Volume ======
+203.94039
+760.154342
+LOW VOLUME
+====== Fibonacci ======
+0.0%: 65991.05
+23.6%: 65176.03
+38.2%: 64671.82
+50.0%: 64264.31
+61.8%: 63856.79
+78.6%: 63276.61
+100.0%: 62537.56
+Indicator Keys: ['ema', 'rsi', 'volume', 'fibonacci', 'atr', 'macd', 'adx', 'supertrend', 'bollinger', 'vwap']
+
+----- 4h -----
+Candles: 500
+====== RSI ======
+63.60976024525789
+NEUTRAL
+====== Volume ======
+2402.96385
+2121.1470825
+HIGH VOLUME
+====== Fibonacci ======
+0.0%: 65991.05
+23.6%: 64885.58
+38.2%: 64201.68
+50.0%: 63648.94
+61.8%: 63096.21
+78.6%: 62309.26
+100.0%: 61306.84
+Indicator Keys: ['ema', 'rsi', 'volume', 'fibonacci', 'atr', 'macd', 'adx', 'supertrend', 'bollinger', 'vwap']
+
+----- 1d -----
+Candles: 500
+====== RSI ======
+61.839494112484836
+NEUTRAL
+====== Volume ======
+4688.35977
+15402.2709175
+LOW VOLUME
+====== Fibonacci ======
+0.0%: 82850.00
+23.6%: 76938.24
+38.2%: 73280.97
+50.0%: 70325.10
+61.8%: 67369.22
+78.6%: 63160.85
+100.0%: 57800.19
+Indicator Keys: ['ema', 'rsi', 'volume', 'fibonacci', 'atr', 'macd', 'adx', 'supertrend', 'bollinger', 'vwap']
+
+MTF Indicator Timeframes: ['15m', '1h', '4h', '1d']
+===============================================
+
+[12:49:19] MTF_INDICATORS_READY
+✓ TimeframeIndicatorEngineRunner completed
+Time : 0.0158 sec
+
+============================================================
+Running Engine : MTFEngineRunner
+============================================================
+[12:49:19] MTF_ANALYSIS
+
+TIMEFRAME: 15m
+EMA : {'ema20': 65686.8, 'ema50': 65459.04, 'ema100': 65208.45, 'ema200': 64924.26, 'trend': 'STRONG BULLISH'}
+RSI : {'value': 76.4927821522322, 'signal': 'OVERBOUGHT'}
+VWAP: {'value': 64276.63, 'signal': 'ABOVE VWAP'}
+
+TIMEFRAME: 1h
+EMA : {'ema20': 65353.36, 'ema50': 64957.95, 'ema100': 64645.52, 'ema200': 64258.14, 'trend': 'STRONG BULLISH'}
+RSI : {'value': 57.98581901213799, 'signal': 'NEUTRAL'}
+VWAP: {'value': 62947.5, 'signal': 'ABOVE VWAP'}
+
+TIMEFRAME: 4h
+EMA : {'ema20': 64867.67, 'ema50': 64348.66, 'ema100': 63818.18, 'ema200': 64079.65, 'trend': 'SIDEWAYS'}
+RSI : {'value': 63.60976024525789, 'signal': 'NEUTRAL'}
+VWAP: {'value': 67940.52, 'signal': 'BELOW VWAP'}
+
+TIMEFRAME: 1d
+EMA : {'ema20': 64005.74, 'ema50': 65078.62, 'ema100': 68094.66, 'ema200': 73860.75, 'trend': 'STRONG BEARISH'}
+RSI : {'value': 61.839494112484836, 'signal': 'NEUTRAL'}
+VWAP: {'value': 89121.8, 'signal': 'BELOW VWAP'}
+[12:49:19] MTF_READY
+✓ MTFEngineRunner completed
+Time : 0.0006 sec
+
+============================================================
+Running Engine : RegimeEngineRunner
+============================================================
+[12:49:19] REGIME_ANALYSIS
+[12:49:19] REGIME_READY
+✓ RegimeEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : GannEngineRunner
+============================================================
+[12:49:19] GANN_ANALYSIS
+[12:49:19] GANN_READY
+✓ GannEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : OrderFlowEngineRunner
+============================================================
+[12:49:19] ORDERFLOW_ANALYSIS
+[12:49:19] ORDERFLOW_READY
+✓ OrderFlowEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : ProbabilityEngineV2Runner
+============================================================
+[12:49:19] PROBABILITY_V2_ANALYSIS
+Decision : {}
+MTF : {'engine': 'MultiTimeframe', 'frames': {'15m': {'score': 70, 'signal': 'STRONG BUY'}, '1h': {'score': 60, 'signal': 'BUY'}, '4h': {'score': 35, 'signal': 'WAIT'}, '1d': {'score': 10, 'signal': 'WAIT'}}, 'buy': 2, 'sell': 0, 'wait': 2, 'alignment': 2, 'alignment_score': 5, 'bias': 'BULLISH', 'strength': 41, 'confidence': 41, 'signal': 'BULLISH', 'score': 41, 'reasons': ['2 BUY timeframe(s)', '0 SELL timeframe(s)', '2 WAIT timeframe(s)', 'Higher timeframe bullish alignment']}
+Risk : {}
+[12:49:19] PROBABILITY_V2_READY
+✓ ProbabilityEngineV2Runner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : BrainEngine
+============================================================
+[12:49:19] BRAIN_ANALYSIS
+[12:49:19] BRAIN_READY
+✓ BrainEngine completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : ConfluenceEngineRunner
+============================================================
+[12:49:19] CONFLUENCE_ANALYSIS
+[12:49:19] CONFLUENCE_READY
+✓ ConfluenceEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : TradePlannerEngineRunner
+============================================================
+[12:49:19] TRADE_PLANNER_ANALYSIS
+[12:49:19] TRADE_PLANNER_READY
+✓ TradePlannerEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : RiskManagerEngineRunner
+============================================================
+[12:49:19] RISK_ANALYSIS
+[12:49:19] RISK_READY
+✓ RiskManagerEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : DecisionEngineRunner
+============================================================
+[12:49:19] DECISION_ANALYSIS
+[12:49:19] DECISION_READY
+✓ DecisionEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : ExecutionTriggerEngineRunner
+============================================================
+[12:49:19] EXECUTION_TRIGGER_ANALYSIS
+[12:49:19] EXECUTION_TRIGGER_READY
+✓ ExecutionTriggerEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : ExecutionConfirmationEngine
+============================================================
+[12:49:19] EXECUTION_CONFIRMATION_ANALYSIS
+[12:49:19] EXECUTION_CONFIRMATION_READY
+✓ ExecutionConfirmationEngine completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : TradeValidatorEngineRunner
+============================================================
+[12:49:19] TRADE_VALIDATOR_ANALYSIS
+
+========== TRADE VALIDATOR ==========
+{'approved': True, 'signal': 'VALID', 'score': 65, 'reasons': ['AI Bullish', 'Decision Approved', 'Valid Market Regime', 'Good Session', 'Order Flow Confirmed', 'Volume Confirmation', 'Risk Acceptable']}
+[12:49:19] TRADE_VALIDATOR_READY
+✓ TradeValidatorEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : MasterDecisionEngine
+============================================================
+[12:49:19] MASTER_DECISION_ANALYSIS
+[12:49:19] MASTER_DECISION_READY
+✓ MasterDecisionEngine completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : ExecutionEngineRunner
+============================================================
+[12:49:19] EXECUTION_ANALYSIS
+[12:49:19] EXECUTION_WAIT
+✓ ExecutionEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : DashboardEngineRunner
+============================================================
+[12:49:19] DASHBOARD_ANALYSIS
+[12:49:19] DASHBOARD_READY
+✓ DashboardEngineRunner completed
+Time : 0.0001 sec
+
+============================================================
+Running Engine : BacktestEngine
+============================================================
+
+========== BACKTEST ENGINE STARTED ==========
+[12:49:19] BACKTEST_ANALYSIS
+============================================================
+BACKTEST ENGINE
+============================================================
+Historical candles : 500
+
+Starting historical replay...
+Decision : {'decision': 'ENTER', 'score': 100, 'approved': True, 'reasons': ['AI Strong Buy', 'Bullish MTF', 'Good MTF Alignment', 'Bullish CHoCH', 'Premium Zone', 'Bullish Volume Profile', 'Bullish Order Flow', 'Active Institutional Session', 'Volume Profile Confirmation', 'Risk Safe']}
+Execution: {'signal': 'WAIT CONFIRMATION', 'status': 'PENDING', 'reasons': ['IDM Approved', 'Trade Plan Ready', 'Trade Validated', 'Waiting for execution confirmation']}
+Trade Plan: {'signal': 'STRONG BUY', 'entry': 65986.68, 'stop': 64080.01, 'tp1': 69800.02, 'tp2': 71706.69, 'risk_reward': 3, 'confidence': 'VERY LOW', 'grade': 'F'}
+Master: {'decision': 'WAIT', 'confidence': 'VERY LOW', 'score': 25, 'approved': True, 'reasons': ['Probability too low']}
+Press Enter to continue...

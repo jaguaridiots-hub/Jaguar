@@ -1,0 +1,2 @@
+market/bse.py:9: new blank line at EOF.
+market/forex.py:9: new blank line at EOF.

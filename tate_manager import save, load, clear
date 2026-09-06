@@ -1,0 +1,1099 @@
+[1mdiff --git a/main.py b/main.py[m
+[1mindex bcc34fe..f827723 100644[m
+[1m--- a/main.py[m
+[1m+++ b/main.py[m
+[36m@@ -1,30 +1,73 @@[m
+[32m+[m[32mimport time[m
+[32m+[m
+ from core.kernel import JaguarKernel[m
+ from core.logger import JaguarLogger[m
+ from core.registry import ModuleRegistry[m
+ from core.event_bus import EventBus[m
+[31m-from data.market_data import get_klines[m
+[32m+[m
+[32m+[m[32mfrom indicators.indicator_engine import ([m
+[32m+[m[32m    update_market_state,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mfrom engine.institutional_master import ([m
+[32m+[m[32m    analyze as institutional_master,[m
+[32m+[m[32m)[m
+[32m+[m
+ from engine.trade_manager import TradeManager[m
+ from engine.position_manager import PositionManager[m
+ from engine.trade_journal import TradeJournal[m
+ from engine.performance import Performance[m
+ from engine.live_feed import LiveFeed[m
+[31m-import time[m
+[31m-from engine.state_manager import save, load, clear[m
+[32m+[m
+[32m+[m[32mfrom engine.state_manager import ([m
+[32m+[m[32m    save,[m
+[32m+[m[32m    load,[m
+[32m+[m[32m    clear,[m
+[32m+[m[32m)[m
+[32m+[m
+ from market.live_loader import update_state[m
+ [m
+[32m+[m
+[32m+[m[32mSYMBOL = "BTCUSDT"[m
+[32m+[m[32mTIMEFRAME = "15m"[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# HEADER[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+ print("=" * 50)[m
+ print("              JAGUAR QUANT X v2.0")[m
+ print("=" * 50)[m
+ [m
+[31m-# Logger[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# LOGGER[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+ log = JaguarLogger()[m
+[31m-log.info("Starting Jaguar Quant X...")[m
+ [m
+[31m-# Kernel[m
+[32m+[m[32mlog.info([m
+[32m+[m[32m    "Starting Jaguar Quant X..."[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# KERNEL[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+ kernel = JaguarKernel()[m
+[31m-kernel.initialize("BTCUSDT", "15m")[m
+ [m
+[31m-# Registry[m
+[32m+[m[32mkernel.initialize([m
+[32m+[m[32m    SYMBOL,[m
+[32m+[m[32m    TIMEFRAME,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# MODULE REGISTRY[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+ registry = ModuleRegistry()[m
+ [m
+ modules = [[m
+[36m@@ -40,101 +83,427 @@[m [mmodules = [[m
+ ][m
+ [m
+ for module in modules:[m
+[32m+[m
+     registry.register(module)[m
+ [m
+ registry.show()[m
+ [m
+[31m-# Event Bus[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# EVENT BUS[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+ bus = EventBus()[m
+[31m-bus.publish("startup", "All Systems Online")[m
+[32m+[m
+[32m+[m[32mbus.publish([m
+[32m+[m[32m    "startup",[m
+[32m+[m[32m    "All Systems Online",[m
+[32m+[m[32m)[m
+[32m+[m
+ [m
+ print("\n" + "=" * 50)[m
+[31m-print("Jaguar Quant X Ready To Trade")[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Jaguar Quant X Ready To Trade"[m
+[32m+[m[32m)[m
+[32m+[m
+ print("=" * 50)[m
+ [m
+[31m-# ===================================================[m
+[31m-# LOAD LIVE MARKET DATA[m
+[31m-# ===================================================[m
+ [m
+[31m-candles = get_klines()[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# CANONICAL STARTUP MARKET HYDRATION[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mstate = kernel.get_state()[m
+[32m+[m
+[32m+[m[32mstate = update_state([m
+[32m+[m[32m    state,[m
+[32m+[m[32m    SYMBOL,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mcandles = state.market["candles"][m
+ [m
+ latest = candles[-1][m
+ [m
+[31m-state = kernel.get_state()[m
+ [m
+[31m-state.symbol = "BTCUSDT"[m
+[31m-state.timeframe = "15m"[m
+[31m-state.price = latest["close"][m
+[31m-state.volume = latest["volume"][m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# LIVE MARKET[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========= LIVE MARKET ========="[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Symbol     :",[m
+[32m+[m[32m    state.symbol,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Timeframe  :",[m
+[32m+[m[32m    state.timeframe,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Price      :",[m
+[32m+[m[32m    state.price,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "High       :",[m
+[32m+[m[32m    latest["high"],[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Low        :",[m
+[32m+[m[32m    latest["low"],[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Volume     :",[m
+[32m+[m[32m    state.volume,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# INDICATORS[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mstate = update_market_state([m
+[32m+[m[32m    state,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========= INDICATORS ========="[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "EMA20  :",[m
+[32m+[m[32m    state.ema20,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "EMA50  :",[m
+[32m+[m[32m    state.ema50,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "EMA100 :",[m
+[32m+[m[32m    state.ema100,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "EMA200 :",[m
+[32m+[m[32m    state.ema200,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "RSI    :",[m
+[32m+[m[32m    state.rsi,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "ATR    :",[m
+[32m+[m[32m    state.atr,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Volume :",[m
+[32m+[m[32m    state.volume,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# JAGUAR MASTER ANALYSIS[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mreport = institutional_master([m
+[32m+[m[32m    state[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mcontext = report.get([m
+[32m+[m[32m    "context",[m
+[32m+[m[32m    report.get([m
+[32m+[m[32m        "decision",[m
+[32m+[m[32m        {},[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32menterprise = report.get([m
+[32m+[m[32m    "enterprise",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mplan = report.get([m
+[32m+[m[32m    "plan",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mrisk = report.get([m
+[32m+[m[32m    "risk",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# MARKET CONTEXT[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mcontext_direction = context.get([m
+[32m+[m[32m    "direction",[m
+[32m+[m[32m    "NEUTRAL",[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mcontext_decision = context.get([m
+[32m+[m[32m    "decision",[m
+[32m+[m[32m    "WAIT",[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mcontext_grade = context.get([m
+[32m+[m[32m    "confidence",[m
+[32m+[m[32m    "D",[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mcontext_probability = context.get([m
+[32m+[m[32m    "probability",[m
+[32m+[m[32m    0,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mcontext_score = context.get([m
+[32m+[m[32m    "score",[m
+[32m+[m[32m    0,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========== MARKET CONTEXT =========="[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Bias          :",[m
+[32m+[m[32m    context_direction,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Setup Status  :",[m
+[32m+[m[32m    context_decision,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Context Grade :",[m
+[32m+[m[32m    context_grade,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Probability   :",[m
+[32m+[m[32m    f"{context_probability}%",[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Context Score :",[m
+[32m+[m[32m    context_score,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# ENTERPRISE DECISION[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mexecution = enterprise.get([m
+[32m+[m[32m    "execution",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32menterprise_trade = enterprise.get([m
+[32m+[m[32m    "trade",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32menterprise_risk = enterprise.get([m
+[32m+[m[32m    "risk",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32menterprise_approved = enterprise.get([m
+[32m+[m[32m    "approved",[m
+[32m+[m[32m    False,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========== ENTERPRISE DECISION =========="[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Score         :",[m
+[32m+[m[32m    enterprise.get([m
+[32m+[m[32m        "score",[m
+[32m+[m[32m        0,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Grade         :",[m
+[32m+[m[32m    enterprise.get([m
+[32m+[m[32m        "grade",[m
+[32m+[m[32m        "F",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Confidence    :",[m
+[32m+[m[32m    enterprise.get([m
+[32m+[m[32m        "confidence",[m
+[32m+[m[32m        0,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "IDM Decision  :",[m
+[32m+[m[32m    enterprise.get([m
+[32m+[m[32m        "decision",[m
+[32m+[m[32m        "WAIT",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Priority      :",[m
+[32m+[m[32m    enterprise.get([m
+[32m+[m[32m        "priority",[m
+[32m+[m[32m        "LOW",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Approved      :",[m
+[32m+[m[32m    enterprise_approved,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Execution     :",[m
+[32m+[m[32m    execution.get([m
+[32m+[m[32m        "status",[m
+[32m+[m[32m        "WAIT",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Ready         :",[m
+[32m+[m[32m    execution.get([m
+[32m+[m[32m        "ready",[m
+[32m+[m[32m        False,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Reason        :",[m
+[32m+[m[32m    execution.get([m
+[32m+[m[32m        "reason",[m
+[32m+[m[32m        "",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# SUPPORT / RESISTANCE[m
+[32m+[m[32m# ==================================================[m
+ [m
+[31m-print("\n========= LIVE MARKET =========")[m
+[31m-print("Symbol     :", state.symbol)[m
+[31m-print("Timeframe  :", state.timeframe)[m
+[31m-print("Price      :", state.price)[m
+[31m-print("High       :", latest["high"])[m
+[31m-print("Low        :", latest["low"])[m
+[31m-print("Volume     :", state.volume)[m
+[32m+[m[32mgann = report["engines"]["Gann"][m
+ [m
+[31m-print("\nMarket State")[m
+[31m-print(state.summary())[m
+[31m-from indicators.indicator_engine import update_market_state[m
+[32m+[m[32mgann_metadata = gann.get([m
+[32m+[m[32m    "metadata",[m
+[32m+[m[32m    {},[m
+[32m+[m[32m)[m
+ [m
+[31m-volume_status = update_market_state(state)[m
+[32m+[m[32msupport = gann_metadata.get([m
+[32m+[m[32m    "support",[m
+[32m+[m[32m    0,[m
+[32m+[m[32m)[m
+ [m
+[31m-print("\nIndicators")[m
+[31m-print("-------------------------")[m
+[31m-print("EMA20 :", state.ema20)[m
+[31m-print("EMA50 :", state.ema50)[m
+[31m-print("EMA100:", state.ema100)[m
+[31m-print("EMA200:", state.ema200)[m
+[31m-print("RSI   :", state.rsi)[m
+[31m-print("ATR   :", state.atr)[m
+[31m-print("Volume:", volume_status)[m
+[32m+[m[32mresistance = gann_metadata.get([m
+[32m+[m[32m    "resistance",[m
+[32m+[m[32m    0,[m
+[32m+[m[32m)[m
+ [m
+[31m-#mtf = report()[m
+[31m-#print("\n====== MULTI TIMEFRAME ======")[m
+[31m-#for tf, trend in mtf.items():[m
+[31m-#    print(f"{tf:4} : {trend}")[m
+ [m
+[31m-from engine.institutional_master import analyze as institutional_master[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n====== SUPPORT / RESISTANCE ======"[m
+[32m+[m[32m)[m
+ [m
+[31m-report = institutional_master(state)[m
+[31m-print(report)[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Support    :",[m
+[32m+[m[32m    round(support, 2),[m
+[32m+[m[32m)[m
+ [m
+[31m-decision = report["decision"][m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Resistance :",[m
+[32m+[m[32m    round(resistance, 2),[m
+[32m+[m[32m)[m
+ [m
+[31m-state.ai_score = decision["score"][m
+[31m-state.probability = decision["probability"][m
+[31m-state.confidence = decision["confidence"][m
+[31m-state.decision = decision["decision"][m
+ [m
+[31m-plan = report["plan"][m
+[31m-risk = report["risk"][m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# TRADE PLAN[m
+[32m+[m[32m# ==================================================[m
+ [m
+[31m-print("\n========== MASTER DECISION ==========")[m
+[31m-print("Decision    :", state.decision)[m
+[31m-print("Confidence  :", state.confidence)[m
+[31m-print(f"Probability : {state.probability}%")[m
+[31m-print("AI Score    :", state.ai_score)[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========== TRADE PLAN =========="[m
+[32m+[m[32m)[m
+ [m
+[31m-reasons = decision["reasons"][m
+ [m
+[31m-plan = report["plan"][m
+[32m+[m[32mif plan and plan.get("Direction"):[m
+ [m
+[31m-#print("======== AI DECISION ========")[m
+[31m-#print(f"AI Score     : {state.ai_score}")[m
+[31m-#print(f"Confidence   : {state.confidence}")[m
+[31m-#print(f"Probability  : {state.probability}%")[m
+[31m-#print(f"Decision     : {state.decision}")[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "Direction     :",[m
+[32m+[m[32m        plan.get("Direction"),[m
+[32m+[m[32m    )[m
+ [m
+[31m-gann = report["engines"]["Gann"][m
+[32m+[m[32m    print([m
+[32m+[m[32m        "Entry         :",[m
+[32m+[m[32m        plan.get("Entry"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "Stop Loss     :",[m
+[32m+[m[32m        plan.get("StopLoss"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "TP1           :",[m
+[32m+[m[32m        plan.get("TP1"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "TP2           :",[m
+[32m+[m[32m        plan.get("TP2"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "TP3           :",[m
+[32m+[m[32m        plan.get("TP3"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "Risk Reward   :",[m
+[32m+[m[32m        plan.get("RiskReward"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "Position Size :",[m
+[32m+[m[32m        plan.get("PositionSize"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "Risk Amount   :",[m
+[32m+[m[32m        plan.get("RiskAmount"),[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32melse:[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "NO TRADE PLAN"[m
+[32m+[m[32m    )[m
+ [m
+[31m-support = gann["metadata"]["support"][m
+[31m-resistance = gann["metadata"]["resistance"][m
+ [m
+[31m-print("\n====== SUPPORT / RESISTANCE ======")[m
+[31m-print("Support   :", round(support, 2))[m
+[31m-print("Resistance:", round(resistance, 2))[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# TRADING COMPONENTS[m
+[32m+[m[32m# ==================================================[m
+ [m
+ performance = Performance()[m
+ [m
+[36m@@ -142,175 +511,409 @@[m [mjournal = TradeJournal()[m
+ [m
+ position = PositionManager()[m
+ [m
+[31m-load(position)[m
+[31m-[m
+ manager = TradeManager()[m
+ [m
+[31m-if plan is not None:[m
+[31m-    trade_status = manager.manage(state, plan)[m
+[31m-else:[m
+[31m-    trade_status = {[m
+[31m-        "Action": "NO TRADE",[m
+[31m-        "StopLoss": 0,[m
+[31m-        "BreakEven": False,[m
+[31m-        "Trailing": False[m
+[31m-    }[m
+[31m-[m
+[31m-#if plan:[m
+[31m-if plan and plan.get("Direction"):[m
+ [m
+[31m-    journal.save(state, plan)[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# RESTORE POSITION[m
+[32m+[m[32m# ==================================================[m
+ [m
+[31m-    if plan.get("Direction") == "🟢 STRONG BUY":[m
+[31m-        position.open_trade([m
+[31m-            "LONG",[m
+[31m-            plan.get("Entry"),[m
+[31m-            plan.get("StopLoss"),[m
+[31m-            plan.get("TP1")[m
+[31m-        )[m
+[32m+[m[32mposition_loaded = load(position)[m
+ [m
+[31m-    elif plan.get("Direction") == "🔴 STRONG SELL":[m
+[31m-        position.open_trade([m
+[31m-            "SHORT",[m
+[31m-            plan.get("Entry"),[m
+[31m-            plan.get("StopLoss"),[m
+[31m-            plan.get("TP1")[m
+[31m-        )[m
+ [m
+[31m-else:[m
+[31m-    print("\nNo trade setup.")[m
+[32m+[m[32mif position_loaded:[m
+ [m
+[31m-    print("\n========== TRADE PLAN ==========")[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "\nExisting trade state loaded."[m
+[32m+[m[32m    )[m
+ [m
+ [m
+[31m-if plan and plan.get("Direction"):[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# DEFAULT TRADE STATUS[m
+[32m+[m[32m# ==================================================[m
+ [m
+[31m-    print("Direction :", plan.get("Direction"))[m
+[31m-    print("Entry :", plan.get("Entry"))[m
+[31m-    print("Stop Loss :", plan.get("StopLoss"))[m
+[32m+[m[32mtrade_status = {[m
+ [m
+[31m-    print("TP1 :", plan.get("TP1"))[m
+[31m-    print("TP2 :", plan.get("TP2"))[m
+[31m-    print("TP3 :", plan.get("TP3"))[m
+[32m+[m[32m    "Action": "NO TRADE",[m
+ [m
+[31m-    print("Risk Reward :", plan.get("RiskReward"))[m
+[32m+[m[32m    "StopLoss": 0,[m
+ [m
+[31m-#    print("Position Size :", plan.get("PositionSize"))[m
+[32m+[m[32m    "BreakEven": False,[m
+ [m
+[31m- #   print("Risk Amount :", plan.get("RiskAmount"))[m
+[32m+[m[32m    "Trailing": False,[m
+ [m
+[31m-else:[m
+[31m-    print("\nNo Trade Plan Available")[m
+[32m+[m[32m}[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# NEW TRADE[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mexecution_ready = execution.get([m
+[32m+[m[32m    "ready",[m
+[32m+[m[32m    False,[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mif ([m
+[32m+[m[32m    plan[m
+[32m+[m[32m    and plan.get("Direction")[m
+[32m+[m[32m    and execution_ready[m
+[32m+[m[32m):[m
+[32m+[m
+[32m+[m[32m    trade_status = manager.manage([m
+[32m+[m[32m        state,[m
+[32m+[m[32m        plan,[m
+[32m+[m[32m    )[m
+ [m
+[31m-if plan:[m
+[32m+[m[32m    journal.save([m
+[32m+[m[32m        state,[m
+[32m+[m[32m        plan,[m
+[32m+[m[32m    )[m
+ [m
+     if position.position == "NONE":[m
+ [m
+[31m-        if "BUY" in plan["Direction"]:[m
+[32m+[m[32m        direction = plan.get([m
+[32m+[m[32m            "Direction",[m
+[32m+[m[32m            "",[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m[32m        if "BUY" in direction:[m
+[32m+[m
+             position.open_trade([m
+                 "LONG",[m
+                 plan["Entry"],[m
+                 plan["StopLoss"],[m
+[31m-                plan["TP1"][m
+[32m+[m[32m                plan["TP1"],[m
+             )[m
+ [m
+             save(position)[m
+ [m
+[31m-        elif "SELL" in plan["Direction"]:[m
+[32m+[m[32m        elif "SELL" in direction:[m
+[32m+[m
+             position.open_trade([m
+                 "SHORT",[m
+                 plan["Entry"],[m
+                 plan["StopLoss"],[m
+[31m-                plan["TP1"][m
+[32m+[m[32m                plan["TP1"],[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            save(position)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# ACTIVE POSITION LOOP[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mif position.position != "NONE":[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "\n========== POSITION ACTIVE =========="[m
+[32m+[m[32m    )[m
+[32m+[m
+[32m+[m[32m    try:[m
+[32m+[m
+[32m+[m[32m        while position.position != "NONE":[m
+[32m+[m
+[32m+[m[32m            state = update_state([m
+[32m+[m[32m                state,[m
+[32m+[m[32m                SYMBOL,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            position.update([m
+[32m+[m[32m                state.price[m
+             )[m
+ [m
+             save(position)[m
+ [m
+[31m-    position.update(state.price)[m
+[31m-    while position.position != "NONE":[m
+[32m+[m[32m            trade_status = manager.manage([m
+[32m+[m[32m                state,[m
+[32m+[m[32m                plan,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            new_stop = trade_status.get([m
+[32m+[m[32m                "StopLoss"[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            if isinstance([m
+[32m+[m[32m                new_stop,[m
+[32m+[m[32m                (int, float),[m
+[32m+[m[32m            ) and new_stop > 0:[m
+[32m+[m
+[32m+[m[32m                position.stop_loss = new_stop[m
+[32m+[m
+[32m+[m[32m            status = position.status()[m
+[32m+[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "\n===== LIVE MARKET ====="[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Symbol :",[m
+[32m+[m[32m                state.symbol,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Price  :",[m
+[32m+[m[32m                state.price,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "High   :",[m
+[32m+[m[32m                state.high,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Low    :",[m
+[32m+[m[32m                state.low,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Volume :",[m
+[32m+[m[32m                state.volume,[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "PnL    :",[m
+[32m+[m[32m                status.get([m
+[32m+[m[32m                    "PnL",[m
+[32m+[m[32m                    0,[m
+[32m+[m[32m                ),[m
+[32m+[m[32m            )[m
+[32m+[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Action :",[m
+[32m+[m[32m                trade_status.get([m
+[32m+[m[32m                    "Action",[m
+[32m+[m[32m                    "WAIT",[m
+[32m+[m[32m                ),[m
+[32m+[m[32m            )[m
+ [m
+[31m-        candles = get_klines()[m
+[31m-        latest = candles[-1][m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Stop Loss :",[m
+[32m+[m[32m                trade_status.get([m
+[32m+[m[32m                    "StopLoss",[m
+[32m+[m[32m                    0,[m
+[32m+[m[32m                ),[m
+[32m+[m[32m            )[m
+ [m
+[31m-        state = update_state(state, "BTCUSDT")[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "BreakEven :",[m
+[32m+[m[32m                trade_status.get([m
+[32m+[m[32m                    "BreakEven",[m
+[32m+[m[32m                    False,[m
+[32m+[m[32m                ),[m
+[32m+[m[32m            )[m
+ [m
+[31m-        print("\n===== LIVE MARKET =====")[m
+[31m-        print("Symbol :", state.symbol)[m
+[31m-        print("Price  :", state.price)[m
+[31m-        print("High   :", state.high)[m
+[31m-        print("Low    :", state.low)[m
+[31m-        print("Volume :", state.volume)[m
+[32m+[m[32m            print([m
+[32m+[m[32m                "Trailing :",[m
+[32m+[m[32m                trade_status.get([m
+[32m+[m[32m                    "Trailing",[m
+[32m+[m[32m                    False,[m
+[32m+[m[32m                ),[m
+[32m+[m[32m            )[m
+ [m
+[31m-        position.update(state.price)[m
+[31m-        save(position)[m
+ [m
+[31m-        trade_status = manager.manage(state, plan)[m
+[32m+[m[32m            if trade_status.get([m
+[32m+[m[32m                "Action"[m
+[32m+[m[32m            ) in ([m
+[32m+[m[32m                "EXIT",[m
+[32m+[m[32m                "STOP LOSS",[m
+[32m+[m[32m            ):[m
+ [m
+[31m-        position.stop_loss = trade_status["StopLoss"][m
+[32m+[m[32m                position.close_trade()[m
+ [m
+[31m-        position.update(state.price)[m
+[32m+[m[32m                clear()[m
+ [m
+[31m-        status = position.status()[m
+[32m+[m[32m                print([m
+[32m+[m[32m                    "\nTrade Closed"[m
+[32m+[m[32m                )[m
+ [m
+[31m-        print("Price      :", state.price)[m
+[31m-        print("PnL        :", status["PnL"])[m
+[31m-        print("Action     :", trade_status["Action"])[m
+[31m-        print("Stop Loss  :", trade_status["StopLoss"])[m
+[31m-        print("BreakEven  :", trade_status["BreakEven"])[m
+[31m-        print("Trailing   :", trade_status["Trailing"])[m
+[32m+[m[32m                break[m
+ [m
+[31m-        if trade_status["Action"] in [[m
+[31m-            "EXIT",[m
+[31m-            "STOP LOSS",[m
+[31m-        ]:[m
+[31m-            position.close_trade()[m
+ [m
+[31m-            clear()[m
+[32m+[m[32m            time.sleep(5)[m
+ [m
+[31m-            print("\nTrade Closed")[m
+[31m-            break[m
+ [m
+[31m-        time.sleep(5)[m
+[32m+[m[32m    except KeyboardInterrupt:[m
+[32m+[m
+[32m+[m[32m        print([m
+[32m+[m[32m            "\nStopping active trade monitor..."[m
+[32m+[m[32m        )[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# NO POSITION[m
+[32m+[m[32m# ==================================================[m
+ [m
+ else:[m
+[31m-    print("\nNo Position")[m
+ [m
+[31m-    print("\n======== TRADE MANAGER ========")[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "\nNo Position"[m
+[32m+[m[32m    )[m
+[32m+[m
+ [m
+[31m-    print("Action      :", trade_status["Action"])[m
+[31m-    print("Stop Loss   :", trade_status["StopLoss"])[m
+[31m-    print("Break Even  :", trade_status["BreakEven"])[m
+[31m-    print("Trailing SL :", trade_status["Trailing"])[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# TRADE MANAGER REPORT[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n======== TRADE MANAGER ========"[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Action      :",[m
+[32m+[m[32m    trade_status.get([m
+[32m+[m[32m        "Action",[m
+[32m+[m[32m        "NO TRADE",[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Stop Loss   :",[m
+[32m+[m[32m    trade_status.get([m
+[32m+[m[32m        "StopLoss",[m
+[32m+[m[32m        0,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Break Even  :",[m
+[32m+[m[32m    trade_status.get([m
+[32m+[m[32m        "BreakEven",[m
+[32m+[m[32m        False,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Trailing SL :",[m
+[32m+[m[32m    trade_status.get([m
+[32m+[m[32m        "Trailing",[m
+[32m+[m[32m        False,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# PERFORMANCE[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mstats = performance.summary()[m
+[32m+[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========== PERFORMANCE =========="[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Total Trades :",[m
+[32m+[m[32m    stats.get([m
+[32m+[m[32m        "Trades",[m
+[32m+[m[32m        0,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Wins         :",[m
+[32m+[m[32m    stats.get([m
+[32m+[m[32m        "Wins",[m
+[32m+[m[32m        0,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Losses       :",[m
+[32m+[m[32m    stats.get([m
+[32m+[m[32m        "Losses",[m
+[32m+[m[32m        0,[m
+[32m+[m[32m    ),[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "Win Rate     :",[m
+[32m+[m[32m    f'{stats.get("WinRate", 0)}%',[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "=" * 34[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# LEGACY ANALYSIS REASONS[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\nMarket Bias Reasons"[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mreasons = context.get([m
+[32m+[m[32m    "reasons",[m
+[32m+[m[32m    [],[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32munique_reasons = list([m
+[32m+[m[32m    dict.fromkeys(reasons)[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mfor reason in unique_reasons:[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "✓",[m
+[32m+[m[32m        reason,[m
+[32m+[m[32m    )[m
+ [m
+[31m-    stats = performance.summary()[m
+ [m
+[31m-    print("\n========== PERFORMANCE ==========")[m
+[31m-    print("Total Trades :", stats["Trades"])[m
+[31m-    print("Wins         :", stats["Wins"])[m
+[31m-    print("Losses       :", stats["Losses"])[m
+[31m-    print("Win Rate     :", f'{stats["WinRate"]}%')[m
+[31m-    print("=================================")[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# ENTERPRISE REASONS[m
+[32m+[m[32m# ==================================================[m
+ [m
+[31m-    print("\nReasons")[m
+[31m-    unique_reasons = list(dict.fromkeys(reasons))[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\nEnterprise Reasons"[m
+[32m+[m[32m)[m
+ [m
+[31m-    for r in unique_reasons:[m
+[31m-        print("✓", r)[m
+[32m+[m[32midm_reasons = state.idm.get([m
+[32m+[m[32m    "reasons",[m
+[32m+[m[32m    [],[m
+[32m+[m[32m)[m
+ [m
+[31m-    print("\n========== LIVE BINANCE FEED ==========")[m
+[32m+[m[32mfor reason in idm_reasons:[m
+ [m
+[31m-    feed = LiveFeed([m
+[31m-        state,[m
+[31m-        plan,[m
+[31m-        trade_status,[m
+[31m-        "btcusdt"[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "•",[m
+[32m+[m[32m        reason,[m
+     )[m
+ [m
+[31m-    feed.start()[m
+ [m
+[31m-    try:[m
+[31m-        while True:[m
+[31m-            time.sleep(1)[m
+[31m-    except KeyboardInterrupt:[m
+[31m-        print("\nStopping Jaguar...")[m
+[31m-        feed.stop()[m
+[32m+[m[32m# ==================================================[m
+[32m+[m[32m# LIVE FEED[m
+[32m+[m[32m# ==================================================[m
+[32m+[m
+[32m+[m[32mprint([m
+[32m+[m[32m    "\n========== LIVE BINANCE FEED =========="[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mfeed = LiveFeed([m
+[32m+[m[32m    state,[m
+[32m+[m[32m    plan,[m
+[32m+[m[32m    trade_status,[m
+[32m+[m[32m    "btcusdt",[m
+[32m+[m[32m)[m
+[32m+[m
+[32m+[m[32mfeed.start()[m
+[32m+[m
+[32m+[m
+[32m+[m[32mtry:[m
+[32m+[m
+[32m+[m[32m    while True:[m
+[32m+[m
+[32m+[m[32m        time.sleep(1)[m
+[32m+[m
+[32m+[m
+[32m+[m[32mexcept KeyboardInterrupt:[m
+[32m+[m
+[32m+[m[32m    print([m
+[32m+[m[32m        "\nStopping Jaguar..."[m
+[32m+[m[32m    )[m

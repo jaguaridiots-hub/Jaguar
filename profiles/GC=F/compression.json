@@ -1,0 +1,27 @@
+{
+  "symbol": "GC=F",
+  "regime": "COMPRESSION",
+  "intercept": -0.003191913366047928,
+  "coefficients": {
+    "Equal Levels": 0.07981379371803254,
+    "FVG": 0.007060621458690084,
+    "Gann": 0.0,
+    "Liquidity": -0.06545782861007073,
+    "MSS": 0.0637361804002875,
+    "MTF": 0.0,
+    "Order Block": 0.0,
+    "Order Flow": 0.11262043589287676,
+    "Premium/Discount": 0.04502625654727604,
+    "Regime": 0.0,
+    "SMC": 0.0,
+    "Session": -0.03191913366043492,
+    "Structure": 0.04209391411216553,
+    "Volume Profile": -0.044785576235935654,
+    "Wyckoff": 0.4903313588992936
+  },
+  "win_rate": 30.560369728480648,
+  "profit_factor": 0.7262725566037489,
+  "expectancy": -95.03765389139201,
+  "sample_size": 1731,
+  "last_calibration": "2026-07-29 17:48:51"
+}

@@ -1,0 +1,1592 @@
+"""
+Jaguar Quant X Enterprise
+Institutional Score Engine v2.2
+
+Structure-anchored institutional confluence engine.
+
+Architecture:
+- BOS / CHOCH / canonical structural memory establish
+  structural directional authority.
+- Trend and regime provide directional context.
+- Liquidity provides institutional contextual evidence.
+- Order Blocks and Fair Value Gaps are execution-location
+  evidence.
+- Fibonacci provides dealing-range location evidence.
+- RSI provides momentum alignment or conflict evidence.
+- ATR provides market-activity evidence.
+
+Execution-location and momentum evidence cannot independently
+reverse confirmed canonical structural direction.
+"""
+
+
+class InstitutionalScoreEngine:
+
+    name = "Institutional Score Engine"
+
+    # ==================================================
+    # SIGNAL NORMALIZATION
+    # ==================================================
+
+    @staticmethod
+    def _normalize_signal(
+        result,
+        bullish_if_true=True,
+    ):
+
+        # ==============================================
+        # ENGINE RESULT DICTIONARY
+        # ==============================================
+
+        if isinstance(
+            result,
+            dict,
+        ):
+
+            signal = str(
+                result.get(
+                    "signal",
+                    "NEUTRAL",
+                )
+            ).upper().strip()
+
+            if signal in (
+                "BULLISH",
+                "BEARISH",
+                "NEUTRAL",
+                "SIDEWAYS",
+                "DISCOUNT",
+                "PREMIUM",
+                "UNKNOWN",
+            ):
+                return signal
+
+            return "NEUTRAL"
+
+        # ==============================================
+        # STRING SIGNAL
+        # ==============================================
+
+        if isinstance(
+            result,
+            str,
+        ):
+
+            signal = (
+                result
+                .upper()
+                .strip()
+            )
+
+            if signal in (
+                "BULLISH",
+                "BEARISH",
+                "NEUTRAL",
+                "SIDEWAYS",
+                "DISCOUNT",
+                "PREMIUM",
+                "UNKNOWN",
+            ):
+                return signal
+
+            return "NEUTRAL"
+
+        # ==============================================
+        # LEGACY BOOLEAN FACT
+        # ==============================================
+
+        if isinstance(
+            result,
+            bool,
+        ):
+
+            if (
+                result
+                and bullish_if_true
+            ):
+                return "BULLISH"
+
+            return "NEUTRAL"
+
+        return "NEUTRAL"
+
+    # ==================================================
+    # REASON NORMALIZATION
+    # ==================================================
+
+    @staticmethod
+    def _reasons(
+        result,
+    ):
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            return []
+
+        reasons = result.get(
+            "reasons",
+            [],
+        )
+
+        if not isinstance(
+            reasons,
+            list,
+        ):
+            return []
+
+        return reasons
+
+    # ==================================================
+    # METADATA NORMALIZATION
+    # ==================================================
+
+    @staticmethod
+    def _metadata(
+        result,
+    ):
+
+        if not isinstance(
+            result,
+            dict,
+        ):
+            return {}
+
+        metadata = result.get(
+            "metadata",
+            {},
+        )
+
+        if isinstance(
+            metadata,
+            dict,
+        ):
+            return metadata
+
+        return {}
+
+    # ==================================================
+    # MARKET FACT
+    # ==================================================
+
+    @staticmethod
+    def _market_fact(
+        state,
+        key,
+        fallback=None,
+    ):
+
+        market = getattr(
+            state,
+            "market",
+            {},
+        )
+
+        if isinstance(
+            market,
+            dict,
+        ):
+
+            if key in market:
+
+                value = market.get(
+                    key
+                )
+
+                if value is not None:
+                    return value
+
+        return fallback
+
+    # ==================================================
+    # DIRECTION VALIDATION
+    # ==================================================
+
+    @staticmethod
+    def _direction(
+        value,
+    ):
+
+        value = str(
+            value
+        ).upper().strip()
+
+        if value in (
+            "BULLISH",
+            "BEARISH",
+        ):
+            return value
+
+        return "NEUTRAL"
+
+    # ==================================================
+    # PROCESS
+    # ==================================================
+
+    def process(
+        self,
+        state,
+    ):
+
+        bullish_score = 0
+        bearish_score = 0
+
+        reasons = []
+        warnings = []
+
+        # ==================================================
+        # READ STATE CONTRACT
+        # ==================================================
+
+        regime_result = self._market_fact(
+            state,
+            "regime_result",
+            self._market_fact(
+                state,
+                "regime",
+                getattr(
+                    state,
+                    "regime",
+                    "UNKNOWN",
+                ),
+            ),
+        )
+
+        bos_result = self._market_fact(
+            state,
+            "bos_result",
+            getattr(
+                state,
+                "bos",
+                False,
+            ),
+        )
+
+        choch_result = self._market_fact(
+            state,
+            "choch_result",
+            getattr(
+                state,
+                "choch",
+                False,
+            ),
+        )
+
+        liquidity_result = self._market_fact(
+            state,
+            "liquidity_result",
+            getattr(
+                state,
+                "liquidity",
+                False,
+            ),
+        )
+
+        order_block_result = self._market_fact(
+            state,
+            "order_block_result",
+            getattr(
+                state,
+                "order_block",
+                False,
+            ),
+        )
+
+        fvg_result = self._market_fact(
+            state,
+            "fvg_result",
+            getattr(
+                state,
+                "fvg",
+                False,
+            ),
+        )
+
+        # ==================================================
+        # NORMALIZE RAW SIGNALS
+        # ==================================================
+
+        regime_signal = self._normalize_signal(
+            regime_result
+        )
+
+        bos_signal = self._normalize_signal(
+            bos_result
+        )
+
+        choch_signal = self._normalize_signal(
+            choch_result
+        )
+
+        liquidity_signal = self._normalize_signal(
+            liquidity_result
+        )
+
+        order_block_signal = self._normalize_signal(
+            order_block_result
+        )
+
+        fvg_signal = self._normalize_signal(
+            fvg_result
+        )
+
+        # ==================================================
+        # RAW ENGINE METADATA
+        # ==================================================
+
+        bos_metadata = self._metadata(
+            bos_result
+        )
+
+        choch_metadata = self._metadata(
+            choch_result
+        )
+
+        bos_status = str(
+            bos_metadata.get(
+                "status",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        choch_status = str(
+            choch_metadata.get(
+                "status",
+                "UNKNOWN",
+            )
+        ).upper().strip()
+
+        prior_structure = self._direction(
+            choch_metadata.get(
+                "prior_structure",
+                "NEUTRAL",
+            )
+        )
+
+        # ==================================================
+        # TREND / REGIME
+        # ==================================================
+
+        trend = str(
+            self._market_fact(
+                state,
+                "trend",
+                getattr(
+                    state,
+                    "trend",
+                    "UNKNOWN",
+                ),
+            )
+        ).upper().strip()
+
+        # ==================================================
+        # CANONICAL STRUCTURAL CONTEXT
+        # ==================================================
+
+        structural_zone = getattr(
+            state,
+            "structural_zone",
+            {},
+        )
+
+        if not isinstance(
+            structural_zone,
+            dict,
+        ):
+            structural_zone = {}
+
+        structural_direction = self._direction(
+            structural_zone.get(
+                "direction",
+                "NEUTRAL",
+            )
+        )
+
+        structure_state = str(
+            structural_zone.get(
+                "structure_state",
+                "UNDEFINED",
+            )
+        ).upper().strip()
+
+        trigger_status = str(
+            structural_zone.get(
+                "trigger_status",
+                "NONE",
+            )
+        ).upper().strip()
+
+        zone_status = str(
+            structural_zone.get(
+                "zone_status",
+                "NONE",
+            )
+        ).upper().strip()
+
+        zone_direction = self._direction(
+            structural_zone.get(
+                "zone_direction",
+                "NEUTRAL",
+            )
+        )
+
+        location_quality = str(
+            structural_zone.get(
+                "location_quality",
+                "NONE",
+            )
+        ).upper().strip()
+
+        readiness = str(
+            structural_zone.get(
+                "readiness",
+                "WAITING",
+            )
+        ).upper().strip()
+
+        interacting = bool(
+            structural_zone.get(
+                "interacting",
+                False,
+            )
+        )
+
+        # ==================================================
+        # STRUCTURAL DIRECTION AUTHORITY
+        # ==================================================
+        #
+        # Direction hierarchy mirrors StructuralZoneEngine.
+        #
+        # 1. Confirmed CHOCH
+        # 2. Confirmed BOS
+        # 3. Canonical structural direction
+        # 4. Protected prior structure
+        # 5. Trend / regime agreement
+        # 6. Trend
+        # 7. Regime
+        #
+        # Execution-location evidence cannot establish or
+        # reverse structural direction.
+        # ==================================================
+
+        direction = "NEUTRAL"
+
+        direction_source = "NONE"
+
+        if (
+            choch_signal
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and (
+                choch_status == "CONFIRMED"
+                or trigger_status
+                == "CHOCH_CONFIRMED"
+            )
+        ):
+
+            direction = choch_signal
+
+            direction_source = (
+                "CONFIRMED_CHOCH"
+            )
+
+        elif (
+            bos_signal
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and (
+                bos_status == "CONFIRMED"
+                or trigger_status
+                == "BOS_CONFIRMED"
+            )
+        ):
+
+            direction = bos_signal
+
+            direction_source = (
+                "CONFIRMED_BOS"
+            )
+
+        elif structural_direction in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = structural_direction
+
+            direction_source = (
+                "CANONICAL_STRUCTURE"
+            )
+
+        elif (
+            choch_status == "WAITING"
+            and prior_structure
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+        ):
+
+            direction = prior_structure
+
+            direction_source = (
+                "PROTECTED_STRUCTURE"
+            )
+
+        elif (
+            trend == regime_signal
+            and trend
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+        ):
+
+            direction = trend
+
+            direction_source = (
+                "TREND_REGIME_ALIGNMENT"
+            )
+
+        elif trend in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = trend
+
+            direction_source = "TREND"
+
+        elif regime_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            direction = regime_signal
+
+            direction_source = "REGIME"
+
+        # ==================================================
+        # DIRECTIONAL EVIDENCE
+        # ==================================================
+        #
+        # Scores measure confluence around canonical
+        # direction.
+        #
+        # They no longer elect direction.
+        # ==================================================
+
+        if trend == "BULLISH":
+
+            bullish_score += 10
+
+            reasons.append(
+                "Bullish Trend"
+            )
+
+        elif trend == "BEARISH":
+
+            bearish_score += 10
+
+            reasons.append(
+                "Bearish Trend"
+            )
+
+        if regime_signal == "BULLISH":
+
+            bullish_score += 10
+
+            reasons.append(
+                "Bullish Regime"
+            )
+
+            reasons.extend(
+                self._reasons(
+                    regime_result
+                )
+            )
+
+        elif regime_signal == "BEARISH":
+
+            bearish_score += 10
+
+            reasons.append(
+                "Bearish Regime"
+            )
+
+            reasons.extend(
+                self._reasons(
+                    regime_result
+                )
+            )
+
+        # ==================================================
+        # BREAK OF STRUCTURE
+        # ==================================================
+
+        if bos_signal == "BULLISH":
+
+            bullish_score += 15
+
+            reasons.append(
+                "Bullish Break of Structure"
+            )
+
+            reasons.extend(
+                self._reasons(
+                    bos_result
+                )
+            )
+
+        elif bos_signal == "BEARISH":
+
+            bearish_score += 15
+
+            reasons.append(
+                "Bearish Break of Structure"
+            )
+
+            reasons.extend(
+                self._reasons(
+                    bos_result
+                )
+            )
+
+        # ==================================================
+        # CHANGE OF CHARACTER
+        # ==================================================
+
+        if choch_signal == "BULLISH":
+
+            bullish_score += 10
+
+            reasons.append(
+                "Bullish Change of Character"
+            )
+
+            reasons.extend(
+                self._reasons(
+                    choch_result
+                )
+            )
+
+        elif choch_signal == "BEARISH":
+
+            bearish_score += 10
+
+            reasons.append(
+                "Bearish Change of Character"
+            )
+
+            reasons.extend(
+                self._reasons(
+                    choch_result
+                )
+            )
+
+        # ==================================================
+        # PROTECTED STRUCTURAL MEMORY
+        # ==================================================
+
+        raw_structure_neutral = (
+            bos_signal
+            not in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and choch_signal
+            not in (
+                "BULLISH",
+                "BEARISH",
+            )
+        )
+
+        if (
+            structure_state == "PROTECTED"
+            and raw_structure_neutral
+        ):
+
+            if (
+                structural_direction
+                == "BULLISH"
+            ):
+
+                bullish_score += 6
+
+                reasons.append(
+                    "Protected Bullish Structure"
+                )
+
+            elif (
+                structural_direction
+                == "BEARISH"
+            ):
+
+                bearish_score += 6
+
+                reasons.append(
+                    "Protected Bearish Structure"
+                )
+
+        # ==================================================
+        # DIRECTIONAL STRUCTURAL CONTEXT
+        # ==================================================
+
+        elif (
+            structure_state
+            == "DIRECTIONAL"
+        ):
+
+            direction_already_scored = (
+                trend
+                == structural_direction
+                or regime_signal
+                == structural_direction
+            )
+
+            if not direction_already_scored:
+
+                if (
+                    structural_direction
+                    == "BULLISH"
+                ):
+
+                    bullish_score += 3
+
+                    reasons.append(
+                        "Bullish Structural Context"
+                    )
+
+                elif (
+                    structural_direction
+                    == "BEARISH"
+                ):
+
+                    bearish_score += 3
+
+                    reasons.append(
+                        "Bearish Structural Context"
+                    )
+
+        # ==================================================
+        # LIQUIDITY CONTEXT
+        # ==================================================
+        #
+        # Liquidity is contextual institutional evidence.
+        #
+        # Aligned liquidity strengthens confluence.
+        # Opposing liquidity creates conflict.
+        # ==================================================
+
+        if liquidity_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            if (
+                direction
+                == liquidity_signal
+            ):
+
+                if direction == "BULLISH":
+
+                    bullish_score += 6
+
+                else:
+
+                    bearish_score += 6
+
+                reasons.append(
+                    f"Aligned {direction.title()} "
+                    "Liquidity Context"
+                )
+
+                reasons.extend(
+                    self._reasons(
+                        liquidity_result
+                    )
+                )
+
+            elif direction in (
+                "BULLISH",
+                "BEARISH",
+            ):
+
+                warnings.append(
+                    "Liquidity Direction Conflict"
+                )
+
+                reasons.append(
+                    f"Opposing "
+                    f"{liquidity_signal.title()} "
+                    "Liquidity Context"
+                )
+
+            else:
+
+                warnings.append(
+                    "Liquidity Without Structural "
+                    "Direction"
+                )
+
+        # ==================================================
+        # EXECUTION LOCATION CONTEXT
+        # ==================================================
+        #
+        # OB / FVG do not vote market direction.
+        #
+        # They strengthen canonical direction only when
+        # aligned.
+        #
+        # Opposing signals are conflict evidence.
+        # ==================================================
+
+        if order_block_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            if (
+                direction
+                == order_block_signal
+            ):
+
+                if direction == "BULLISH":
+
+                    bullish_score += 5
+
+                else:
+
+                    bearish_score += 5
+
+                reasons.append(
+                    f"Aligned {direction.title()} "
+                    "Order Block"
+                )
+
+                reasons.extend(
+                    self._reasons(
+                        order_block_result
+                    )
+                )
+
+            elif direction in (
+                "BULLISH",
+                "BEARISH",
+            ):
+
+                warnings.append(
+                    "Order Block Direction Conflict"
+                )
+
+                reasons.append(
+                    f"Opposing "
+                    f"{order_block_signal.title()} "
+                    "Order Block"
+                )
+
+            else:
+
+                warnings.append(
+                    "Order Block Without Structural "
+                    "Direction"
+                )
+
+        if fvg_signal in (
+            "BULLISH",
+            "BEARISH",
+        ):
+
+            if direction == fvg_signal:
+
+                if direction == "BULLISH":
+
+                    bullish_score += 4
+
+                else:
+
+                    bearish_score += 4
+
+                reasons.append(
+                    f"Aligned {direction.title()} "
+                    "Fair Value Gap"
+                )
+
+                reasons.extend(
+                    self._reasons(
+                        fvg_result
+                    )
+                )
+
+            elif direction in (
+                "BULLISH",
+                "BEARISH",
+            ):
+
+                warnings.append(
+                    "Fair Value Gap Direction Conflict"
+                )
+
+                reasons.append(
+                    f"Opposing "
+                    f"{fvg_signal.title()} "
+                    "Fair Value Gap"
+                )
+
+            else:
+
+                warnings.append(
+                    "Fair Value Gap Without Structural "
+                    "Direction"
+                )
+
+        # ==================================================
+        # CANONICAL STRUCTURAL EXECUTION LOCATION
+        # ==================================================
+
+        zone_available = (
+            zone_status == "AVAILABLE"
+        )
+
+        zone_aligned = (
+            direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and zone_direction
+            == direction
+        )
+
+        zone_conflict = (
+            zone_available
+            and direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and zone_direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and zone_direction
+            != direction
+        )
+
+        if (
+            zone_available
+            and zone_aligned
+            and interacting
+        ):
+
+            if direction == "BULLISH":
+
+                bullish_score += 4
+
+            else:
+
+                bearish_score += 4
+
+            reasons.append(
+                f"Active {direction.title()} "
+                "Execution Location"
+            )
+
+        elif (
+            zone_available
+            and zone_aligned
+            and (
+                readiness == "APPROACHING"
+                or location_quality == "NEAR"
+            )
+        ):
+
+            if direction == "BULLISH":
+
+                bullish_score += 2
+
+            else:
+
+                bearish_score += 2
+
+            reasons.append(
+                f"Approaching {direction.title()} "
+                "Execution Location"
+            )
+
+        elif zone_conflict:
+
+            warnings.append(
+                "Execution Location Direction Conflict"
+            )
+
+            reasons.append(
+                "Opposing Structural Execution Location"
+            )
+
+        # ==================================================
+        # FIBONACCI LOCATION CONTEXT
+        # ==================================================
+
+        discount = bool(
+            getattr(
+                state,
+                "discount",
+                False,
+            )
+        )
+
+        premium = bool(
+            getattr(
+                state,
+                "premium",
+                False,
+            )
+        )
+
+        if direction == "BULLISH":
+
+            if discount:
+
+                bullish_score += 5
+
+                reasons.append(
+                    "Bullish Discount Location"
+                )
+
+            elif premium:
+
+                warnings.append(
+                    "Bullish Structure In Premium"
+                )
+
+                reasons.append(
+                    "Premium Location Conflict"
+                )
+
+        elif direction == "BEARISH":
+
+            if premium:
+
+                bearish_score += 5
+
+                reasons.append(
+                    "Bearish Premium Location"
+                )
+
+            elif discount:
+
+                warnings.append(
+                    "Bearish Structure In Discount"
+                )
+
+                reasons.append(
+                    "Discount Location Conflict"
+                )
+
+        else:
+
+            if discount or premium:
+
+                warnings.append(
+                    "Fibonacci Location Without "
+                    "Structural Direction"
+                )
+
+        # ==================================================
+        # RSI MOMENTUM CONTEXT
+        # ==================================================
+
+        try:
+
+            rsi = float(
+                getattr(
+                    state,
+                    "rsi",
+                    0,
+                )
+                or 0
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            rsi = 0.0
+
+        momentum_direction = "NEUTRAL"
+
+        if rsi >= 60:
+
+            momentum_direction = "BULLISH"
+
+        elif (
+            0 < rsi <= 40
+        ):
+
+            momentum_direction = "BEARISH"
+
+        if (
+            direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and momentum_direction
+            == direction
+        ):
+
+            if direction == "BULLISH":
+
+                bullish_score += 5
+
+            else:
+
+                bearish_score += 5
+
+            reasons.append(
+                f"Aligned {direction.title()} Momentum"
+            )
+
+        elif (
+            direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and momentum_direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+            and momentum_direction
+            != direction
+        ):
+
+            warnings.append(
+                "Momentum Direction Conflict"
+            )
+
+            reasons.append(
+                f"Opposing "
+                f"{momentum_direction.title()} "
+                "Momentum"
+            )
+
+        else:
+
+            warnings.append(
+                "Neutral Momentum"
+            )
+
+        # ==================================================
+        # ATR MARKET ACTIVITY
+        # ==================================================
+        #
+        # ATR is non-directional.
+        #
+        # It strengthens existing canonical confluence only.
+        # ==================================================
+
+        try:
+
+            atr = float(
+                getattr(
+                    state,
+                    "atr",
+                    0,
+                )
+                or 0
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            atr = 0.0
+
+        if (
+            atr > 0
+            and direction
+            in (
+                "BULLISH",
+                "BEARISH",
+            )
+        ):
+
+            if direction == "BULLISH":
+
+                bullish_score += 2
+
+            else:
+
+                bearish_score += 2
+
+            reasons.append(
+                f"Active {direction.title()} "
+                "Structural Market"
+            )
+
+        # ==================================================
+        # DIRECTIONAL NET SCORE
+        # ==================================================
+        #
+        # Diagnostic score differential.
+        #
+        # IMPORTANT:
+        # net_score does not elect direction.
+        # ==================================================
+
+        net_score = (
+            bullish_score
+            - bearish_score
+        )
+
+        # ==================================================
+        # DIRECTIONAL CONFLUENCE SCORE
+        # ==================================================
+        #
+        # Score represents evidence aligned with canonical
+        # direction.
+        #
+        # Opposing evidence reduces effective confluence.
+        # ==================================================
+
+        if direction == "BULLISH":
+
+            aligned_score = bullish_score
+
+            opposing_score = bearish_score
+
+        elif direction == "BEARISH":
+
+            aligned_score = bearish_score
+
+            opposing_score = bullish_score
+
+        else:
+
+            aligned_score = 0
+
+            opposing_score = max(
+                bullish_score,
+                bearish_score,
+            )
+
+        effective_score = max(
+            0.0,
+            float(
+                aligned_score
+                - opposing_score
+            ),
+        )
+
+        # ==================================================
+        # SCORE NORMALIZATION
+        # ==================================================
+        #
+        # Maximum structure-anchored aligned confluence:
+        #
+        # Trend                    = 10
+        # Regime                   = 10
+        # BOS                      = 15
+        # CHOCH                    = 10
+        # Structural Memory        = 6
+        # Liquidity Context        = 6
+        # Order Block Context      = 5
+        # FVG Context              = 4
+        # Execution Location       = 4
+        # Fibonacci Location       = 5
+        # RSI Momentum             = 5
+        # ATR Activity             = 2
+        #
+        # Theoretical ceiling      = 82
+        #
+        # Some structural states are mutually exclusive.
+        # Normalization remains bounded to 0-100.
+        # ==================================================
+
+        MAX_DIRECTIONAL_SCORE = 82.0
+
+        score = round(
+            min(
+                100.0,
+                (
+                    effective_score
+                    / MAX_DIRECTIONAL_SCORE
+                )
+                * 100.0,
+            ),
+            2,
+        )
+
+        # ==================================================
+        # GRADE
+        # ==================================================
+
+        if score >= 90:
+
+            grade = "A+"
+
+        elif score >= 80:
+
+            grade = "A"
+
+        elif score >= 70:
+
+            grade = "B"
+
+        elif score >= 60:
+
+            grade = "C"
+
+        elif score >= 50:
+
+            grade = "D"
+
+        else:
+
+            grade = "F"
+
+        # ==================================================
+        # CONFIDENCE
+        # ==================================================
+
+        confidence = min(
+            score + 5,
+            95,
+        )
+
+        # ==================================================
+        # REMOVE DUPLICATES
+        # ==================================================
+
+        reasons = list(
+            dict.fromkeys(
+                reasons
+            )
+        )
+
+        warnings = list(
+            dict.fromkeys(
+                warnings
+            )
+        )
+
+        # ==================================================
+        # STATE OUTPUT
+        # ==================================================
+
+        state.institutional = {
+
+            "score": score,
+
+            "net_score": net_score,
+
+            "bullish_score": bullish_score,
+
+            "bearish_score": bearish_score,
+
+            "direction": direction,
+
+            "grade": grade,
+
+            "confidence": confidence,
+
+            "alignment": confidence,
+
+            "reasons": reasons,
+
+            "warnings": warnings,
+
+            "signals": {
+
+                "trend": trend,
+
+                "regime": regime_signal,
+
+                "bos": bos_signal,
+
+                "choch": choch_signal,
+
+                "liquidity": liquidity_signal,
+
+                "order_block":
+                    order_block_signal,
+
+                "fvg": fvg_signal,
+
+                "discount": discount,
+
+                "premium": premium,
+
+            },
+
+            "structure": {
+
+                "direction":
+                    structural_direction,
+
+                "state":
+                    structure_state,
+
+                "trigger_status":
+                    trigger_status,
+
+                "direction_source":
+                    direction_source,
+
+            },
+
+            "confluence": {
+
+                "aligned_score":
+                    aligned_score,
+
+                "opposing_score":
+                    opposing_score,
+
+                "effective_score":
+                    effective_score,
+
+                "momentum_direction":
+                    momentum_direction,
+
+                "zone_aligned":
+                    zone_aligned,
+
+                "zone_conflict":
+                    zone_conflict,
+
+            },
+
+        }
+
+        # ==================================================
+        # ENTERPRISE SCORE DEBUG
+        # ==================================================
+
+        print()
+
+        print(
+            "========== ENTERPRISE SCORE DEBUG =========="
+        )
+
+        print(
+            "Trend        :",
+            trend,
+        )
+
+        print(
+            "Regime       :",
+            regime_signal,
+        )
+
+        print(
+            "BOS          :",
+            bos_signal,
+        )
+
+        print(
+            "CHOCH        :",
+            choch_signal,
+        )
+
+        print(
+            "Liquidity    :",
+            liquidity_signal,
+        )
+
+        print(
+            "Order Block  :",
+            order_block_signal,
+        )
+
+        print(
+            "FVG          :",
+            fvg_signal,
+        )
+
+        print(
+            "Structure    :",
+            structural_direction,
+        )
+
+        print(
+            "Struct State :",
+            structure_state,
+        )
+
+        print(
+            "Direction    :",
+            direction,
+        )
+
+        print(
+            "Dir Source   :",
+            direction_source,
+        )
+
+        print(
+            "Bull Score   :",
+            bullish_score,
+        )
+
+        print(
+            "Bear Score   :",
+            bearish_score,
+        )
+
+        print(
+            "Net Score    :",
+            net_score,
+        )
+
+        print(
+            "Aligned      :",
+            aligned_score,
+        )
+
+        print(
+            "Opposing     :",
+            opposing_score,
+        )
+
+        print(
+            "Effective    :",
+            effective_score,
+        )
+
+        print(
+            "Score        :",
+            score,
+        )
+
+        print(
+            "Grade        :",
+            grade,
+        )
+
+        print(
+            "Confidence   :",
+            confidence,
+        )
+
+        print(
+            "Warnings     :",
+            warnings,
+        )
+
+        print(
+            "============================================"
+        )
+
+        return state

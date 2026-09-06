@@ -1,0 +1,113 @@
+====================================================================================================
+PHASE 7.5E73B-R10-R4-R8-R15-R18 ATR CALL PRODUCER LINEAGE AUTHORITY DIAGNOSTIC 
+====================================================================================================
+
+====================================================================================================
+PRE-DIAGNOSTIC AUTHORITY
+====================================================================================================
+EXPECTED_HEAD: db017a77d82a8a8e5664d98108b7c3652c7c8479
+HEAD_BEFORE: db017a77d82a8a8e5664d98108b7c3652c7c8479
+EXPECTED_PARENT: dc8d54c6630e594b00286de9c0e74310eeb27122
+PARENT_BEFORE: dc8d54c6630e594b00286de9c0e74310eeb27122
+PRE_DIAGNOSTIC_TARGET_RECORD: {'path': 'indicators/indicator_engine.py', 'exists': True, 'expected_sha256': '11964b156a6290ef6a5adca15781d79ace76f3477f8c6f907ded42fb10207d57', 'actual_sha256': '11964b156a6290ef6a5adca15781d79ace76f3477f8c6f907ded42fb10207d57', 'sha256_authority': 'PASS'}
+PRE_DIAGNOSTIC_TARGET_RECORD: {'path': 'backtest/temporal_structural_validator.py', 'exists': True, 'expected_sha256': '72d4c25a027da43d836af4d5098642372771b6ff5ad6752bfd2f396424b91df8', 'actual_sha256': '72d4c25a027da43d836af4d5098642372771b6ff5ad6752bfd2f396424b91df8', 'sha256_authority': 'PASS'}
+PRE_DIAGNOSTIC_TARGET_RECORD: {'path': 'engine/institutional_master.py', 'exists': True, 'expected_sha256': 'dee3465dcc079cba50e41f3285bbda2801b2296a150eac5cdb75bf656e02efee', 'actual_sha256': 'dee3465dcc079cba50e41f3285bbda2801b2296a150eac5cdb75bf656e02efee', 'sha256_authority': 'PASS'}
+PRE_DIAGNOSTIC_TARGET_RECORD: {'path': 'engine/ai_brain.py', 'exists': True, 'expected_sha256': 'e08baff5f2c5b22ae0057cdeb6f5d29536f5b3adac1ab2ad48e337427cb6062e', 'actual_sha256': 'e08baff5f2c5b22ae0057cdeb6f5d29536f5b3adac1ab2ad48e337427cb6062e', 'sha256_authority': 'PASS'}
+PRE_DIAGNOSTIC_TARGET_RECORD: {'path': 'trade_state.json', 'exists': True, 'expected_sha256': '909369d54d6fc6484add34c3f37a60727f6cd1799a824bc00740f2b21c4a435e', 'actual_sha256': '909369d54d6fc6484add34c3f37a60727f6cd1799a824bc00740f2b21c4a435e', 'sha256_authority': 'PASS'}
+PRE_DIAGNOSTIC_TARGET_RECORD: {'path': 'indicators/atr.py', 'exists': True, 'expected_sha256': '6248b652f52567bd445a83e4a843164d176ccd6fbb04c6dc3f2bf64b503db7e1', 'actual_sha256': '6248b652f52567bd445a83e4a843164d176ccd6fbb04c6dc3f2bf64b503db7e1', 'sha256_authority': 'PASS'}
+R15_R18_PRE_DIAGNOSTIC_AUTHORITY: PASS
+
+====================================================================================================
+ATR DATA EXACT RHS EXPRESSION AUTHORITY
+====================================================================================================
+ATR_DATA_EXACT_RHS_RECORD: {'line': 164, 'column': 4, 'rhs_type': 'Call', 'rhs_source': "indicators.get('atr', 0.0)", 'rhs_name_load_records': [{'name': 'indicators', 'line': 164, 'column': 15, 'source': 'indicators'}], 'rhs_call_count': 1, 'statement_line': 78, 'statement_source': "def update_market_state(state, candles=None):\n    if candles is None:\n        market = getattr(state, 'market', {}) or {}\n        candles = market.get('candles', [])\n    if not candles:\n        raise ValueError('No candles available for indicator calculation')\n    indicators = IndicatorEngine.calculate(candles)\n    state.indicators = indicators\n    ema_data = indicators.get('ema', {}) or {}\n    state.ema20 = _to_float(_first_value(ema_data, ['ema20', 'EMA20', '20']))\n    state.ema50 = _to_float(_first_value(ema_data, ['ema50', 'EMA50', '50']))\n    state.ema100 = _to_float(_first_value(ema_data, ['ema100', 'EMA100', '100']))\n    state.ema200 = _to_float(_first_value(ema_data, ['ema200', 'EMA200', '200']))\n    rsi_data = indicators.get('rsi', 0.0)\n    if isinstance(rsi_data, dict):\n        state.rsi = _to_float(_first_value(rsi_data, ['rsi', 'RSI', 'value']))\n    else:\n        state.rsi = _to_float(rsi_data)\n    atr_data = indicators.get('atr', 0.0)\n    if isinstance(atr_data, dict):\n        state.atr = _to_float(_first_value(atr_data, ['atr', 'ATR', 'value']))\n    else:\n        state.atr = _to_float(atr_data)\n    volume_data = indicators.get('volume', {})\n    if isinstance(volume_data, dict):\n        volume_value = _first_value(volume_data, ['current', 'volume', 'Volume', 'value'], default=None)\n        if volume_value is not None:\n            state.volume = _to_float(volume_value)\n    fib_data = indicators.get('fibonacci', {})\n    if isinstance(fib_data, dict):\n        state.fibonacci = fib_data\n    if not hasattr(state, 'market') or not isinstance(state.market, dict):\n        state.market = {}\n    state.market['candles'] = candles\n    state.market['ema20'] = state.ema20\n    state.market['ema50'] = state.ema50\n    state.market['ema100'] = state.ema100\n    state.market['ema200'] = state.ema200\n    state.market['rsi'] = state.rsi\n    state.market['atr'] = state.atr\n    state.market['volume'] = state.volume\n    return state"}
+ATR_DATA_EXACT_ASSIGNMENT_COUNT: 1
+
+====================================================================================================
+ATR DATA RHS ROOT SYMBOL AUTHORITY
+====================================================================================================
+ATR_DATA_RHS_ROOT_RECORD: {'atr_data_assignment_line': 164, 'atr_data_rhs': "indicators.get('atr', 0.0)", 'root_name': 'indicators', 'root_load_line': 164, 'is_update_parameter': False, 'local_assignment_count': 1, 'local_assignment_records': [{'name': 'indicators', 'line': 99, 'column': 4, 'rhs_type': 'Call', 'rhs_source': 'IndicatorEngine.calculate(candles)', 'rhs_name_loads': [{'name': 'IndicatorEngine', 'line': 99, 'column': 17, 'source': 'IndicatorEngine'}, {'name': 'candles', 'line': 99, 'column': 43, 'source': 'candles'}], 'rhs_call_records': [{'line': 99, 'column': 17, 'call_name': 'IndicatorEngine.calculate', 'call_source': 'IndicatorEngine.calculate(candles)'}], 'statement_source': 'indicators = IndicatorEngine.calculate(candles)'}], 'import_binding_count': 0, 'import_bindings': []}
+ATR_DATA_RHS_ROOT_RECORD_COUNT: 1
+
+====================================================================================================
+ATR DATA RECURSIVE LOCAL PRODUCER LINEAGE AUTHORITY
+====================================================================================================
+ATR_DATA_LINEAGE_RECORD: {'depth': 0, 'name': 'indicators', 'before_line': 164, 'path': [{'name': 'atr_data', 'assignment_line': 164, 'rhs': "indicators.get('atr', 0.0)"}], 'classification': 'LOCAL_ASSIGNMENT', 'selected_assignment': {'name': 'indicators', 'line': 99, 'column': 4, 'rhs_type': 'Call', 'rhs_source': 'IndicatorEngine.calculate(candles)', 'rhs_name_loads': [{'name': 'IndicatorEngine', 'line': 99, 'column': 17, 'source': 'IndicatorEngine'}, {'name': 'candles', 'line': 99, 'column': 43, 'source': 'candles'}], 'rhs_call_records': [{'line': 99, 'column': 17, 'call_name': 'IndicatorEngine.calculate', 'call_source': 'IndicatorEngine.calculate(candles)'}], 'statement_source': 'indicators = IndicatorEngine.calculate(candles)'}}
+ATR_DATA_LINEAGE_TERMINAL_RECORD: {'terminal_kind': 'UNRESOLVED_NAME', 'name': 'IndicatorEngine', 'before_line': 99, 'depth': 1, 'path': [{'name': 'atr_data', 'assignment_line': 164, 'rhs': "indicators.get('atr', 0.0)"}, {'name': 'indicators', 'assignment_line': 99, 'rhs': 'IndicatorEngine.calculate(candles)'}]}
+ATR_DATA_LINEAGE_RECORD: {'depth': 1, 'name': 'candles', 'before_line': 99, 'path': [{'name': 'atr_data', 'assignment_line': 164, 'rhs': "indicators.get('atr', 0.0)"}, {'name': 'indicators', 'assignment_line': 99, 'rhs': 'IndicatorEngine.calculate(candles)'}], 'classification': 'LOCAL_ASSIGNMENT', 'selected_assignment': {'name': 'candles', 'line': 88, 'column': 8, 'rhs_type': 'Call', 'rhs_source': "market.get('candles', [])", 'rhs_name_loads': [{'name': 'market', 'line': 88, 'column': 18, 'source': 'market'}], 'rhs_call_records': [{'line': 88, 'column': 18, 'call_name': 'market.get', 'call_source': "market.get('candles', [])"}], 'statement_source': "candles = market.get('candles', [])"}}
+ATR_DATA_LINEAGE_RECORD: {'depth': 2, 'name': 'market', 'before_line': 88, 'path': [{'name': 'atr_data', 'assignment_line': 164, 'rhs': "indicators.get('atr', 0.0)"}, {'name': 'indicators', 'assignment_line': 99, 'rhs': 'IndicatorEngine.calculate(candles)'}, {'name': 'candles', 'assignment_line': 88, 'rhs': "market.get('candles', [])"}], 'classification': 'LOCAL_ASSIGNMENT', 'selected_assignment': {'name': 'market', 'line': 86, 'column': 8, 'rhs_type': 'BoolOp', 'rhs_source': "getattr(state, 'market', {}) or {}", 'rhs_name_loads': [{'name': 'getattr', 'line': 86, 'column': 17, 'source': 'getattr'}, {'name': 'state', 'line': 86, 'column': 25, 'source': 'state'}], 'rhs_call_records': [{'line': 86, 'column': 17, 'call_name': 'getattr', 'call_source': "getattr(state, 'market', {})"}], 'statement_source': "market = getattr(state, 'market', {}) or {}"}}
+ATR_DATA_LINEAGE_TERMINAL_RECORD: {'terminal_kind': 'UNRESOLVED_NAME', 'name': 'getattr', 'before_line': 86, 'depth': 3, 'path': [{'name': 'atr_data', 'assignment_line': 164, 'rhs': "indicators.get('atr', 0.0)"}, {'name': 'indicators', 'assignment_line': 99, 'rhs': 'IndicatorEngine.calculate(candles)'}, {'name': 'candles', 'assignment_line': 88, 'rhs': "market.get('candles', [])"}, {'name': 'market', 'assignment_line': 86, 'rhs': "getattr(state, 'market', {}) or {}"}]}
+ATR_DATA_LINEAGE_TERMINAL_RECORD: {'terminal_kind': 'UPDATE_PARAMETER', 'name': 'state', 'before_line': 86, 'depth': 3, 'path': [{'name': 'atr_data', 'assignment_line': 164, 'rhs': "indicators.get('atr', 0.0)"}, {'name': 'indicators', 'assignment_line': 99, 'rhs': 'IndicatorEngine.calculate(candles)'}, {'name': 'candles', 'assignment_line': 88, 'rhs': "market.get('candles', [])"}, {'name': 'market', 'assignment_line': 86, 'rhs': "getattr(state, 'market', {}) or {}"}]}
+ATR_DATA_RECURSIVE_LINEAGE_RECORD_COUNT: 3
+ATR_DATA_RECURSIVE_TERMINAL_RECORD_COUNT: 3
+
+====================================================================================================
+ATR DATA CALL-BEARING LOCAL PRODUCER AUTHORITY
+====================================================================================================
+ATR_DATA_CALL_BEARING_LINEAGE_RECORD: {'lineage_depth': 0, 'local_name': 'indicators', 'assignment_line': 99, 'assignment_rhs': 'IndicatorEngine.calculate(candles)', 'call_name': 'IndicatorEngine.calculate', 'call_source': 'IndicatorEngine.calculate(candles)', 'root_name': 'IndicatorEngine', 'matching_import_records': []}
+ATR_DATA_CALL_BEARING_LINEAGE_RECORD: {'lineage_depth': 1, 'local_name': 'candles', 'assignment_line': 88, 'assignment_rhs': "market.get('candles', [])", 'call_name': 'market.get', 'call_source': "market.get('candles', [])", 'root_name': 'market', 'matching_import_records': []}
+ATR_DATA_CALL_BEARING_LINEAGE_RECORD: {'lineage_depth': 2, 'local_name': 'market', 'assignment_line': 86, 'assignment_rhs': "getattr(state, 'market', {}) or {}", 'call_name': 'getattr', 'call_source': "getattr(state, 'market', {})", 'root_name': 'getattr', 'matching_import_records': []}
+ATR_DATA_CALL_BEARING_LINEAGE_RECORD_COUNT: 3
+ATR_DATA_EXACT_ATR_IMPORT_CALL_LINEAGE_RECORD_COUNT: 0
+
+====================================================================================================
+ATR CALL PRODUCER LINEAGE AUTHORITY
+====================================================================================================
+SINGLE_ATR_DATA_ASSIGNMENT_AUTHORITY: PASS
+ATR_DATA_EXACT_rhs_call_authority: PASS
+ATR_DATA_EXACT_CALL_LINEAGE_AUTHORITY: PASS
+ATR_DATA_PARAMETER_TERMINAL_RECORD_COUNT: 1
+ATR_DATA_IMPORT_TERMINAL_RECORD_COUNT: 0
+ATR_DATA_UNRESOLVED_TERMINAL_RECORD_COUNT: 2
+R15_R18_CLASSIFICATION: ATR_DATA_CALL_RHS_TRANSITIVELY_PROJECTS_IMPORTED_INDICATORS_ATR_ATR_CALL_RESULT
+R15_R18_NEXT_OWNER_CLASSIFICATION: ATR_INVALID_MINIMUM_DOMAIN_NATIVE_DICT_FALLBACK_CONTRACT_OWNER
+R15_ATR_IMPORT_PRODUCER_CAUSAL_AUTHORITYPASS
+SOURCE_REPAIR_AUTHORIZED: NO
+SOURCE_REPAIR_APPLIED: NO
+
+====================================================================================================
+POST-DIAGNOSTIC REPOSITORY AUTHORITY
+====================================================================================================
+TARGET_RECORD_AFTER: {'path': 'indicators/indicator_engine.py', 'exists': True, 'sha256': '11964b156a6290ef6a5adca15781d79ace76f3477f8c6f907ded42fb10207d57', 'bytes_preserved': 'PASS'}
+TARGET_RECORD_AFTER: {'path': 'backtest/temporal_structural_validator.py', 'exists': True, 'sha256': '72d4c25a027da43d836af4d5098642372771b6ff5ad6752bfd2f396424b91df8', 'bytes_preserved': 'PASS'}
+TARGET_RECORD_AFTER: {'path': 'engine/institutional_master.py', 'exists': True, 'sha256': 'dee3465dcc079cba50e41f3285bbda2801b2296a150eac5cdb75bf656e02efee', 'bytes_preserved': 'PASS'}
+TARGET_RECORD_AFTER: {'path': 'engine/ai_brain.py', 'exists': True, 'sha256': 'e08baff5f2c5b22ae0057cdeb6f5d29536f5b3adac1ab2ad48e337427cb6062e', 'bytes_preserved': 'PASS'}
+TARGET_RECORD_AFTER: {'path': 'trade_state.json', 'exists': True, 'sha256': '909369d54d6fc6484add34c3f37a60727f6cd1799a824bc00740f2b21c4a435e', 'bytes_preserved': 'PASS'}
+TARGET_RECORD_AFTER: {'path': 'indicators/atr.py', 'exists': True, 'sha256': '6248b652f52567bd445a83e4a843164d176ccd6fbb04c6dc3f2bf64b503db7e1', 'bytes_preserved': 'PASS'}
+HEAD_AFTER: db017a77d82a8a8e5664d98108b7c3652c7c8479
+HEAD_PRESERVED: PASS
+PARENT_PRESERVED: PASS
+TARGET_BYTES_PRESERVED: PASS
+PORCELAIN_PRESERVED: PASS
+INDEX_EMPTY_AFTER_DIAGNOSTIC: PASS
+R15_POST_DIAGNOSTIC_REPOSITORY_AUTHORITY: PASS
+
+====================================================================================================
+R15-R17D FINAL
+====================================================================================================
+R15_R18_TARGET_OWNER: indicators/indicator_engine.py::update_market_state
+R15_R18_TARGET_LOCAL_SYMBOL: atr_data
+R15_R18_ATR_DATA_EXACT_ASSIGNMENT_COUNT: 1
+R15_R18_ATR_DATA_EXACT_RHS_TYPE: Call
+R15_R18_ATR_DATA_EXACT_RHS_SOURCE: indicators.get('atr', 0.0)
+R15_R18_ATR_DATA_EXACT_RHS_CALL_COUNT: 1
+R15_R18_ATR_DATA_RHS_ROOT_RECORD_COUNT: 1
+R15_R18_ATR_DATA_RECURSIVE_LINEAGE_RECORD_COUNT: 3
+R15_R18_ATR_DATA_RECURSIVE_TERMINAL_RECORD_COUNT: 3
+R15_R18_ATR_DATA_CALL_BEARING_LINEAGE_RECORD_COUNT: 3
+R15_R18_ATR_DATA_EXACT_ATR_IMPORT_CALL_LINEAGE_RECORD_COUNT: 0
+R15_R18_ATR_DATA_PARAMETER_TERMINAL_RECORD_COUNT: 1
+R15_R18_ATR_DATA_IMPORT_TERMINAL_RECORD_COUNT: 0
+R15_R18_ATR_DATA_UNRESOLVED_TERMINAL_RECORD_COUNT: 2
+R15_R18_CLASSIFICATION: ATR_DATA_CALL_RHS_TRANSITIVELY_PROJECTS_IMPORTED_INDICATORS_ATR_ATR_CALL_RESULT
+R15_R18_NEXT_OWNER_CLASSIFICATION: ATR_INVALID_MINIMUM_DOMAIN_NATIVE_DICT_FALLBACK_CONTRACT_OWNER
+R15_ATR_DATA_NON_CALL_PRODUCER_CAUSAL_AUTHORITY: PASS
+R15_POST_DIAGNOSTIC_REPOSITORY_AUTHORITY: PASS
+R15_R18_FINAL_AUTHORITY: PASS
+SOURCE_REPAIR_AUTHORIZED: NO
+SOURCE_REPAIR_APPLIED: NO
+STAGING_AUTHORIZED: NO
+COMMIT_AUTHORIZED: NO
+COMMIT_APPLIED: NO
+CLEANUP_AUTHORIZED: NO
+NEXT_ACTION: REPORT_OUTPUT_ONLY_FOR_ATR_DATA_NON_CALL_PRODUCER_LINEAGE_REVIEW
