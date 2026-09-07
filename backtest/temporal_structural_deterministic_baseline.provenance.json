@@ -1,0 +1,72 @@
+{
+  "baseline": {
+    "fields": [
+      "index",
+      "price",
+      "direction",
+      "structure_state",
+      "zone_status",
+      "zone_type",
+      "zone_direction",
+      "zone_lifecycle",
+      "zone_low",
+      "zone_high",
+      "interacting",
+      "location_quality",
+      "trigger_status",
+      "trigger_source",
+      "trigger_direction",
+      "trigger_lifecycle",
+      "trigger_age",
+      "trigger_freshness",
+      "trigger_fresh",
+      "location_valid",
+      "selected_zone_match",
+      "readiness"
+    ],
+    "path": "backtest/temporal_structural_deterministic_baseline.csv",
+    "row_count": 80,
+    "sha256": "f0aa55bfd55d75bbdbbb479a43babb949780e892cac26c8f852e401297694e93"
+  },
+  "baseline_name": "Jaguar temporal structural deterministic baseline",
+  "baseline_version": 1,
+  "determinism_evidence": {
+    "phase": "3.5C",
+    "source_replays": [
+      "backtest/temporal_structural_fixture_replay_a.csv",
+      "backtest/temporal_structural_fixture_replay_b.csv",
+      "backtest/temporal_structural_fixture_replay_c.csv"
+    ],
+    "triple_replay_byte_identical": true,
+    "triple_replay_semantic_identical": true
+  },
+  "fixture": {
+    "candle_count": 300,
+    "first_candle_time": 1783671300000,
+    "last_candle_time": 1783940400000,
+    "metadata_path": "backtest/fixtures/btcusdt_15m_300.metadata.json",
+    "metadata_sha256": "c0609e463e571a5374e7825b925e21390d89a9690c220afe088d4ee238baba9a",
+    "path": "backtest/fixtures/btcusdt_15m_300.csv",
+    "sha256": "19c050cc00f3dfba4490573b004ebc34b4988e0e0fbb286acd30a1e54e6a6432"
+  },
+  "git_head_at_seal": "a9dbcbc1f7e724b1e8b44dae2afe3314889ddb51",
+  "production_fingerprints": {
+    "core/kernel.py": "2e1e0c5c44e898f0f74e58c6b4d63e727501aeba26fd22b41cbcf06db43e1f43",
+    "engine/fvg_engine.py": "1ae73b2875182dd7843e13d23146e83e963634d2cc0f49a8e7be786221426cd9",
+    "engine/institutional_confluence.py": "41c090984c14b9c3a6d1a2f5cebc81451bfddf50b68ac44427891978aa387cf7",
+    "engine/institutional_master.py": "dee3465dcc079cba50e41f3285bbda2801b2296a150eac5cdb75bf656e02efee",
+    "engine/liquidity_engine.py": "5e2fdd9c2bb540f493b0e17de146adb30c1801bd6d24b143638b0068f957d834",
+    "engine/order_block_engine.py": "d1d04ca479cb6e957695fc8939ef98907f0eb904f13146bea9e5eaa04253aff7",
+    "indicators/indicator_engine.py": "dbb8f91fb54f5806c6f801d54e09e2ab389c2319c34de9605431d547157faab1",
+    "intelligence/structural_zone_engine.py": "0e29751976980034a7c64b2e3e599a4cffec858d17eeb6bc61b8a358daae1092"
+  },
+  "purpose": "Canonical same-input temporal structural regression baseline",
+  "sealed_at_utc": "2026-07-13T11:50:46.970727+00:00",
+  "symbol": "BTCUSDT",
+  "timeframe": "15m",
+  "validator": {
+    "path": "backtest/temporal_structural_validator.py",
+    "sha256": "72d4c25a027da43d836af4d5098642372771b6ff5ad6752bfd2f396424b91df8"
+  },
+  "warmup": 220
+}

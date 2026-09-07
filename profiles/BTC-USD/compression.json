@@ -1,0 +1,27 @@
+{
+  "symbol": "BTC-USD",
+  "regime": "COMPRESSION",
+  "intercept": 0.012087025999819562,
+  "coefficients": {
+    "Equal Levels": -0.30223608512486605,
+    "FVG": -0.022720636295697847,
+    "Gann": 0.0,
+    "Liquidity": 0.05554983920057978,
+    "MSS": -0.12559335232903818,
+    "MTF": 0.0,
+    "Order Block": 0.0,
+    "Order Flow": 0.03751461638956338,
+    "Premium/Discount": -0.2703395116472265,
+    "Regime": 0.0,
+    "SMC": 0.0,
+    "Session": 0.1208702599981757,
+    "Structure": -0.0046843478514521295,
+    "Volume Profile": -0.19699250235346383,
+    "Wyckoff": -0.3949711504163066
+  },
+  "win_rate": 45.27421236872812,
+  "profit_factor": 1.3422182091962809,
+  "expectancy": 93.64074518378055,
+  "sample_size": 1714,
+  "last_calibration": "2026-07-29 17:46:37"
+}
