@@ -16,7 +16,7 @@ import time
 from research.database import get_connection
 
 
-FILE = "trade_state.json"
+FILE = os.environ.get("JAGUAR_STATE_PATH", "trade_state.json")
 
 STATE_VERSION = 2
 

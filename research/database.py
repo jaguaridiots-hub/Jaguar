@@ -2,7 +2,10 @@
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "research.db")
+DB_PATH = os.environ.get(
+    "JAGUAR_DB_PATH",
+    os.path.join(os.path.dirname(__file__), "research.db"),
+)
 
 # ----------------------------------------------------------------------
 # Helpers
@@ -94,12 +97,74 @@ def _migrate_v6_to_v7(cursor):
     """)
     _set_schema_version(cursor, 7)
 
+
+def _migrate_v7_to_v8(cursor):
+    """Migrate the V7 trade contract and create the durable execution-intent journal."""
+
+    # V7 recorder contract introduced authorization identity and lifecycle status,
+    # but the historical V7 table definition did not contain these columns.
+    _add_column_if_not_exists(cursor, "trades", "authorization_id", "TEXT")
+    _add_column_if_not_exists(cursor, "trades", "status", "TEXT")
+
+    # Deterministically reconstruct the existing trade lifecycle.
+    # Historical authorization IDs cannot be reconstructed, so they remain NULL.
+    cursor.execute("""
+        UPDATE trades
+        SET status = CASE
+            WHEN close_time IS NOT NULL THEN 'CLOSED'
+            WHEN entry_price IS NOT NULL THEN 'OPEN'
+            ELSE NULL
+        END
+        WHERE status IS NULL
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS execution_intents (
+            authorization_id TEXT PRIMARY KEY,
+            trade_uuid TEXT NOT NULL UNIQUE,
+            client_order_id TEXT NOT NULL UNIQUE,
+            broker_order_id TEXT UNIQUE,
+            symbol TEXT NOT NULL,
+            timeframe TEXT NOT NULL,
+            mode TEXT NOT NULL,
+            decision TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            requested_price REAL,
+            stop_loss REAL,
+            take_profit REAL,
+            run_id TEXT,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_intents_status
+        ON execution_intents(status)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_intents_trade_uuid
+        ON execution_intents(trade_uuid)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_intents_broker_order
+        ON execution_intents(broker_order_id)
+    """)
+
+
 # ----------------------------------------------------------------------
 # Schema validation & self‑healing
 # ----------------------------------------------------------------------
 def validate_schema(cursor):
     required = {
-        "uuid", "open_time", "symbol", "timeframe", "mode",
+        "uuid", "authorization_id", "status",
+        "open_time", "symbol", "timeframe", "mode",
         "entry_price", "stop_loss", "take_profit",
         "snapshot_open", "snapshot_open_checksum",
         "decision", "confidence", "composite_score",
@@ -131,7 +196,11 @@ def repair_schema(cursor, missing):
         },
         "v6→v7": {
             "close_time", "exit_price", "pnl", "r_multiple",
-            "win_loss", "holding_time", "snapshot_close", "snapshot_close_checksum"
+            "win_loss", "holding_time", "snapshot_close",
+            "snapshot_close_checksum"
+        },
+        "v7→v8": {
+            "authorization_id", "status"
         }
     }
     if missing & migration_added_columns["v3→v4"]:
@@ -142,6 +211,8 @@ def repair_schema(cursor, missing):
         _migrate_v5_to_v6(cursor)
     if missing & migration_added_columns["v6→v7"]:
         _migrate_v6_to_v7(cursor)
+    if missing & migration_added_columns["v7→v8"]:
+        _migrate_v7_to_v8(cursor)
 
 # ----------------------------------------------------------------------
 # init_db – creates all tables including Phase 33D columns
@@ -150,40 +221,104 @@ def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute("CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT)")
+    c.execute(
+        "CREATE TABLE IF NOT EXISTS meta "
+        "(key TEXT PRIMARY KEY, value TEXT)"
+    )
     conn.commit()
 
-    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='trades'")
+    c.execute(
+        "SELECT name FROM sqlite_master "
+        "WHERE type='table' AND name='trades'"
+    )
+
     if not c.fetchone():
+        # A new database starts from the canonical V7 trades layout.
         _migrate_v6_to_v7(c)
-        _set_schema_version(c, 7)
-        conn.commit()
+        version = 7
     else:
         version = _get_schema_version(c)
+
         if version < 4:
             _migrate_v3_to_v4(c)
+            version = 4
+
         if version < 5:
             _migrate_v4_to_v5(c)
+            version = 5
+
         if version < 6:
             _migrate_v5_to_v6(c)
+            version = 6
+
         if version < 7:
             _migrate_v6_to_v7(c)
-        _set_schema_version(c, 7)
+            version = 7
+
+    # V8 owns the execution-integrity persistence contract.
+    if version < 8:
+        _migrate_v7_to_v8(c)
+        version = 8
+    else:
+        # Self-heal databases whose recorded version is already V8
+        # but whose V8 objects are incomplete.
+        _migrate_v7_to_v8(c)
+
+    _set_schema_version(c, 8)
+    conn.commit()
+
+    missing = validate_schema(c)
+    if missing:
+        print(
+            f"⚠️  Schema drift detected – missing columns: {missing}"
+        )
+        repair_schema(c, missing)
         conn.commit()
 
-        missing = validate_schema(c)
-        if missing:
-            print(f"⚠️  Schema drift detected – missing columns: {missing}")
-            repair_schema(c, missing)
-            conn.commit()
-            still_missing = validate_schema(c)
-            if still_missing:
-                raise RuntimeError(f"Schema repair failed. Missing columns: {still_missing}")
-            _set_schema_version(c, 7)
-            conn.commit()
-            print("✅ Schema repair complete. All required columns present.")
+        still_missing = validate_schema(c)
+        if still_missing:
+            raise RuntimeError(
+                f"Schema repair failed. Missing columns: {still_missing}"
+            )
 
-    # score_log table (Phase 33D enhanced)
+        _migrate_v7_to_v8(c)
+        _set_schema_version(c, 8)
+        conn.commit()
+
+        still_missing = validate_schema(c)
+        if still_missing:
+            raise RuntimeError(
+                f"Schema repair failed. Missing columns: {still_missing}"
+            )
+
+        print("✅ Schema repair complete. All required columns present.")
+
+    # Canonical active-trade invariants.
+    c.execute(
+        "DROP INDEX IF EXISTS "
+        "idx_one_active_trade_per_run_symbol"
+    )
+
+    c.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_one_active_trade_per_symbol
+        ON trades(symbol, timeframe, mode)
+        WHERE close_time IS NULL
+          AND status = 'OPEN'
+    """)
+
+    c.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_active_trade_authorization
+        ON trades(authorization_id)
+        WHERE authorization_id IS NOT NULL
+          AND close_time IS NULL
+          AND status = 'OPEN'
+    """)
+
+    conn.commit()
+
+# score_log table (Phase 33D enhanced)
     c.execute("""
         CREATE TABLE IF NOT EXISTS score_log (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -252,6 +387,292 @@ def init_db():
 # ----------------------------------------------------------------------
 # Lightweight connection for CRUD – NO init_db call
 # ----------------------------------------------------------------------
+
+_EXECUTION_INTENT_TERMINAL = {
+    "RECONCILED",
+    "REJECTED",
+    "CANCELLED",
+    "HALTED",
+}
+
+_EXECUTION_INTENT_TRANSITIONS = {
+    "AUTHORIZED": {
+        "SUBMITTED",
+        "REJECTED",
+        "HALTED",
+    },
+    "SUBMITTED": {
+        "RECONCILED",
+        "REJECTED",
+        "CANCELLED",
+        "HALTED",
+    },
+    "RECONCILED": set(),
+    "REJECTED": set(),
+    "CANCELLED": set(),
+    "HALTED": set(),
+}
+
+
+def insert_execution_intent(data: dict):
+    """Durably create an execution intent before external submission."""
+    required = {
+        "authorization_id",
+        "trade_uuid",
+        "client_order_id",
+        "symbol",
+        "timeframe",
+        "mode",
+        "decision",
+        "quantity",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+
+    missing = required - set(data)
+    if missing:
+        raise ValueError(
+            f"Missing execution-intent fields: {sorted(missing)}"
+        )
+
+    string_fields = (
+        "authorization_id",
+        "trade_uuid",
+        "client_order_id",
+        "symbol",
+        "timeframe",
+        "mode",
+        "decision",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+
+    for field in string_fields:
+        value = data.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"Invalid execution-intent {field}"
+            )
+
+    mode = data["mode"].strip().upper()
+    if mode != "PAPER":
+        raise RuntimeError(
+            "FAIL-CLOSED: execution intent mode must be PAPER"
+        )
+
+    decision = data["decision"].strip().upper()
+    if decision not in {"LONG", "SHORT"}:
+        raise ValueError(
+            "Invalid execution-intent decision"
+        )
+
+    status = data["status"].strip().upper()
+    if status != "AUTHORIZED":
+        raise RuntimeError(
+            "FAIL-CLOSED: new execution intent must start AUTHORIZED"
+        )
+
+    quantity = data.get("quantity")
+    if isinstance(quantity, bool):
+        raise ValueError("Invalid execution-intent quantity")
+
+    try:
+        quantity_value = float(quantity)
+    except (TypeError, ValueError):
+        raise ValueError(
+            "Invalid execution-intent quantity"
+        )
+
+    if quantity_value != quantity_value or quantity_value in (
+        float("inf"),
+        float("-inf"),
+    ) or quantity_value <= 0:
+        raise ValueError(
+            "Invalid execution-intent quantity"
+        )
+
+    conn = get_connection()
+    try:
+        columns = ", ".join(data.keys())
+        placeholders = ", ".join("?" for _ in data)
+
+        conn.execute(
+            f"INSERT INTO execution_intents ({columns}) "
+            f"VALUES ({placeholders})",
+            list(data.values()),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_execution_intent(authorization_id: str):
+    if not isinstance(authorization_id, str) or not authorization_id.strip():
+        raise ValueError("Invalid authorization_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_intents
+            WHERE authorization_id = ?
+            """,
+            (authorization_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def list_non_terminal_execution_intents():
+    conn = get_connection()
+    try:
+        placeholders = ", ".join(
+            "?" for _ in _EXECUTION_INTENT_TERMINAL
+        )
+
+        return conn.execute(
+            f"""
+            SELECT *
+            FROM execution_intents
+            WHERE status NOT IN ({placeholders})
+            ORDER BY created_at ASC
+            """,
+            tuple(_EXECUTION_INTENT_TERMINAL),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def update_execution_intent(
+    authorization_id: str,
+    *,
+    status: str = None,
+    broker_order_id: str = None,
+):
+    if not isinstance(authorization_id, str) or not authorization_id.strip():
+        raise ValueError("Invalid authorization_id")
+
+    if status is None and broker_order_id is None:
+        raise ValueError("No execution-intent update supplied")
+
+    conn = get_connection()
+    try:
+        assignments = []
+        params = []
+
+        if status is not None:
+            if not isinstance(status, str) or not status.strip():
+                raise ValueError("Invalid execution-intent status")
+
+            requested_status = status.strip().upper()
+
+            current = conn.execute(
+                """
+                SELECT status
+                FROM execution_intents
+                WHERE authorization_id = ?
+                """,
+                (authorization_id,),
+            ).fetchone()
+
+            if current is None:
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: execution intent not found: "
+                    f"{authorization_id}"
+                )
+
+            current_status = str(current["status"]).strip().upper()
+
+            if requested_status not in _EXECUTION_INTENT_TRANSITIONS.get(
+                current_status,
+                set(),
+            ):
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: invalid execution-intent transition "
+                    f"{current_status} -> {requested_status}"
+                )
+
+            assignments.append("status = ?")
+            params.append(requested_status)
+
+        if broker_order_id is not None:
+            if not isinstance(broker_order_id, str) or not broker_order_id.strip():
+                raise ValueError("Invalid broker_order_id")
+
+            current = conn.execute(
+                """
+                SELECT status, broker_order_id
+                FROM execution_intents
+                WHERE authorization_id = ?
+                """,
+                (authorization_id,),
+            ).fetchone()
+
+            if current is None:
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: execution intent not found: "
+                    f"{authorization_id}"
+                )
+
+            current_status = str(current["status"]).strip().upper()
+            current_broker_order_id = current["broker_order_id"]
+
+            if current_status in _EXECUTION_INTENT_TERMINAL:
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: cannot modify broker lineage of "
+                    f"terminal execution intent: {authorization_id}"
+                )
+
+            if current_broker_order_id is not None:
+                if current_broker_order_id != broker_order_id:
+                    conn.rollback()
+                    raise RuntimeError(
+                        "FAIL-CLOSED: broker_order_id is immutable once assigned "
+                        f"({authorization_id})"
+                    )
+
+                # Same broker identity is idempotent; no lineage change.
+            else:
+                assignments.append("broker_order_id = ?")
+                params.append(broker_order_id)
+
+        assignments.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(authorization_id)
+
+        cursor = conn.execute(
+            f"""
+            UPDATE execution_intents
+            SET {", ".join(assignments)}
+            WHERE authorization_id = ?
+            """,
+            params,
+        )
+
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution intent not found: "
+                f"{authorization_id}"
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row

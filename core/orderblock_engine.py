@@ -250,6 +250,13 @@ class OrderBlockEngineRunner(Engine):
             }
         )
 
+        selected_lifecycle = str(
+            metadata.get(
+                "lifecycle",
+                "UNKNOWN",
+            )
+        ).upper()
+
         state.orderblock = {
             "signal": canonical_direction,
             "score": 0.0 if selected_lifecycle == "INVALIDATED" else score,

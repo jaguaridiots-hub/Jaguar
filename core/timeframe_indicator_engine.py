@@ -1,5 +1,8 @@
 # core/timeframe_indicator_engine.py
-from indicators.indicator_engine import IndicatorEngine
+from indicators.indicator_engine import (
+    IndicatorEngine,
+    update_market_state,
+)
 
 
 class TimeframeIndicatorEngineRunner:
@@ -54,6 +57,23 @@ class TimeframeIndicatorEngineRunner:
                 current_interval,
                 {},
          )
+
+
+        # Canonical scalar-state bridge for the active timeframe.
+        # Reuse the normalized candles already loaded by MarketEngine.
+        current_interval = getattr(state, "interval", None) or "15m"
+        active_data = state.market.get(current_interval, {})
+        active_candles = (
+            active_data.get("candles", [])
+            if isinstance(active_data, dict)
+            else []
+        )
+
+        if active_candles:
+            state = update_market_state(
+                state,
+                active_candles,
+            )
 
         print("\nMTF Indicator Timeframes:", list(state.mtf_indicators.keys()))
         print("===============================================\n")

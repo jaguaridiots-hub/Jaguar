@@ -30,6 +30,9 @@ The gateway fails closed.
 """
 
 
+import hashlib
+
+
 class ExecutionGatewayV2:
 
     name = "Execution Gateway V3"
@@ -94,6 +97,7 @@ class ExecutionGatewayV2:
             "reason": reason,
 
             "broker": "Paper",
+
 
             "decision": "WAIT",
 
@@ -815,6 +819,15 @@ class ExecutionGatewayV2:
         )
 
         # ==================================================
+        # Deterministic broker-facing identity derived from the
+        # canonical execution authorization identity.
+        client_order_id = (
+            "JQX-"
+            + hashlib.sha256(
+                authorization_id.encode("utf-8")
+            ).hexdigest()[:32]
+        )
+
         # 12. EXECUTION AUTHORIZATION
         # ==================================================
 
@@ -831,6 +844,7 @@ class ExecutionGatewayV2:
             "reason": "Execution authorized",
 
             "broker": "Paper",
+            "symbol": symbol,
 
             "decision": decision,
 
@@ -859,6 +873,7 @@ class ExecutionGatewayV2:
             ),
 
             "authorization_id": authorization_id,
+            "client_order_id": client_order_id,
 
         }
 

@@ -21,7 +21,7 @@ from engine.position_manager import PositionManager
 from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
-from core.orchestrator import JaguarOrchestrator
+from core.jaguar_analysis_engine import JaguarAnalysisEngine
 from engine.state_manager import (
     save,
     load,
@@ -33,7 +33,10 @@ from research.recorder import (
     record_trade_open,
     record_decision_snapshot,
 )
-from research.database import delete_open_trade
+from research.database import (
+    insert_execution_intent,
+    update_execution_intent,
+)
 from intelligence.execution_adapter import ExecutionAdapter
 
 
@@ -66,7 +69,7 @@ log.info(
 # ==================================================
 
 kernel = JaguarKernel()
-analysis = JaguarOrchestrator()
+analysis = JaguarAnalysisEngine(kernel)
 
 kernel.initialize(
     SYMBOL,
@@ -124,13 +127,10 @@ print("=" * 50)
 # CANONICAL STARTUP MARKET HYDRATION
 # ==================================================
 
-result = analysis.analyze(
-    symbol=SYMBOL,
-    interval=TIMEFRAME,
-    mode="SWING",
-)
+result = analysis.run(SYMBOL)
 
-state = result
+state = result["state"]
+report = result["report"]
 
 run_id = os.environ.get("JAGUAR_PAPER_RUN")
 
@@ -161,16 +161,17 @@ print(
     state.run_id,
 )
 
-report = getattr(state, "institutional_report", {})
 
 state.timeframe = TIMEFRAME
 
-market_15m = state.market.get("15m", {})
-candles = market_15m.get("candles", [])
+candles = (
+    state.market.get("candles", [])
+    if isinstance(getattr(state, "market", None), dict)
+    else []
+)
 
 if not candles:
-    print("WARNING: No 15m candles found in state.market")
-    candles = []
+    print("WARNING: No canonical candles found in state.market")
 
 latest = candles[-1]
 
@@ -710,6 +711,116 @@ if (
         # PositionManager must only mirror the confirmed fill.
         # ==================================================
 
+        # ==================================================
+        # V8 EXECUTION INTENT — PRE-SUBMISSION DURABILITY
+        # ==================================================
+        broker_execution_completed = False
+
+        def rollback_execution_if_pre_submission(result):
+            if broker_execution_completed:
+                return None
+            return execution_adapter.rollback(result)
+
+        def preserve_trade_for_recovery(trade_uuid):
+            if (
+                not isinstance(trade_uuid, str)
+                or not trade_uuid.strip()
+            ):
+                raise RuntimeError(
+                    "FAIL-CLOSED: Invalid trade UUID during recovery preservation"
+                )
+            return trade_uuid
+
+        # The runtime transaction identity is allocated before
+        # broker submission and durably recorded as AUTHORIZED.
+        # ==================================================
+
+        authorization_id = execution.get(
+            "authorization_id"
+        )
+
+        if (
+            not isinstance(authorization_id, str)
+            or not authorization_id.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has no authorization ID"
+            )
+
+        trade_uuid = str(uuid.uuid4())
+
+        client_order_id = execution.get(
+            "client_order_id"
+        )
+
+        if (
+            not isinstance(client_order_id, str)
+            or not client_order_id.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has no client order ID"
+            )
+
+        intent_timestamp = datetime.utcnow().isoformat()
+
+        targets_for_intent = execution.get(
+            "targets",
+            [],
+        )
+
+        if (
+            not isinstance(targets_for_intent, list)
+            or not targets_for_intent
+        ):
+            targets_for_intent = []
+
+        try:
+            insert_execution_intent(
+                {
+                    "authorization_id": authorization_id,
+                    "trade_uuid": trade_uuid,
+                    "client_order_id": client_order_id,
+                    "symbol": execution.get(
+                        "symbol",
+                        SYMBOL,
+                    ),
+                    "timeframe": TIMEFRAME,
+                    "mode": execution.get(
+                        "mode",
+                        "PAPER",
+                    ),
+                    "decision": execution.get(
+                        "decision",
+                        "",
+                    ),
+                    "quantity": float(
+                        execution.get(
+                            "position_size",
+                            0.0,
+                        ) or 0.0
+                    ),
+                    "requested_price": execution.get(
+                        "entry"
+                    ),
+                    "stop_loss": execution.get(
+                        "stop_loss"
+                    ),
+                    "take_profit": targets_for_intent[0],
+                    "run_id": getattr(
+                        state,
+                        "run_id",
+                        None,
+                    ),
+                    "status": "AUTHORIZED",
+                    "created_at": intent_timestamp,
+                    "updated_at": intent_timestamp,
+                }
+            )
+        except Exception as intent_error:
+            raise RuntimeError(
+                "FAIL-CLOSED: Execution intent persistence failed"
+            ) from intent_error
+
         try:
             execution_result = execution_adapter.execute(
                 execution
@@ -719,24 +830,57 @@ if (
                 "FAIL-CLOSED: Paper execution failed"
             ) from execution_error
 
-        authorization_id = execution_result.get(
+        # The broker operation has completed.  From this point
+        # onward the external execution must never be erased by
+        # local compensation.  Durable V8 recovery owns the
+        # unresolved transaction.
+        broker_execution_completed = True
+
+        returned_authorization_id = execution_result.get(
             "authorization_id"
         )
 
-        if not authorization_id:
+        if returned_authorization_id != authorization_id:
             try:
-                execution_adapter.rollback(
-                    execution_result
-                )
+                rollback_execution_if_pre_submission(execution_result)
             except Exception as rollback_error:
                 raise RuntimeError(
-                    "FAIL-CLOSED: Missing authorization ID "
+                    "FAIL-CLOSED: Authorization identity mismatch "
                     "AND execution rollback failed"
                 ) from rollback_error
 
             raise RuntimeError(
-                "FAIL-CLOSED: Paper execution returned no authorization ID"
+                "FAIL-CLOSED: Broker returned mismatched authorization ID"
             )
+
+        order = execution_result.get(
+            "order",
+            {},
+        ) or {}
+
+        broker_order_id = order.get(
+            "broker_order_id"
+        )
+
+        if (
+            not isinstance(broker_order_id, str)
+            or not broker_order_id.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker execution returned no broker order ID"
+            )
+
+        try:
+            update_execution_intent(
+                authorization_id,
+                broker_order_id=broker_order_id,
+                status="SUBMITTED",
+            )
+        except Exception as intent_error:
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker submitted but "
+                "SUBMITTED intent persistence failed"
+            ) from intent_error
 
         filled_quantity = float(
             execution_result.get(
@@ -754,9 +898,7 @@ if (
 
         if filled_quantity <= 0 or fill_price <= 0:
             try:
-                execution_adapter.rollback(
-                    execution_result
-                )
+                rollback_execution_if_pre_submission(execution_result)
             except Exception as rollback_error:
                 raise RuntimeError(
                     "FAIL-CLOSED: Invalid broker fill "
@@ -784,9 +926,7 @@ if (
 
         if initial_risk <= 0:
             try:
-                execution_adapter.rollback(
-                    execution_result
-                )
+                rollback_execution_if_pre_submission(execution_result)
             except Exception as rollback_error:
                 raise RuntimeError(
                     "FAIL-CLOSED: Invalid filled-trade risk "
@@ -816,9 +956,7 @@ if (
                 )
             except Exception as position_error:
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -833,13 +971,11 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Position open failed; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 ) from position_error
 
 
 
-              # FAIL-CLOSED: allocate trade identity before DB persistence.
-            trade_uuid = str(uuid.uuid4())
 
             try:
                 recorded_uuid = record_trade_open(
@@ -859,9 +995,7 @@ if (
                 )
             except Exception as trade_error:
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -876,18 +1010,18 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Trade persistence failed; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 ) from trade_error
 
             if recorded_uuid != trade_uuid:
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as rollback_error:
                     position.close_trade()
                     state._trade_id = None
                     clear()
                     raise RuntimeError(
-                        "FAIL-CLOSED: Trade identity mismatch AND DB rollback failed"
+                        "FAIL-CLOSED: Trade identity mismatch AND trade evidence preservation failed"
                     ) from rollback_error
 
                 position.close_trade()
@@ -895,9 +1029,7 @@ if (
                 clear()
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as execution_rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -912,26 +1044,24 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Trade identity mismatch; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 )
 
             try:
                 position.set_trade_uuid(trade_uuid)
             except Exception as identity_error:
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as delete_error:
                     try:
-                        execution_adapter.rollback(
-                            execution_result
-                        )
+                        rollback_execution_if_pre_submission(execution_result)
                     except Exception as execution_rollback_error:
                         position.close_trade()
                         state._trade_id = None
                         clear()
                         raise RuntimeError(
                             "FAIL-CLOSED: Trade identity assignment failed, "
-                            "DB rollback failed, AND execution rollback failed"
+                            "trade evidence preservation failed, AND broker execution remained non-reversible"
                         ) from execution_rollback_error
 
                     position.close_trade()
@@ -939,13 +1069,11 @@ if (
                     clear()
                     raise RuntimeError(
                         "FAIL-CLOSED: Trade identity assignment failed "
-                        "AND DB rollback failed; paper execution rolled back"
+                        "AND trade evidence preservation failed; broker execution preserved for recovery"
                     ) from delete_error
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as execution_rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -960,7 +1088,7 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Trade identity assignment failed; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 ) from identity_error
             state._trade_id = trade_uuid
               # FAIL-CLOSED: position must be persisted before activation.
@@ -971,14 +1099,12 @@ if (
                 execution_error = None
 
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as rollback_error:
                     db_error = rollback_error
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as rollback_error:
                     execution_error = rollback_error
 
@@ -989,13 +1115,13 @@ if (
                 if db_error is not None and execution_error is not None:
                     raise RuntimeError(
                         "FAIL-CLOSED: Position persistence failed; "
-                        "DB rollback AND execution rollback failed"
+                        "trade evidence preservation AND broker compensation were unavailable"
                     ) from execution_error
 
                 if db_error is not None:
                     raise RuntimeError(
                         "FAIL-CLOSED: Position persistence failed "
-                        "AND DB rollback failed"
+                        "AND trade evidence preservation failed"
                     ) from db_error
 
                 if execution_error is not None:
@@ -1006,7 +1132,7 @@ if (
 
                 raise RuntimeError(
                     "FAIL-CLOSED: Position persistence failed; "
-                    "DB trade and paper execution rolled back"
+                    "DB trade and broker execution preserved for recovery"
                 )
             # FAIL-CLOSED: journal persistence must succeed before activation.
             try:
@@ -1016,19 +1142,17 @@ if (
                 )
             except Exception as journal_error:
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as rollback_error:
                     try:
-                        execution_adapter.rollback(
-                            execution_result
-                        )
+                        rollback_execution_if_pre_submission(execution_result)
                     except Exception as execution_rollback_error:
                         position.close_trade()
                         state._trade_id = None
                         clear()
                         raise RuntimeError(
                             "FAIL-CLOSED: Journal persistence failed, "
-                            "DB rollback failed, AND execution rollback failed"
+                            "trade evidence preservation failed, AND broker execution remained non-reversible"
                         ) from execution_rollback_error
 
                     position.close_trade()
@@ -1036,13 +1160,11 @@ if (
                     clear()
                     raise RuntimeError(
                         "FAIL-CLOSED: Journal persistence failed "
-                        "AND DB rollback failed; paper execution rolled back"
+                        "AND trade evidence preservation failed; broker execution preserved for recovery"
                     ) from rollback_error
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as execution_rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -1057,8 +1179,18 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Journal persistence failed; "
-                    "DB trade and paper execution rolled back"
+                    "DB trade and broker execution preserved for recovery"
                 ) from journal_error
+
+            try:
+                update_execution_intent(
+                    authorization_id,
+                    status="RECONCILED",
+                )
+            except Exception as intent_error:
+                raise RuntimeError(
+                    "FAIL-CLOSED: Execution reconciliation persistence failed"
+                ) from intent_error
 
             manager.activate()
 
@@ -1081,9 +1213,7 @@ if (
                 )
             except Exception as position_error:
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -1098,13 +1228,11 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Position open failed; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 ) from position_error
 
 
 
-              # FAIL-CLOSED: allocate trade identity before DB persistence.
-            trade_uuid = str(uuid.uuid4())
 
             try:
                 recorded_uuid = record_trade_open(
@@ -1124,9 +1252,7 @@ if (
                 )
             except Exception as trade_error:
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -1141,18 +1267,18 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Trade persistence failed; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 ) from trade_error
 
             if recorded_uuid != trade_uuid:
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as rollback_error:
                     position.close_trade()
                     state._trade_id = None
                     clear()
                     raise RuntimeError(
-                        "FAIL-CLOSED: Trade identity mismatch AND DB rollback failed"
+                        "FAIL-CLOSED: Trade identity mismatch AND trade evidence preservation failed"
                     ) from rollback_error
 
                 position.close_trade()
@@ -1160,9 +1286,7 @@ if (
                 clear()
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as execution_rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -1177,26 +1301,24 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Trade identity mismatch; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 )
 
             try:
                 position.set_trade_uuid(trade_uuid)
             except Exception as identity_error:
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as delete_error:
                     try:
-                        execution_adapter.rollback(
-                            execution_result
-                        )
+                        rollback_execution_if_pre_submission(execution_result)
                     except Exception as execution_rollback_error:
                         position.close_trade()
                         state._trade_id = None
                         clear()
                         raise RuntimeError(
                             "FAIL-CLOSED: Trade identity assignment failed, "
-                            "DB rollback failed, AND execution rollback failed"
+                            "trade evidence preservation failed, AND broker execution remained non-reversible"
                         ) from execution_rollback_error
 
                     position.close_trade()
@@ -1204,13 +1326,11 @@ if (
                     clear()
                     raise RuntimeError(
                         "FAIL-CLOSED: Trade identity assignment failed "
-                        "AND DB rollback failed; paper execution rolled back"
+                        "AND trade evidence preservation failed; broker execution preserved for recovery"
                     ) from delete_error
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as execution_rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -1225,7 +1345,7 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Trade identity assignment failed; "
-                    "paper execution rolled back"
+                    "broker execution preserved for recovery"
                 ) from identity_error
             state._trade_id = trade_uuid
               # FAIL-CLOSED: position must be persisted before activation.
@@ -1236,14 +1356,12 @@ if (
                 execution_error = None
 
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as rollback_error:
                     db_error = rollback_error
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as rollback_error:
                     execution_error = rollback_error
 
@@ -1254,13 +1372,13 @@ if (
                 if db_error is not None and execution_error is not None:
                     raise RuntimeError(
                         "FAIL-CLOSED: Position persistence failed; "
-                        "DB rollback AND execution rollback failed"
+                        "trade evidence preservation AND broker compensation were unavailable"
                     ) from execution_error
 
                 if db_error is not None:
                     raise RuntimeError(
                         "FAIL-CLOSED: Position persistence failed "
-                        "AND DB rollback failed"
+                        "AND trade evidence preservation failed"
                     ) from db_error
 
                 if execution_error is not None:
@@ -1271,7 +1389,7 @@ if (
 
                 raise RuntimeError(
                     "FAIL-CLOSED: Position persistence failed; "
-                    "DB trade and paper execution rolled back"
+                    "DB trade and broker execution preserved for recovery"
                 )
             # FAIL-CLOSED: journal persistence must succeed before activation.
             try:
@@ -1281,19 +1399,17 @@ if (
                 )
             except Exception as journal_error:
                 try:
-                    delete_open_trade(trade_uuid)
+                    preserve_trade_for_recovery(trade_uuid)
                 except Exception as rollback_error:
                     try:
-                        execution_adapter.rollback(
-                            execution_result
-                        )
+                        rollback_execution_if_pre_submission(execution_result)
                     except Exception as execution_rollback_error:
                         position.close_trade()
                         state._trade_id = None
                         clear()
                         raise RuntimeError(
                             "FAIL-CLOSED: Journal persistence failed, "
-                            "DB rollback failed, AND execution rollback failed"
+                            "trade evidence preservation failed, AND broker execution remained non-reversible"
                         ) from execution_rollback_error
 
                     position.close_trade()
@@ -1301,13 +1417,11 @@ if (
                     clear()
                     raise RuntimeError(
                         "FAIL-CLOSED: Journal persistence failed "
-                        "AND DB rollback failed; paper execution rolled back"
+                        "AND trade evidence preservation failed; broker execution preserved for recovery"
                     ) from rollback_error
 
                 try:
-                    execution_adapter.rollback(
-                        execution_result
-                    )
+                    rollback_execution_if_pre_submission(execution_result)
                 except Exception as execution_rollback_error:
                     position.close_trade()
                     state._trade_id = None
@@ -1322,8 +1436,18 @@ if (
                 clear()
                 raise RuntimeError(
                     "FAIL-CLOSED: Journal persistence failed; "
-                    "DB trade and paper execution rolled back"
+                    "DB trade and broker execution preserved for recovery"
                 ) from journal_error
+
+            try:
+                update_execution_intent(
+                    authorization_id,
+                    status="RECONCILED",
+                )
+            except Exception as intent_error:
+                raise RuntimeError(
+                    "FAIL-CLOSED: Execution reconciliation persistence failed"
+                ) from intent_error
 
             manager.activate()
 # ==================================================

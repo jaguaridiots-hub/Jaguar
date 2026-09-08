@@ -34,6 +34,7 @@ Runtime constraints:
 - no network request at module import time
 """
 
+import math
 from core.market_detector import MarketDetector
 from market.adapter import MarketAdapter
 from market.provider import MarketProviderError
@@ -340,5 +341,58 @@ def update_state(
     market["low"] = low
     market["volume"] = volume
     market["candles"] = candles
+
+    # ==================================================
+    # CANONICAL LIVE MARKET INTEGRITY CONTRACT
+    # ==================================================
+    # CRYPTO currently resolves through the implemented
+    # Binance provider. Other ProviderManager entries are
+    # currently fail-closed non-implemented provider stubs.
+    # Execution authorization is derived from the actual
+    # latest canonical OHLCV candle.
+    # ==================================================
+
+    try:
+        o = float(latest["open"])
+        h = float(latest["high"])
+        l = float(latest["low"])
+        c = float(latest["close"])
+        v = float(latest["volume"])
+
+        integrity_ok = (
+            all(
+                map(
+                    math.isfinite,
+                    (o, h, l, c, v),
+                )
+            )
+            and o > 0
+            and h > 0
+            and l > 0
+            and c > 0
+            and h >= max(o, c)
+            and l <= min(o, c)
+            and h > l
+            and v > 0
+        )
+    except (KeyError, TypeError, ValueError):
+        integrity_ok = False
+
+    provider_source = {
+        "CRYPTO": "BINANCE",
+        "MCX": "UPSTOX",
+    }.get(
+        market_identity,
+        "UNKNOWN",
+    )
+
+    provider_known = provider_source != "UNKNOWN"
+
+    state.market_metadata = {
+        "source": provider_source,
+        "synthetic": not provider_known,
+        "live_data_valid": integrity_ok and provider_known,
+        "execution_allowed": integrity_ok and provider_known,
+    }
 
     return state

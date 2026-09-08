@@ -7,7 +7,6 @@ from core.asset_registry import get_asset_class
 from .database import (
     init_db,
     insert_open_trade,
-    delete_open_trade,
     update_close_trade,
     insert_decision_log,
 )
@@ -71,9 +70,19 @@ def record_trade_open(
     decision_weights = getattr(state, "_decision_weights", {})
     brain_explain = getattr(state, "brain_explain", {})
     regime = getattr(state, "regime", {})
+    regime_result = (
+        state.market.get("regime_result", {})
+        if isinstance(getattr(state, "market", None), dict)
+        else {}
+    )
     mtf = getattr(state, "mtf", {})
     smc = getattr(state, "smc", {})
     liquidity = getattr(state, "liquidity", {})
+    liquidity_result = (
+        state.market.get("liquidity_result", {})
+        if isinstance(getattr(state, "market", None), dict)
+        else {}
+    )
     fvg = getattr(state, "fvg", {})
     orderflow = getattr(state, "orderflow", {})
     enterprise_targets = trade_plan.get("targets", [])
@@ -102,7 +111,7 @@ def record_trade_open(
         "enterprise_trade": enterprise_trade,
         "enterprise_execution": enterprise_execution,
         "contract_source": contract_source,
-        "mode": state.mode,
+        "mode": getattr(state, "mode", "SWING"),
         "regime": regime,
         "session": getattr(state, "session", {}),
         "market": {
@@ -152,7 +161,7 @@ def record_trade_open(
         "open_time": entry_time or datetime.now().isoformat(),
         "symbol": state.symbol,
         "timeframe": state.interval,
-        "mode": state.mode,
+        "mode": getattr(state, "mode", "SWING"),
         "entry_price": trade_plan.get("entry"),
         "stop_loss": trade_plan.get("stop_loss", trade_plan.get("stop")),
         "take_profit": take_profit,
@@ -167,10 +176,10 @@ def record_trade_open(
         # Compatibility column; canonical authority remains IDM.
         "master_decision": idm.get("decision"),
         "validator_score": validator.get("validation_score", 0),
-        "market_regime": regime.get("regime"),
+        "market_regime": regime_result.get("regime") if isinstance(regime_result, dict) else None,
         "mtf_bias": mtf.get("bias"),
         "smc_signal": smc.get("signal"),
-        "liquidity_signal": liquidity.get("signal"),
+        "liquidity_signal": liquidity_result.get("signal") if isinstance(liquidity_result, dict) else None,
         "fvg_signal": fvg.get("signal"),
         "orderflow_signal": orderflow.get("signal"),
         "run_id": run_id,
@@ -180,11 +189,6 @@ def record_trade_open(
     insert_open_trade(data)
     print(f"📊 Research: Trade {trade_uuid} opened.")
     return trade_uuid
-
-def compensate_trade_open(trade_uuid):
-    """Remove a DB trade created before position persistence failed."""
-    delete_open_trade(trade_uuid)
-
 
 def record_trade_abandoned(uuid):
     """Mark a finite-replay trade as right-censored/abandoned.
@@ -262,6 +266,17 @@ def record_decision_snapshot(state, candle_timestamp=None):
     regime = getattr(state, "regime", {})
     smc = getattr(state, "smc", {})
     liquidity = getattr(state, "liquidity", {})
+    mode = getattr(state, "mode", "SWING")
+    liquidity_result = (
+        state.market.get("liquidity_result", {})
+        if isinstance(getattr(state, "market", None), dict)
+        else {}
+    )
+    regime_result = (
+        state.market.get("regime_result", {})
+        if isinstance(getattr(state, "market", None), dict)
+        else {}
+    )
     orderflow = getattr(state, "orderflow", {})
     premium_discount = getattr(state, "premium_discount", None)
     session = getattr(state, "session", {})
@@ -306,7 +321,11 @@ def record_decision_snapshot(state, candle_timestamp=None):
         "Structure": getattr(state, "structure", {}).get("signal", "NONE"),
         "Order Flow": orderflow.get("signal", "NONE"),               # was "OrderFlow"
         "Wyckoff": getattr(state, "wyckoff", {}).get("signal", "NONE"),
-        "Liquidity": liquidity.get("signal", "NONE"),
+        "Liquidity": (
+            liquidity_result.get("signal", "NONE")
+            if isinstance(liquidity_result, dict)
+            else "NONE"
+        ),
         "Volume Profile": volume_profile.get("signal", "NONE"),      # was "VolumeProfile"
         "Session": session.get("signal", "NONE") if isinstance(session, dict) else "NONE",
         "Premium/Discount": pd_signal or "NONE",                     # was "PremiumDiscount"
@@ -338,14 +357,14 @@ def record_decision_snapshot(state, candle_timestamp=None):
         "timestamp": ts,
         "symbol": state.symbol,
         "timeframe": state.interval,
-        "mode": state.mode,
+        "mode": mode,
         "brain_score": brain.get("score"),
         "composite_score": md.get("score"),
         "decision": decision,
         "contributions_json": json.dumps(contributions, default=str),
-        "regime": regime.get("regime"),
+        "regime": regime_result.get("regime") if isinstance(regime_result, dict) else None,
         "smc_signal": smc.get("signal"),
-        "liquidity_signal": liquidity.get("signal"),
+        "liquidity_signal": liquidity_result.get("signal") if isinstance(liquidity_result, dict) else None,
         "orderflow_signal": orderflow.get("signal"),
         "premium_discount": pd_signal,
         "session_score": session.get("score") if isinstance(session, dict) else None,

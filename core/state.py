@@ -10,9 +10,21 @@ class JaguarState:
         self.market = None
 
         # -----------------------
+        # Canonical Indicators
+        # -----------------------
+        self.ema20 = 0.0
+        self.ema50 = 0.0
+        self.ema100 = 0.0
+        self.ema200 = 0.0
+        self.rsi = 0.0
+        self.atr = 0.0
+        self.volume = 0.0
+
+        # -----------------------
         # Engine Results
         # -----------------------
         self.indicators = {}
+        self.idm = {}
         self.score = {}
         self.smc = {}
         self.structure = {}
