@@ -29,16 +29,46 @@ class ExecutionAdapter:
             )
 
         self.mode = mode
-        self.broker = (
-            broker
-            if broker is not None
-            else PaperBrokerAdapter()
-        )
+
+        if broker is None:
+            if mode != self.PAPER:
+                raise RuntimeError(
+                    "FAIL-CLOSED: LIVE execution requires an explicit "
+                    "LIVE broker"
+                )
+            broker = PaperBrokerAdapter()
+
+        broker_mode = str(
+            getattr(
+                broker,
+                "EXECUTION_MODE",
+                "",
+            )
+        ).upper().strip()
+
+        if broker_mode != mode:
+            raise RuntimeError(
+                "FAIL-CLOSED: Execution mode does not match broker mode"
+            )
+
+        self.broker = broker
 
     def authorize(self, execution):
         if not isinstance(execution, dict):
             raise RuntimeError(
                 "FAIL-CLOSED: Invalid execution contract"
+            )
+
+        execution_mode = str(
+            execution.get(
+                "mode",
+                self.PAPER,
+            )
+        ).upper().strip()
+
+        if execution_mode != self.mode:
+            raise RuntimeError(
+                "FAIL-CLOSED: Execution mode does not match adapter mode"
             )
 
         if self.mode == self.LIVE:

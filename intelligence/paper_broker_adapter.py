@@ -13,6 +13,9 @@ import uuid
 
 class PaperBrokerAdapter:
 
+    EXECUTION_MODE = "PAPER"
+    BROKER_NAME = "Paper"
+
     OPEN = "OPEN"
     FILLED = "FILLED"
     REJECTED = "REJECTED"
