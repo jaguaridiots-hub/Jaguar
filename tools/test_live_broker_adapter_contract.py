@@ -338,6 +338,92 @@ assert observed["filled_qty"] == 1
 
 print("RECOVERY_OBSERVATION: PASS")
 
+
+print("=== DIRECTIONAL ADAPTER -> RECOVERY CONTRACT ===")
+
+
+def _directional_intent(decision):
+    return {
+        "authorization_id": "AUTH-001",
+        "client_order_id": "JGX-CLIENT-001",
+        "broker_order_id": "UPSTOX-ORDER-001",
+        "symbol": "SBIN",
+        "decision": decision,
+        "instrument_token": "NSE_EQ|TEST001",
+    }
+
+
+def _check_directional_observation(
+    decision,
+    transaction_type,
+    expected_side,
+    should_fail=False,
+):
+    fake_directional = FakeTransport()
+    fake_directional.details_response["data"]["transaction_type"] = (
+        transaction_type
+    )
+
+    directional_broker = LiveBrokerAdapter(
+        transport=fake_directional
+    )
+
+    intent = _directional_intent(decision)
+
+    if should_fail:
+        try:
+            directional_broker.observe_order(intent)
+        except LiveBrokerAdapterError as exc:
+            assert "side identity mismatch" in str(exc).lower()
+            return
+
+        raise AssertionError(
+            "Contradictory broker side was accepted"
+        )
+
+    observed_direction = directional_broker.observe_order(
+        intent
+    )
+
+    assert observed_direction["side"] == expected_side
+    assert observed_direction["transaction_type"] == transaction_type
+    assert observed_direction["requested_qty"] == 1
+    assert observed_direction["filled_qty"] == 1
+
+
+_check_directional_observation(
+    "LONG",
+    "BUY",
+    "BUY",
+)
+print("LONG_BUY_ADAPTER_SIDE: PASS")
+
+_check_directional_observation(
+    "LONG",
+    "SELL",
+    "SELL",
+    should_fail=True,
+)
+print("LONG_SELL_FAIL_CLOSED: PASS")
+
+_check_directional_observation(
+    "SHORT",
+    "SELL",
+    "SELL",
+)
+print("SHORT_SELL_ADAPTER_SIDE: PASS")
+
+_check_directional_observation(
+    "SHORT",
+    "BUY",
+    "BUY",
+    should_fail=True,
+)
+print("SHORT_BUY_FAIL_CLOSED: PASS")
+
+print("DIRECTIONAL_ADAPTER_CONTRACT: PASS")
+
+
 bad_intent = dict(observation_intent)
 bad_intent["client_order_id"] = "WRONG-CLIENT"
 
