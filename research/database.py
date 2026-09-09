@@ -161,6 +161,94 @@ def _migrate_v7_to_v8(cursor):
 # ----------------------------------------------------------------------
 # Schema validation & self‑healing
 # ----------------------------------------------------------------------
+def _migrate_v8_to_v9(cursor):
+    """Create the V9 multi-order and protection persistence contracts."""
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS execution_orders (
+            order_lineage_id TEXT PRIMARY KEY,
+            authorization_id TEXT NOT NULL,
+            trade_uuid TEXT NOT NULL,
+            client_order_id TEXT NOT NULL,
+            broker_order_id TEXT NOT NULL UNIQUE,
+            child_index INTEGER NOT NULL,
+            instrument_token TEXT NOT NULL,
+            transaction_type TEXT NOT NULL,
+            requested_qty REAL NOT NULL,
+            filled_qty REAL NOT NULL DEFAULT 0,
+            remaining_qty REAL NOT NULL DEFAULT 0,
+            average_fill_price REAL,
+            status TEXT NOT NULL,
+            raw_status TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (authorization_id)
+                REFERENCES execution_intents(authorization_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE UNIQUE INDEX IF NOT EXISTS
+        idx_execution_orders_authorization_child
+        ON execution_orders(
+            authorization_id,
+            child_index
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_orders_authorization
+        ON execution_orders(authorization_id)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_orders_trade_uuid
+        ON execution_orders(trade_uuid)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_orders_status
+        ON execution_orders(status)
+    """)
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS execution_protection (
+            protection_id TEXT PRIMARY KEY,
+            authorization_id TEXT NOT NULL,
+            protection_type TEXT NOT NULL,
+            target_index INTEGER,
+            broker_order_id TEXT UNIQUE,
+            requested_qty REAL NOT NULL,
+            verified_qty REAL,
+            requested_price REAL,
+            verified_price REAL,
+            status TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (authorization_id)
+                REFERENCES execution_intents(authorization_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_protection_authorization
+        ON execution_protection(authorization_id)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_protection_status
+        ON execution_protection(status)
+    """)
+
+    _set_schema_version(cursor, 9)
+
+
+
 def validate_schema(cursor):
     required = {
         "uuid", "authorization_id", "status",
@@ -264,7 +352,15 @@ def init_db():
         # but whose V8 objects are incomplete.
         _migrate_v7_to_v8(c)
 
-    _set_schema_version(c, 8)
+    # V9 owns multi-order broker lineage and protection persistence.
+    if version < 9:
+        _migrate_v8_to_v9(c)
+        version = 9
+    else:
+        # Idempotently ensure V9 objects remain present.
+        _migrate_v8_to_v9(c)
+
+    _set_schema_version(c, 9)
     conn.commit()
 
     missing = validate_schema(c)
@@ -397,15 +493,42 @@ _EXECUTION_INTENT_TERMINAL = {
 
 _EXECUTION_INTENT_TRANSITIONS = {
     "AUTHORIZED": {
+        "SUBMITTING",
         "SUBMITTED",
         "REJECTED",
         "CANCELLED",
         "HALTED",
     },
-    "SUBMITTED": {
-        "RECONCILED",
+    "SUBMITTING": {
+        "SUBMITTED",
+        "PARTIAL",
         "REJECTED",
         "CANCELLED",
+        "HALTED",
+    },
+    "SUBMITTED": {
+        "PARTIAL",
+        "FILLED",
+        "REJECTED",
+        "CANCELLED",
+        "HALTED",
+    },
+    "PARTIAL": {
+        "SUBMITTED",
+        "FILLED",
+        "CANCELLED",
+        "HALTED",
+    },
+    "FILLED": {
+        "POSITION_RECONCILING",
+        "HALTED",
+    },
+    "POSITION_RECONCILING": {
+        "PROTECTION_PENDING",
+        "HALTED",
+    },
+    "PROTECTION_PENDING": {
+        "RECONCILED",
         "HALTED",
     },
     "RECONCILED": set(),
@@ -458,9 +581,9 @@ def insert_execution_intent(data: dict):
             )
 
     mode = data["mode"].strip().upper()
-    if mode != "PAPER":
+    if mode not in {"PAPER", "LIVE"}:
         raise RuntimeError(
-            "FAIL-CLOSED: execution intent mode must be PAPER"
+            "FAIL-CLOSED: invalid execution intent mode"
         )
 
     decision = data["decision"].strip().upper()
@@ -673,6 +796,892 @@ def update_execution_intent(
     finally:
         conn.close()
 
+
+
+_EXECUTION_ORDER_TERMINAL = {
+    "FILLED",
+    "REJECTED",
+    "CANCELLED",
+    "HALTED",
+}
+
+_EXECUTION_ORDER_TRANSITIONS = {
+    "SUBMITTED": {
+        "PARTIAL",
+        "FILLED",
+        "REJECTED",
+        "CANCELLED",
+        "HALTED",
+    },
+    "PARTIAL": {
+        "FILLED",
+        "CANCELLED",
+        "HALTED",
+    },
+    "FILLED": set(),
+    "REJECTED": set(),
+    "CANCELLED": set(),
+    "HALTED": set(),
+}
+
+_EXECUTION_PROTECTION_TERMINAL = {
+    "VERIFIED",
+    "FAILED",
+    "HALTED",
+}
+
+_EXECUTION_PROTECTION_TRANSITIONS = {
+    "PENDING": {
+        "VERIFIED",
+        "FAILED",
+        "HALTED",
+    },
+    "VERIFIED": set(),
+    "FAILED": set(),
+    "HALTED": set(),
+}
+
+
+def _finite_non_negative(value, field):
+    if isinstance(value, bool):
+        raise ValueError(f"Invalid execution-order {field}")
+
+    try:
+        numeric = float(value)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"Invalid execution-order {field}"
+        ) from exc
+
+    if numeric != numeric or numeric in (
+        float("inf"),
+        float("-inf"),
+    ) or numeric < 0:
+        raise ValueError(
+            f"Invalid execution-order {field}"
+        )
+
+    return numeric
+
+
+def _finite_positive(value, field):
+    numeric = _finite_non_negative(value, field)
+    if numeric <= 0:
+        raise ValueError(
+            f"Invalid {field}"
+        )
+    return numeric
+
+
+def insert_execution_order(data: dict):
+    """Durably create one broker-order child under an execution intent."""
+    required = {
+        "order_lineage_id",
+        "authorization_id",
+        "trade_uuid",
+        "client_order_id",
+        "broker_order_id",
+        "child_index",
+        "instrument_token",
+        "transaction_type",
+        "requested_qty",
+        "filled_qty",
+        "remaining_qty",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+
+    missing = required - set(data)
+    if missing:
+        raise ValueError(
+            f"Missing execution-order fields: {sorted(missing)}"
+        )
+
+    string_fields = (
+        "order_lineage_id",
+        "authorization_id",
+        "trade_uuid",
+        "client_order_id",
+        "broker_order_id",
+        "instrument_token",
+        "transaction_type",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+
+    for field in string_fields:
+        value = data.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"Invalid execution-order {field}"
+            )
+
+    child_index = data.get("child_index")
+    if isinstance(child_index, bool):
+        raise ValueError("Invalid execution-order child_index")
+
+    try:
+        child_index = int(child_index)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Invalid execution-order child_index"
+        ) from exc
+
+    if child_index < 0:
+        raise ValueError(
+            "Invalid execution-order child_index"
+        )
+
+    transaction_type = data["transaction_type"].strip().upper()
+    if transaction_type not in {"BUY", "SELL"}:
+        raise ValueError(
+            "Invalid execution-order transaction_type"
+        )
+
+    status = data["status"].strip().upper()
+    if status not in {
+        "SUBMITTED",
+        "PARTIAL",
+        "FILLED",
+        "REJECTED",
+        "CANCELLED",
+        "HALTED",
+    }:
+        raise ValueError(
+            "Invalid execution-order status"
+        )
+
+    requested_qty = _finite_positive(
+        data["requested_qty"],
+        "requested_qty",
+    )
+    filled_qty = _finite_non_negative(
+        data["filled_qty"],
+        "filled_qty",
+    )
+    remaining_qty = _finite_non_negative(
+        data["remaining_qty"],
+        "remaining_qty",
+    )
+
+    if filled_qty > requested_qty:
+        raise ValueError(
+            "Execution-order filled_qty exceeds requested_qty"
+        )
+
+    if remaining_qty > requested_qty:
+        raise ValueError(
+            "Execution-order remaining_qty exceeds requested_qty"
+        )
+
+    if abs(
+        (filled_qty + remaining_qty) - requested_qty
+    ) > 1e-12:
+        raise ValueError(
+            "Execution-order quantity conservation failed"
+        )
+
+    average_fill_price = data.get("average_fill_price")
+    if average_fill_price is not None:
+        average_fill_price = _finite_non_negative(
+            average_fill_price,
+            "average_fill_price",
+        )
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO execution_orders (
+                order_lineage_id,
+                authorization_id,
+                trade_uuid,
+                client_order_id,
+                broker_order_id,
+                child_index,
+                instrument_token,
+                transaction_type,
+                requested_qty,
+                filled_qty,
+                remaining_qty,
+                average_fill_price,
+                status,
+                raw_status,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["order_lineage_id"],
+                data["authorization_id"],
+                data["trade_uuid"],
+                data["client_order_id"],
+                data["broker_order_id"],
+                child_index,
+                data["instrument_token"],
+                transaction_type,
+                requested_qty,
+                filled_qty,
+                remaining_qty,
+                average_fill_price,
+                status,
+                data.get("raw_status"),
+                data["created_at"],
+                data["updated_at"],
+            ),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_execution_order(order_lineage_id: str):
+    if (
+        not isinstance(order_lineage_id, str)
+        or not order_lineage_id.strip()
+    ):
+        raise ValueError("Invalid order_lineage_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_orders
+            WHERE order_lineage_id = ?
+            """,
+            (order_lineage_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def get_execution_order_by_broker_id(broker_order_id: str):
+    if (
+        not isinstance(broker_order_id, str)
+        or not broker_order_id.strip()
+    ):
+        raise ValueError("Invalid broker_order_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_orders
+            WHERE broker_order_id = ?
+            """,
+            (broker_order_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def list_execution_orders(authorization_id: str):
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+    ):
+        raise ValueError("Invalid authorization_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_orders
+            WHERE authorization_id = ?
+            ORDER BY child_index ASC
+            """,
+            (authorization_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def update_execution_order(
+    order_lineage_id: str,
+    *,
+    status: str = None,
+    filled_qty=None,
+    remaining_qty=None,
+    average_fill_price=None,
+    raw_status=None,
+):
+    if (
+        not isinstance(order_lineage_id, str)
+        or not order_lineage_id.strip()
+    ):
+        raise ValueError("Invalid order_lineage_id")
+
+    supplied = any(
+        value is not None
+        for value in (
+            status,
+            filled_qty,
+            remaining_qty,
+            average_fill_price,
+            raw_status,
+        )
+    )
+
+    if not supplied:
+        raise ValueError(
+            "No execution-order update supplied"
+        )
+
+    conn = get_connection()
+    try:
+        current = conn.execute(
+            """
+            SELECT *
+            FROM execution_orders
+            WHERE order_lineage_id = ?
+            """,
+            (order_lineage_id,),
+        ).fetchone()
+
+        if current is None:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution order not found: "
+                f"{order_lineage_id}"
+            )
+
+        current_status = str(
+            current["status"]
+        ).strip().upper()
+
+        if current_status in _EXECUTION_ORDER_TERMINAL:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: cannot modify terminal execution order: "
+                f"{order_lineage_id}"
+            )
+
+        assignments = []
+        params = []
+
+        if status is not None:
+            if (
+                not isinstance(status, str)
+                or not status.strip()
+            ):
+                raise ValueError(
+                    "Invalid execution-order status"
+                )
+
+            requested_status = status.strip().upper()
+
+            if requested_status not in {
+                "SUBMITTED",
+                "PARTIAL",
+                "FILLED",
+                "REJECTED",
+                "CANCELLED",
+                "HALTED",
+            }:
+                raise ValueError(
+                    "Invalid execution-order status"
+                )
+
+            if requested_status not in (
+                _EXECUTION_ORDER_TRANSITIONS.get(
+                    current_status,
+                    set(),
+                )
+            ):
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: invalid execution-order "
+                    "transition "
+                    f"{current_status} -> {requested_status}"
+                )
+
+            assignments.append("status = ?")
+            params.append(requested_status)
+
+        new_filled = (
+            _finite_non_negative(
+                filled_qty,
+                "filled_qty",
+            )
+            if filled_qty is not None
+            else float(current["filled_qty"])
+        )
+
+        new_remaining = (
+            _finite_non_negative(
+                remaining_qty,
+                "remaining_qty",
+            )
+            if remaining_qty is not None
+            else float(current["remaining_qty"])
+        )
+
+        requested_qty = float(
+            current["requested_qty"]
+        )
+
+        if new_filled > requested_qty:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution-order filled_qty "
+                "exceeds requested_qty"
+            )
+
+        if new_remaining > requested_qty:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution-order remaining_qty "
+                "exceeds requested_qty"
+            )
+
+        if abs(
+            (new_filled + new_remaining)
+            - requested_qty
+        ) > 1e-12:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution-order quantity "
+                "conservation failed"
+            )
+
+        if filled_qty is not None:
+            assignments.append("filled_qty = ?")
+            params.append(new_filled)
+
+        if remaining_qty is not None:
+            assignments.append("remaining_qty = ?")
+            params.append(new_remaining)
+
+        if average_fill_price is not None:
+            new_average = _finite_non_negative(
+                average_fill_price,
+                "average_fill_price",
+            )
+            assignments.append(
+                "average_fill_price = ?"
+            )
+            params.append(new_average)
+
+        if raw_status is not None:
+            if (
+                not isinstance(raw_status, str)
+                or not raw_status.strip()
+            ):
+                raise ValueError(
+                    "Invalid execution-order raw_status"
+                )
+            assignments.append("raw_status = ?")
+            params.append(raw_status)
+
+        assignments.append(
+            "updated_at = CURRENT_TIMESTAMP"
+        )
+        params.append(order_lineage_id)
+
+        cursor = conn.execute(
+            f"""
+            UPDATE execution_orders
+            SET {", ".join(assignments)}
+            WHERE order_lineage_id = ?
+            """,
+            params,
+        )
+
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution order not found: "
+                f"{order_lineage_id}"
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def insert_execution_protection(data: dict):
+    """Durably create one requested protection record."""
+    required = {
+        "protection_id",
+        "authorization_id",
+        "protection_type",
+        "requested_qty",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+
+    missing = required - set(data)
+    if missing:
+        raise ValueError(
+            f"Missing execution-protection fields: {sorted(missing)}"
+        )
+
+    string_fields = (
+        "protection_id",
+        "authorization_id",
+        "protection_type",
+        "status",
+        "created_at",
+        "updated_at",
+    )
+
+    for field in string_fields:
+        value = data.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"Invalid execution-protection {field}"
+            )
+
+    protection_type = data[
+        "protection_type"
+    ].strip().upper()
+
+    if protection_type not in {
+        "STOP_LOSS",
+        "TAKE_PROFIT",
+    }:
+        raise ValueError(
+            "Invalid execution-protection type"
+        )
+
+    status = data["status"].strip().upper()
+
+    if status not in {
+        "PENDING",
+        "VERIFIED",
+        "FAILED",
+        "HALTED",
+    }:
+        raise ValueError(
+            "Invalid execution-protection status"
+        )
+
+    requested_qty = _finite_positive(
+        data["requested_qty"],
+        "requested_qty",
+    )
+
+    verified_qty = data.get("verified_qty")
+    if verified_qty is not None:
+        verified_qty = _finite_non_negative(
+            verified_qty,
+            "verified_qty",
+        )
+        if verified_qty > requested_qty:
+            raise ValueError(
+                "Execution-protection verified_qty "
+                "exceeds requested_qty"
+            )
+
+    requested_price = data.get("requested_price")
+    if requested_price is not None:
+        requested_price = _finite_positive(
+            requested_price,
+            "requested_price",
+        )
+
+    verified_price = data.get("verified_price")
+    if verified_price is not None:
+        verified_price = _finite_positive(
+            verified_price,
+            "verified_price",
+        )
+
+    target_index = data.get("target_index")
+    if target_index is not None:
+        if isinstance(target_index, bool):
+            raise ValueError(
+                "Invalid execution-protection target_index"
+            )
+        try:
+            target_index = int(target_index)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "Invalid execution-protection target_index"
+            ) from exc
+        if target_index < 0:
+            raise ValueError(
+                "Invalid execution-protection target_index"
+            )
+
+    broker_order_id = data.get("broker_order_id")
+    if broker_order_id is not None:
+        if (
+            not isinstance(broker_order_id, str)
+            or not broker_order_id.strip()
+        ):
+            raise ValueError(
+                "Invalid execution-protection broker_order_id"
+            )
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO execution_protection (
+                protection_id,
+                authorization_id,
+                protection_type,
+                target_index,
+                broker_order_id,
+                requested_qty,
+                verified_qty,
+                requested_price,
+                verified_price,
+                status,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["protection_id"],
+                data["authorization_id"],
+                protection_type,
+                target_index,
+                broker_order_id,
+                requested_qty,
+                verified_qty,
+                requested_price,
+                verified_price,
+                status,
+                data["created_at"],
+                data["updated_at"],
+            ),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_execution_protection(protection_id: str):
+    if (
+        not isinstance(protection_id, str)
+        or not protection_id.strip()
+    ):
+        raise ValueError("Invalid protection_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_protection
+            WHERE protection_id = ?
+            """,
+            (protection_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def list_execution_protections(authorization_id: str):
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+    ):
+        raise ValueError("Invalid authorization_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_protection
+            WHERE authorization_id = ?
+            ORDER BY protection_type, target_index
+            """,
+            (authorization_id,),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def update_execution_protection(
+    protection_id: str,
+    *,
+    status: str = None,
+    broker_order_id: str = None,
+    verified_qty=None,
+    verified_price=None,
+):
+    if (
+        not isinstance(protection_id, str)
+        or not protection_id.strip()
+    ):
+        raise ValueError("Invalid protection_id")
+
+    if all(
+        value is None
+        for value in (
+            status,
+            broker_order_id,
+            verified_qty,
+            verified_price,
+        )
+    ):
+        raise ValueError(
+            "No execution-protection update supplied"
+        )
+
+    conn = get_connection()
+    try:
+        current = conn.execute(
+            """
+            SELECT *
+            FROM execution_protection
+            WHERE protection_id = ?
+            """,
+            (protection_id,),
+        ).fetchone()
+
+        if current is None:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution protection not found: "
+                f"{protection_id}"
+            )
+
+        current_status = str(
+            current["status"]
+        ).strip().upper()
+
+        if current_status in _EXECUTION_PROTECTION_TERMINAL:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: cannot modify terminal execution protection: "
+                f"{protection_id}"
+            )
+
+        assignments = []
+        params = []
+
+        if status is not None:
+            if (
+                not isinstance(status, str)
+                or not status.strip()
+            ):
+                raise ValueError(
+                    "Invalid execution-protection status"
+                )
+
+            requested_status = status.strip().upper()
+
+            if requested_status not in (
+                _EXECUTION_PROTECTION_TRANSITIONS.get(
+                    current_status,
+                    set(),
+                )
+            ):
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: invalid execution-protection "
+                    "transition "
+                    f"{current_status} -> {requested_status}"
+                )
+
+            assignments.append("status = ?")
+            params.append(requested_status)
+
+        if broker_order_id is not None:
+            if (
+                not isinstance(broker_order_id, str)
+                or not broker_order_id.strip()
+            ):
+                raise ValueError(
+                    "Invalid execution-protection broker_order_id"
+                )
+
+            current_broker_order_id = current[
+                "broker_order_id"
+            ]
+
+            if current_broker_order_id is not None:
+                if current_broker_order_id != broker_order_id:
+                    conn.rollback()
+                    raise RuntimeError(
+                        "FAIL-CLOSED: protection broker_order_id "
+                        "is immutable once assigned "
+                        f"({protection_id})"
+                    )
+            else:
+                assignments.append(
+                    "broker_order_id = ?"
+                )
+                params.append(broker_order_id)
+
+        requested_qty = float(
+            current["requested_qty"]
+        )
+
+        if verified_qty is not None:
+            new_verified_qty = _finite_non_negative(
+                verified_qty,
+                "verified_qty",
+            )
+
+            if new_verified_qty > requested_qty:
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: protection verified_qty "
+                    "exceeds requested_qty"
+                )
+
+            assignments.append("verified_qty = ?")
+            params.append(new_verified_qty)
+
+        if verified_price is not None:
+            new_verified_price = _finite_positive(
+                verified_price,
+                "verified_price",
+            )
+
+            assignments.append("verified_price = ?")
+            params.append(new_verified_price)
+
+        assignments.append(
+            "updated_at = CURRENT_TIMESTAMP"
+        )
+        params.append(protection_id)
+
+        cursor = conn.execute(
+            f"""
+            UPDATE execution_protection
+            SET {", ".join(assignments)}
+            WHERE protection_id = ?
+            """,
+            params,
+        )
+
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution protection not found: "
+                f"{protection_id}"
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
