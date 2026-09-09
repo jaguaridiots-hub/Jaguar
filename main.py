@@ -774,6 +774,24 @@ if (
         ):
             targets_for_intent = []
 
+        intent_decision = {
+            "ENTER_LONG": "LONG",
+            "ENTER_SHORT": "SHORT",
+        }.get(
+            str(
+                execution.get(
+                    "decision",
+                    "",
+                )
+            ).upper().strip()
+        )
+
+        if intent_decision not in {"LONG", "SHORT"}:
+            raise RuntimeError(
+                "FAIL-CLOSED: Invalid execution decision for "
+                "durable execution intent"
+            )
+
         try:
             insert_execution_intent(
                 {
@@ -789,10 +807,7 @@ if (
                         "mode",
                         "PAPER",
                     ),
-                    "decision": execution.get(
-                        "decision",
-                        "",
-                    ),
+                    "decision": intent_decision,
                     "quantity": float(
                         execution.get(
                             "position_size",
