@@ -862,6 +862,168 @@ class LiveBrokerAdapter:
 
         return normalized
 
+    def observe_protection(
+        self,
+        intent,
+        protection,
+        *,
+        instrument_token=None,
+    ):
+        """
+        Return one normalized broker-protection observation.
+
+        Read-only. No broker mutation occurs.
+        """
+        if not isinstance(intent, dict):
+            raise LiveBrokerAdapterError(
+                "LIVE protection observation requires an intent object"
+            )
+
+        if not isinstance(protection, dict):
+            raise LiveBrokerAdapterError(
+                "LIVE protection observation requires a protection object"
+            )
+
+        authorization_id = self._required_string(
+            intent,
+            "authorization_id",
+        )
+
+        symbol = self._required_string(
+            intent,
+            "symbol",
+        )
+
+        resolved_token = (
+            instrument_token
+            or intent.get("instrument_token")
+        )
+
+        resolved_token = self._required_string(
+            {"instrument_token": resolved_token},
+            "instrument_token",
+        )
+
+        broker_order_id = self._required_string(
+            protection,
+            "broker_order_id",
+        )
+
+        order = self.get_order(
+            broker_order_id,
+        )
+
+        if order is None:
+            return None
+
+        if not isinstance(order, dict):
+            raise LiveBrokerAdapterError(
+                "LIVE protection order observation must be an object"
+            )
+
+        observed_order_id = (
+            order.get("broker_order_id")
+            or order.get("order_id")
+        )
+
+        observed_order_id = self._required_string(
+            {"broker_order_id": observed_order_id},
+            "broker_order_id",
+        )
+
+        if observed_order_id != broker_order_id:
+            raise LiveBrokerAdapterError(
+                "LIVE protection broker_order_id mismatch"
+            )
+
+        observed_token = self._required_string(
+            {
+                "instrument_token": order.get(
+                    "instrument_token"
+                )
+            },
+            "instrument_token",
+        )
+
+        if observed_token != resolved_token:
+            raise LiveBrokerAdapterError(
+                "LIVE protection instrument identity mismatch"
+            )
+
+        quantity = self._positive_finite_number(
+            order.get("quantity"),
+            "protection_quantity",
+        )
+
+        status = self._required_string(
+            {
+                "status": order.get("status")
+            },
+            "status",
+        ).upper()
+
+        order_type = self._required_string(
+            {
+                "order_type": order.get("order_type")
+            },
+            "order_type",
+        ).upper()
+
+        transaction_type = self._required_string(
+            {
+                "transaction_type": order.get(
+                    "transaction_type"
+                )
+            },
+            "transaction_type",
+        ).upper()
+
+        trigger_price = order.get("trigger_price")
+        if trigger_price is not None:
+            try:
+                trigger_price = float(trigger_price)
+            except (TypeError, ValueError) as exc:
+                raise LiveBrokerAdapterError(
+                    "LIVE protection trigger_price is invalid"
+                ) from exc
+
+            if not math.isfinite(trigger_price) or trigger_price < 0:
+                raise LiveBrokerAdapterError(
+                    "LIVE protection trigger_price is invalid"
+                )
+
+        price = order.get("price")
+        if price is not None:
+            try:
+                price = float(price)
+            except (TypeError, ValueError) as exc:
+                raise LiveBrokerAdapterError(
+                    "LIVE protection price is invalid"
+                ) from exc
+
+            if not math.isfinite(price) or price < 0:
+                raise LiveBrokerAdapterError(
+                    "LIVE protection price is invalid"
+                )
+
+        normalized = dict(order)
+        normalized.update(
+            {
+                "authorization_id": authorization_id,
+                "symbol": symbol,
+                "instrument_token": resolved_token,
+                "broker_order_id": observed_order_id,
+                "quantity": quantity,
+                "status": status,
+                "order_type": order_type,
+                "transaction_type": transaction_type,
+                "trigger_price": trigger_price,
+                "price": price,
+            }
+        )
+
+        return normalized
+
     def close_position(self, *args, **kwargs):
         raise LiveBrokerAdapterError(
             "FAIL-CLOSED: LIVE position close is not enabled"

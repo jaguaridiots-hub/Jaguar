@@ -15,6 +15,8 @@ This module:
 
 from __future__ import annotations
 
+import math
+
 import sqlite3
 from typing import Any, Optional
 
@@ -1012,6 +1014,386 @@ def reconcile_execution_position(
         "expected_quantity": expected_quantity,
         "observed_quantity": position_quantity,
         "protection_required": True,
+    }
+
+
+def _v9_expected_protection_side(intent):
+    decision = _normalize(
+        intent.get("decision")
+    ).upper()
+
+    if decision == "LONG":
+        return "SELL"
+
+    if decision == "SHORT":
+        return "BUY"
+
+    raise RuntimeError(
+        "FAIL-CLOSED: invalid V9 protection decision"
+    )
+
+
+_V9_PROTECTION_ACTIVE_STATUSES = {
+    "OPEN",
+    "PENDING",
+    "SUBMITTED",
+    "TRIGGER_PENDING",
+    "TRIGGER PENDING",
+}
+
+
+def _v9_validate_protection_observation(
+    intent,
+    durable_protection,
+    broker_protection,
+    *,
+    instrument_token,
+):
+    durable_broker_id = _normalize(
+        durable_protection.get("broker_order_id")
+    )
+
+    observed_broker_id = _normalize(
+        broker_protection.get("broker_order_id")
+    )
+
+    if (
+        not durable_broker_id
+        or observed_broker_id != durable_broker_id
+    ):
+        return "Protection broker_order_id mismatch"
+
+    if _normalize(
+        broker_protection.get("authorization_id")
+    ) != _normalize(
+        intent.get("authorization_id")
+    ):
+        return "Protection authorization_id mismatch"
+
+    if _normalize(
+        broker_protection.get("symbol")
+    ) != _normalize(
+        intent.get("symbol")
+    ):
+        return "Protection symbol mismatch"
+
+    if _normalize(
+        broker_protection.get("instrument_token")
+    ) != _normalize(
+        instrument_token
+    ):
+        return "Protection instrument identity mismatch"
+
+    expected_side = _v9_expected_protection_side(
+        intent
+    )
+
+    observed_side = _normalize(
+        broker_protection.get("transaction_type")
+    ).upper()
+
+    if observed_side != expected_side:
+        return "Protection transaction direction mismatch"
+
+    protection_type = _normalize(
+        durable_protection.get("protection_type")
+    ).upper()
+
+    observed_order_type = _normalize(
+        broker_protection.get("order_type")
+    ).upper()
+
+    if protection_type == "STOP_LOSS":
+        if observed_order_type not in {"SL", "SL-M"}:
+            return "Stop-loss protection order type mismatch"
+
+    elif protection_type == "TAKE_PROFIT":
+        if observed_order_type != "LIMIT":
+            return "Take-profit protection order type mismatch"
+
+    else:
+        return "Invalid durable protection type"
+
+    status = _normalize(
+        broker_protection.get("status")
+    ).upper()
+
+    if status not in _V9_PROTECTION_ACTIVE_STATUSES:
+        return "Broker protection is not active"
+
+    try:
+        observed_quantity = float(
+            broker_protection.get("quantity")
+        )
+        requested_quantity = float(
+            durable_protection.get("requested_qty")
+        )
+    except (TypeError, ValueError):
+        return "Protection quantity is invalid"
+
+    if (
+        not math.isfinite(observed_quantity)
+        or not math.isfinite(requested_quantity)
+        or observed_quantity != requested_quantity
+    ):
+        return "Protection quantity mismatch"
+
+    requested_price = durable_protection.get(
+        "requested_price"
+    )
+
+    if requested_price is None:
+        return "Durable protection is missing requested_price"
+
+    try:
+        requested_price = float(requested_price)
+    except (TypeError, ValueError):
+        return "Durable protection requested_price is invalid"
+
+    if not math.isfinite(requested_price) or requested_price <= 0:
+        return "Durable protection requested_price is invalid"
+
+    try:
+        if protection_type == "STOP_LOSS":
+            observed_price = float(
+                broker_protection.get("trigger_price")
+            )
+
+            if (
+                not math.isfinite(observed_price)
+                or observed_price <= 0
+                or observed_price != requested_price
+            ):
+                return "Stop-loss trigger price mismatch"
+
+        else:
+            observed_price = float(
+                broker_protection.get("price")
+            )
+
+            if (
+                not math.isfinite(observed_price)
+                or observed_price <= 0
+                or observed_price != requested_price
+            ):
+                return "Take-profit price mismatch"
+
+    except (TypeError, ValueError):
+        return "Broker protection price is invalid"
+
+    return None
+
+
+def reconcile_execution_protection_group(
+    authorization_id: str,
+    *,
+    broker_protections: list[dict],
+    instrument_token: str,
+) -> dict:
+    """
+    Reconcile every durable V9 protection against authoritative broker
+    observations. No broker mutation occurs.
+    """
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+    ):
+        raise ValueError("Invalid authorization_id")
+
+    if not isinstance(broker_protections, list):
+        raise RuntimeError(
+            "FAIL-CLOSED: broker protection observations must be a list"
+        )
+
+    if (
+        not isinstance(instrument_token, str)
+        or not instrument_token.strip()
+    ):
+        raise ValueError("Invalid instrument_token")
+
+    intent_row = db.get_execution_intent(
+        authorization_id.strip()
+    )
+
+    if intent_row is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: execution intent not found: "
+            f"{authorization_id}"
+        )
+
+    intent = dict(intent_row)
+
+    current_status = _normalize(
+        intent.get("status")
+    ).upper()
+
+    if current_status == "RECONCILED":
+        return {
+            "authorization_id": authorization_id,
+            "previous_status": current_status,
+            "status": current_status,
+            "action": "UNCHANGED_TERMINAL",
+        }
+
+    if current_status in _TERMINAL:
+        return {
+            "authorization_id": authorization_id,
+            "previous_status": current_status,
+            "status": current_status,
+            "action": "UNCHANGED_TERMINAL",
+        }
+
+    if current_status != "PROTECTION_PENDING":
+        return _halt(
+            intent,
+            "Protection reconciliation requires PROTECTION_PENDING state",
+        )
+
+    durable_rows = db.list_execution_protections(
+        authorization_id
+    )
+
+    if not durable_rows:
+        return _halt(
+            intent,
+            "No durable execution protections exist",
+        )
+
+    durable_by_broker_id = {}
+
+    for row in durable_rows:
+        durable = dict(row)
+
+        broker_id = _normalize(
+            durable.get("broker_order_id")
+        )
+
+        if not broker_id:
+            return _halt(
+                intent,
+                "Durable protection is missing broker_order_id",
+            )
+
+        if broker_id in durable_by_broker_id:
+            return _halt(
+                intent,
+                "Duplicate durable protection broker_order_id",
+            )
+
+        durable_by_broker_id[broker_id] = durable
+
+    observed_by_broker_id = {}
+
+    for observed in broker_protections:
+        if not isinstance(observed, dict):
+            return _halt(
+                intent,
+                "Malformed V9 broker-protection observation",
+            )
+
+        broker_id = _normalize(
+            observed.get("broker_order_id")
+        )
+
+        if not broker_id:
+            return _halt(
+                intent,
+                "Broker protection observation missing broker_order_id",
+            )
+
+        if broker_id in observed_by_broker_id:
+            return _halt(
+                intent,
+                "Duplicate broker protection broker_order_id",
+            )
+
+        observed_by_broker_id[broker_id] = observed
+
+    if set(durable_by_broker_id) != set(
+        observed_by_broker_id
+    ):
+        return _halt(
+            intent,
+            "Broker protection observation set does not match durable protection lineage",
+        )
+
+    for broker_id in sorted(observed_by_broker_id):
+        durable = durable_by_broker_id[broker_id]
+        observed = observed_by_broker_id[broker_id]
+
+        conflict = _v9_validate_protection_observation(
+            intent,
+            durable,
+            observed,
+            instrument_token=instrument_token,
+        )
+
+        if conflict:
+            return _halt(
+                intent,
+                conflict,
+            )
+
+        durable_status = _normalize(
+            durable.get("status")
+        ).upper()
+
+        if durable_status in {"HALTED", "FAILED"}:
+            return _halt(
+                intent,
+                "Durable protection is not verifiable",
+            )
+
+        if durable_status == "VERIFIED":
+            continue
+
+        protection_id = durable["protection_id"]
+
+        protection_type = _normalize(
+            durable["protection_type"]
+        ).upper()
+
+        verified_price = (
+            observed.get("trigger_price")
+            if protection_type == "STOP_LOSS"
+            else observed.get("price")
+        )
+
+        try:
+            db.update_execution_protection(
+                protection_id,
+                status="VERIFIED",
+                broker_order_id=broker_id,
+                verified_qty=float(
+                    observed["quantity"]
+                ),
+                verified_price=verified_price,
+            )
+        except Exception as exc:
+            return _halt(
+                intent,
+                "V9 protection persistence failed: "
+                f"{type(exc).__name__}",
+            )
+
+    try:
+        db.update_execution_intent(
+            authorization_id,
+            status="RECONCILED",
+        )
+    except Exception as exc:
+        return _halt(
+            intent,
+            "V9 parent RECONCILED persistence failed: "
+            f"{type(exc).__name__}",
+        )
+
+    return {
+        "authorization_id": authorization_id,
+        "previous_status": current_status,
+        "status": "RECONCILED",
+        "protection_count": len(durable_rows),
+        "verified_protection_count": len(durable_rows),
     }
 
 
