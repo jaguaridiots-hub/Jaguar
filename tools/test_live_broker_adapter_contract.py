@@ -152,6 +152,67 @@ position = broker.get_position(
 assert position["quantity"] == 1
 print("POSITION_LOOKUP: PASS")
 
+print("=== POSITION OBSERVATION CONTRACT ===")
+
+position_intent = {
+    "authorization_id": "AUTH-001",
+    "symbol": "SBIN",
+    "instrument_token": "NSE_EQ|TEST001",
+}
+
+observed_position = broker.observe_position(
+    position_intent
+)
+
+assert observed_position is not None
+assert observed_position["authorization_id"] == "AUTH-001"
+assert observed_position["symbol"] == "SBIN"
+assert observed_position["instrument_token"] == "NSE_EQ|TEST001"
+assert observed_position["quantity"] == 1.0
+print("OBSERVE_POSITION_MATCH: PASS")
+
+missing_position_intent = {
+    "authorization_id": "AUTH-002",
+    "symbol": "RELIANCE",
+    "instrument_token": "NSE_EQ|MISSING",
+}
+
+assert broker.observe_position(
+    missing_position_intent
+) is None
+print("OBSERVE_POSITION_MISSING: PASS")
+
+fake.positions_response["data"][0]["quantity"] = "not-a-number"
+
+try:
+    broker.observe_position(position_intent)
+except LiveBrokerAdapterError as exc:
+    assert "quantity" in str(exc).lower()
+    print("OBSERVE_POSITION_BAD_QUANTITY_FAIL_CLOSED: PASS")
+else:
+    raise AssertionError(
+        "Invalid broker position quantity was accepted"
+    )
+
+fake.positions_response["data"][0]["quantity"] = 1
+
+try:
+    broker.observe_position(
+        {
+            "authorization_id": "AUTH-003",
+            "symbol": "SBIN",
+        }
+    )
+except LiveBrokerAdapterError as exc:
+    assert "instrument_token" in str(exc).lower()
+    print("OBSERVE_POSITION_MISSING_INSTRUMENT_FAIL_CLOSED: PASS")
+else:
+    raise AssertionError(
+        "Missing instrument identity was accepted"
+    )
+
+print("POSITION_OBSERVATION_CONTRACT: PASS")
+
 cancel = broker.cancel_entry(
     "UPSTOX-ORDER-001"
 )

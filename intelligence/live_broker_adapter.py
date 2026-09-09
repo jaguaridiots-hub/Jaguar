@@ -783,6 +783,85 @@ class LiveBrokerAdapter:
 
         return matches[0] if matches else None
 
+    def observe_position(
+        self,
+        intent,
+        *,
+        instrument_token=None,
+    ):
+        """
+        Return one normalized broker-position observation for Jaguar
+        ExecutionRecovery.
+
+        Jaguar-side identity is taken from the durable intent.
+        Broker-side position identity comes from instrument_token.
+        This method is read-only and never mutates broker state.
+        """
+        if not isinstance(intent, dict):
+            raise LiveBrokerAdapterError(
+                "LIVE position observation requires an intent object"
+            )
+
+        authorization_id = self._required_string(
+            intent,
+            "authorization_id",
+        )
+
+        symbol = self._required_string(
+            intent,
+            "symbol",
+        )
+
+        resolved_token = (
+            instrument_token
+            or intent.get("instrument_token")
+        )
+
+        resolved_token = self._required_string(
+            {"instrument_token": resolved_token},
+            "instrument_token",
+        )
+
+        position = self.get_position(
+            resolved_token
+        )
+
+        if position is None:
+            return None
+
+        observed_token = str(
+            position.get("instrument_token", "")
+        ).strip()
+
+        if observed_token != resolved_token:
+            raise LiveBrokerAdapterError(
+                "LIVE broker position instrument identity mismatch"
+            )
+
+        quantity = position.get("quantity")
+
+        try:
+            quantity = float(quantity)
+        except (TypeError, ValueError) as exc:
+            raise LiveBrokerAdapterError(
+                "LIVE broker position quantity is invalid"
+            ) from exc
+
+        if not math.isfinite(quantity):
+            raise LiveBrokerAdapterError(
+                "LIVE broker position quantity is invalid"
+            )
+
+        normalized = dict(position)
+        normalized.update({
+            "authorization_id": authorization_id,
+            "symbol": symbol,
+            "instrument_token": resolved_token,
+            "quantity": quantity,
+        })
+
+        return normalized
+
     def close_position(self, *args, **kwargs):
         raise LiveBrokerAdapterError(
             "FAIL-CLOSED: LIVE position close is not enabled"
