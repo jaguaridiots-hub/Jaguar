@@ -1024,6 +1024,221 @@ class LiveBrokerAdapter:
 
         return normalized
 
+    def submit_protection(self, intent, protection):
+        """
+        Submit exactly one LIVE protection order.
+
+        This method is intentionally separate from the PAPER broker path.
+        It performs no database persistence and never falls back to PAPER.
+
+        V9-D rules:
+        - LONG entry -> SELL protection
+        - SHORT entry -> BUY protection
+        - STOP_LOSS -> SL-M
+        - TAKE_PROFIT -> LIMIT
+        - slicing is disabled; multiple returned broker IDs fail closed
+        """
+        if not isinstance(intent, dict):
+            raise LiveBrokerAdapterError(
+                "LIVE protection submission requires an intent object"
+            )
+
+        if not isinstance(protection, dict):
+            raise LiveBrokerAdapterError(
+                "LIVE protection submission requires a protection object"
+            )
+
+        authorization_id = self._required_string(
+            intent,
+            "authorization_id",
+        )
+
+        client_order_id = self._required_string(
+            intent,
+            "client_order_id",
+        )
+
+        symbol = self._required_string(
+            intent,
+            "symbol",
+        )
+
+        instrument_token = self._required_string(
+            intent,
+            "instrument_token",
+        )
+
+        decision = self._required_string(
+            intent,
+            "decision",
+        ).upper()
+
+        if decision not in {"LONG", "SHORT"}:
+            raise LiveBrokerAdapterError(
+                "Invalid LIVE protection decision"
+            )
+
+        protection_type = self._required_string(
+            protection,
+            "protection_type",
+        ).upper()
+
+        if protection_type not in {
+            "STOP_LOSS",
+            "TAKE_PROFIT",
+        }:
+            raise LiveBrokerAdapterError(
+                "Invalid LIVE protection type"
+            )
+
+        requested_qty = self._strict_int(
+            protection.get("requested_qty"),
+            "protection requested_qty",
+        )
+
+        if requested_qty <= 0:
+            raise LiveBrokerAdapterError(
+                "LIVE protection quantity must be positive"
+            )
+
+        requested_price = self._positive_finite_number(
+            protection.get("requested_price"),
+            "protection requested_price",
+        )
+
+        product = str(
+            intent.get("product", "I")
+        ).strip().upper()
+
+        if product not in self.ALLOWED_PRODUCTS:
+            raise LiveBrokerAdapterError(
+                "Invalid LIVE protection product"
+            )
+
+        validity = str(
+            intent.get("validity", "DAY")
+        ).strip().upper()
+
+        if validity not in self.ALLOWED_VALIDITY:
+            raise LiveBrokerAdapterError(
+                "Invalid LIVE protection validity"
+            )
+
+        if decision == "LONG":
+            transaction_type = "SELL"
+        else:
+            transaction_type = "BUY"
+
+        target_index = protection.get("target_index")
+        if target_index is None:
+            target_index = 0
+
+        target_index = self._strict_int(
+            target_index,
+            "protection target_index",
+        )
+
+        if target_index < 0:
+            raise LiveBrokerAdapterError(
+                "LIVE protection target_index must be non-negative"
+            )
+
+        suffix = (
+            "SL"
+            if protection_type == "STOP_LOSS"
+            else f"TP{target_index + 1}"
+        )
+
+        tag = f"{client_order_id}-{suffix}".strip()
+
+        if len(tag) > 40:
+            tag = f"{client_order_id[:35]}-{suffix}"
+
+        if len(tag) > 40:
+            raise LiveBrokerAdapterError(
+                "LIVE protection tag exceeds Upstox limit"
+            )
+
+        if protection_type == "STOP_LOSS":
+            order_type = "SL-M"
+            price = 0.0
+            trigger_price = requested_price
+        else:
+            order_type = "LIMIT"
+            price = requested_price
+            trigger_price = 0.0
+
+        payload = {
+            "quantity": requested_qty,
+            "product": product,
+            "validity": validity,
+            "price": price,
+            "tag": tag,
+            "instrument_token": instrument_token,
+            "order_type": order_type,
+            "transaction_type": transaction_type,
+            "disclosed_quantity": 0,
+            "trigger_price": trigger_price,
+            "is_amo": self._strict_bool(
+                intent.get("is_amo", False),
+                "protection is_amo",
+            ),
+            "slice": False,
+            "market_protection": -1,
+        }
+
+        try:
+            response = self._transport.place_order(
+                payload
+            )
+        except UpstoxOrderTransportError as exc:
+            raise LiveBrokerAdapterError(
+                "LIVE protection placement failed"
+            ) from exc
+
+        data = self._response_data(response)
+
+        order_ids = data.get("order_ids")
+
+        if not isinstance(order_ids, list) or not order_ids:
+            raise LiveBrokerAdapterError(
+                "Upstox protection placement response "
+                "missing order_ids"
+            )
+
+        if any(
+            not isinstance(order_id, str)
+            or not order_id.strip()
+            for order_id in order_ids
+        ):
+            raise LiveBrokerAdapterError(
+                "Upstox returned invalid protection order identity"
+            )
+
+        if len(order_ids) != 1:
+            raise LiveBrokerAdapterError(
+                "LIVE protection received multiple broker order IDs; "
+                "explicit protection slicing reconciliation is required"
+            )
+
+        broker_order_id = order_ids[0].strip()
+
+        return {
+            "authorization_id": authorization_id,
+            "client_order_id": client_order_id,
+            "symbol": symbol,
+            "instrument_token": instrument_token,
+            "protection_type": protection_type,
+            "target_index": target_index,
+            "broker_order_id": broker_order_id,
+            "requested_qty": requested_qty,
+            "requested_price": requested_price,
+            "order_type": order_type,
+            "transaction_type": transaction_type,
+            "status": self.SUBMITTED,
+            "tag": tag,
+        }
+
     def close_position(self, *args, **kwargs):
         raise LiveBrokerAdapterError(
             "FAIL-CLOSED: LIVE position close is not enabled"
