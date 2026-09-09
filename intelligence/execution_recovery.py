@@ -841,6 +841,180 @@ def reconcile_execution_order_group(
     )
 
 
+
+def reconcile_execution_position(
+    authorization_id: str,
+    *,
+    broker_position: dict,
+    instrument_token: str,
+) -> dict:
+    """
+    Reconcile a FILLED V9 execution intent against one authoritative
+    broker-position observation.
+
+    This function never submits, cancels, or otherwise mutates broker
+    state. A successful position reconciliation advances the parent
+    intent to PROTECTION_PENDING.
+    """
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+    ):
+        raise ValueError("Invalid authorization_id")
+
+    if not isinstance(broker_position, dict):
+        raise RuntimeError(
+            "FAIL-CLOSED: broker position observation is not an object"
+        )
+
+    if (
+        not isinstance(instrument_token, str)
+        or not instrument_token.strip()
+    ):
+        raise ValueError("Invalid instrument_token")
+
+    intent_row = db.get_execution_intent(
+        authorization_id.strip()
+    )
+
+    if intent_row is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: execution intent not found: "
+            f"{authorization_id}"
+        )
+
+    intent = dict(intent_row)
+
+    current_status = _normalize(
+        intent.get("status")
+    ).upper()
+
+    if current_status in _TERMINAL:
+        return {
+            "authorization_id": authorization_id,
+            "previous_status": current_status,
+            "status": current_status,
+            "action": "UNCHANGED_TERMINAL",
+        }
+
+    if current_status != "FILLED":
+        return _halt(
+            intent,
+            "Position reconciliation requires FILLED execution state",
+        )
+
+    observed_authorization = _normalize(
+        broker_position.get("authorization_id")
+    )
+
+    if observed_authorization != _normalize(
+        authorization_id
+    ):
+        return _halt(
+            intent,
+            "Broker position authorization_id mismatch",
+        )
+
+    observed_symbol = _normalize(
+        broker_position.get("symbol")
+    )
+
+    if observed_symbol != _normalize(
+        intent.get("symbol")
+    ):
+        return _halt(
+            intent,
+            "Broker position symbol mismatch",
+        )
+
+    observed_token = _normalize(
+        broker_position.get("instrument_token")
+    )
+
+    expected_token = _normalize(
+        instrument_token
+    )
+
+    if not observed_token or observed_token != expected_token:
+        return _halt(
+            intent,
+            "Broker position instrument identity mismatch",
+        )
+
+    try:
+        position_quantity = float(
+            broker_position.get("quantity")
+        )
+    except (TypeError, ValueError):
+        return _halt(
+            intent,
+            "Broker position quantity is invalid",
+        )
+
+    if position_quantity != position_quantity:
+        return _halt(
+            intent,
+            "Broker position quantity is invalid",
+        )
+
+    if position_quantity < 0:
+        return _halt(
+            intent,
+            "Broker position quantity cannot be negative",
+        )
+
+    expected_quantity = float(
+        intent["quantity"]
+    )
+
+    if position_quantity != expected_quantity:
+        return _halt(
+            intent,
+            "Broker position quantity mismatch",
+        )
+
+    expected_side = _v9_expected_side(intent)
+
+    observed_side = _normalize(
+        broker_position.get("side")
+        or broker_position.get("transaction_type")
+        or broker_position.get("position_side")
+    ).upper()
+
+    if observed_side and observed_side != expected_side:
+        return _halt(
+            intent,
+            "Broker position side mismatch",
+        )
+
+    try:
+        db.update_execution_intent(
+            authorization_id,
+            status="POSITION_RECONCILING",
+        )
+
+        db.update_execution_intent(
+            authorization_id,
+            status="PROTECTION_PENDING",
+        )
+    except Exception as exc:
+        return _halt(
+            intent,
+            "V9 position reconciliation persistence failed: "
+            f"{type(exc).__name__}",
+        )
+
+    return {
+        "authorization_id": authorization_id,
+        "previous_status": current_status,
+        "status": "PROTECTION_PENDING",
+        "instrument_token": expected_token,
+        "expected_quantity": expected_quantity,
+        "observed_quantity": position_quantity,
+        "protection_required": True,
+    }
+
+
 def reconcile_execution_intent(
     authorization_id: str,
     *,
