@@ -1191,11 +1191,14 @@ def update_execution_order(
                     "Invalid execution-order status"
                 )
 
-            if requested_status not in (
-                _EXECUTION_ORDER_TRANSITIONS.get(
-                    current_status,
-                    set(),
-                )
+            allowed_transitions = _EXECUTION_ORDER_TRANSITIONS.get(
+                current_status,
+                set(),
+            )
+
+            if (
+                requested_status != current_status
+                and requested_status not in allowed_transitions
             ):
                 conn.rollback()
                 raise RuntimeError(
@@ -1204,8 +1207,9 @@ def update_execution_order(
                     f"{current_status} -> {requested_status}"
                 )
 
-            assignments.append("status = ?")
-            params.append(requested_status)
+            if requested_status != current_status:
+                assignments.append("status = ?")
+                params.append(requested_status)
 
         new_filled = (
             _finite_non_negative(
