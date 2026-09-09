@@ -399,6 +399,7 @@ _EXECUTION_INTENT_TRANSITIONS = {
     "AUTHORIZED": {
         "SUBMITTED",
         "REJECTED",
+        "CANCELLED",
         "HALTED",
     },
     "SUBMITTED": {
