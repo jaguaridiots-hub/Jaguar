@@ -249,6 +249,45 @@ def _migrate_v8_to_v9(cursor):
 
 
 
+
+def _migrate_v9_to_v10(cursor):
+    """Create the durable live-submission crash-recovery journal."""
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS execution_submission_journal (
+            submission_id TEXT PRIMARY KEY,
+            authorization_id TEXT NOT NULL UNIQUE,
+            trade_uuid TEXT NOT NULL,
+            client_order_id TEXT NOT NULL UNIQUE,
+            symbol TEXT NOT NULL,
+            instrument_token TEXT NOT NULL,
+            transaction_type TEXT NOT NULL,
+            requested_qty REAL NOT NULL,
+            broker_order_id TEXT UNIQUE,
+            status TEXT NOT NULL,
+            error_reason TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (authorization_id)
+                REFERENCES execution_intents(authorization_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_submission_journal_status
+        ON execution_submission_journal(status)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_execution_submission_journal_broker_order
+        ON execution_submission_journal(broker_order_id)
+    """)
+
+    _set_schema_version(cursor, 10)
+
+
 def validate_schema(cursor):
     required = {
         "uuid", "authorization_id", "status",
@@ -360,7 +399,15 @@ def init_db():
         # Idempotently ensure V9 objects remain present.
         _migrate_v8_to_v9(c)
 
-    _set_schema_version(c, 9)
+    # V10 owns the isolated live-submission crash-recovery journal.
+    if version < 10:
+        _migrate_v9_to_v10(c)
+        version = 10
+    else:
+        # Idempotently ensure the V10 journal remains present.
+        _migrate_v9_to_v10(c)
+
+    _set_schema_version(c, 10)
     conn.commit()
 
     missing = validate_schema(c)
@@ -378,7 +425,8 @@ def init_db():
             )
 
         _migrate_v7_to_v8(c)
-        _set_schema_version(c, 8)
+        # Preserve the active V10 schema version after legacy trade-column repair.
+        _set_schema_version(c, 10)
         conn.commit()
 
         still_missing = validate_schema(c)
@@ -483,6 +531,342 @@ def init_db():
 # ----------------------------------------------------------------------
 # Lightweight connection for CRUD – NO init_db call
 # ----------------------------------------------------------------------
+
+_EXECUTION_SUBMISSION_TERMINAL = {
+    "LINEAGE_PERSISTED",
+    "HALTED",
+}
+
+
+def insert_execution_submission(data: dict):
+    """Durably journal a LIVE broker submission before external I/O."""
+
+    required = {
+        "submission_id",
+        "authorization_id",
+        "trade_uuid",
+        "client_order_id",
+        "symbol",
+        "instrument_token",
+        "transaction_type",
+        "requested_qty",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+
+    missing = required - set(data)
+    if missing:
+        raise ValueError(
+            f"Missing execution-submission fields: {sorted(missing)}"
+        )
+
+    for field in (
+        "submission_id",
+        "authorization_id",
+        "trade_uuid",
+        "client_order_id",
+        "symbol",
+        "instrument_token",
+        "transaction_type",
+        "status",
+        "created_at",
+        "updated_at",
+    ):
+        value = data.get(field)
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"Invalid execution-submission {field}"
+            )
+
+    transaction_type = data["transaction_type"].strip().upper()
+    if transaction_type not in {"BUY", "SELL"}:
+        raise ValueError(
+            "Invalid execution-submission transaction_type"
+        )
+
+    status = data["status"].strip().upper()
+    if status != "SUBMITTING":
+        raise RuntimeError(
+            "FAIL-CLOSED: new execution submission must start SUBMITTING"
+        )
+
+    requested_qty = _finite_positive(
+        data["requested_qty"],
+        "requested_qty",
+    )
+
+    broker_order_id = data.get("broker_order_id")
+    if broker_order_id is not None:
+        if (
+            not isinstance(broker_order_id, str)
+            or not broker_order_id.strip()
+        ):
+            raise ValueError(
+                "Invalid execution-submission broker_order_id"
+            )
+
+    error_reason = data.get("error_reason")
+    if error_reason is not None:
+        if (
+            not isinstance(error_reason, str)
+            or not error_reason.strip()
+        ):
+            raise ValueError(
+                "Invalid execution-submission error_reason"
+            )
+
+    conn = get_connection()
+    try:
+        conn.execute(
+            """
+            INSERT INTO execution_submission_journal (
+                submission_id,
+                authorization_id,
+                trade_uuid,
+                client_order_id,
+                symbol,
+                instrument_token,
+                transaction_type,
+                requested_qty,
+                broker_order_id,
+                status,
+                error_reason,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                data["submission_id"],
+                data["authorization_id"],
+                data["trade_uuid"],
+                data["client_order_id"],
+                data["symbol"],
+                data["instrument_token"],
+                transaction_type,
+                requested_qty,
+                broker_order_id,
+                status,
+                error_reason,
+                data["created_at"],
+                data["updated_at"],
+            ),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_execution_submission(submission_id: str):
+    if (
+        not isinstance(submission_id, str)
+        or not submission_id.strip()
+    ):
+        raise ValueError("Invalid submission_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_submission_journal
+            WHERE submission_id = ?
+            """,
+            (submission_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def get_execution_submission_by_client_order_id(client_order_id: str):
+    if (
+        not isinstance(client_order_id, str)
+        or not client_order_id.strip()
+    ):
+        raise ValueError("Invalid client_order_id")
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            """
+            SELECT *
+            FROM execution_submission_journal
+            WHERE client_order_id = ?
+            """,
+            (client_order_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+
+def list_non_terminal_execution_submissions():
+    placeholders = ", ".join(
+        "?" for _ in _EXECUTION_SUBMISSION_TERMINAL
+    )
+
+    conn = get_connection()
+    try:
+        return conn.execute(
+            f"""
+            SELECT *
+            FROM execution_submission_journal
+            WHERE status NOT IN ({placeholders})
+            ORDER BY created_at ASC
+            """,
+            tuple(_EXECUTION_SUBMISSION_TERMINAL),
+        ).fetchall()
+    finally:
+        conn.close()
+
+
+def update_execution_submission(
+    submission_id: str,
+    *,
+    status: str = None,
+    broker_order_id: str = None,
+    error_reason: str = None,
+):
+    if (
+        not isinstance(submission_id, str)
+        or not submission_id.strip()
+    ):
+        raise ValueError("Invalid submission_id")
+
+    if all(
+        value is None
+        for value in (
+            status,
+            broker_order_id,
+            error_reason,
+        )
+    ):
+        raise ValueError(
+            "No execution-submission update supplied"
+        )
+
+    conn = get_connection()
+    try:
+        current = conn.execute(
+            """
+            SELECT *
+            FROM execution_submission_journal
+            WHERE submission_id = ?
+            """,
+            (submission_id,),
+        ).fetchone()
+
+        if current is None:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution submission not found: "
+                f"{submission_id}"
+            )
+
+        current_status = str(
+            current["status"]
+        ).strip().upper()
+
+        if current_status in _EXECUTION_SUBMISSION_TERMINAL:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: cannot modify terminal execution submission: "
+                f"{submission_id}"
+            )
+
+        assignments = []
+        params = []
+
+        if status is not None:
+            if not isinstance(status, str) or not status.strip():
+                raise ValueError(
+                    "Invalid execution-submission status"
+                )
+
+            requested_status = status.strip().upper()
+
+            allowed = {
+                "SUBMITTING": {"IDENTIFIED", "HALTED"},
+                "IDENTIFIED": {"LINEAGE_PERSISTED", "HALTED"},
+            }.get(current_status, set())
+
+            if (
+                requested_status != current_status
+                and requested_status not in allowed
+            ):
+                conn.rollback()
+                raise RuntimeError(
+                    "FAIL-CLOSED: invalid execution-submission transition "
+                    f"{current_status} -> {requested_status}"
+                )
+
+            if requested_status != current_status:
+                assignments.append("status = ?")
+                params.append(requested_status)
+
+        if broker_order_id is not None:
+            if (
+                not isinstance(broker_order_id, str)
+                or not broker_order_id.strip()
+            ):
+                raise ValueError(
+                    "Invalid execution-submission broker_order_id"
+                )
+
+            current_broker_order_id = current["broker_order_id"]
+
+            if current_broker_order_id is not None:
+                if current_broker_order_id != broker_order_id:
+                    conn.rollback()
+                    raise RuntimeError(
+                        "FAIL-CLOSED: submission broker_order_id "
+                        "is immutable once assigned"
+                    )
+            else:
+                assignments.append("broker_order_id = ?")
+                params.append(broker_order_id)
+
+        if error_reason is not None:
+            if (
+                not isinstance(error_reason, str)
+                or not error_reason.strip()
+            ):
+                raise ValueError(
+                    "Invalid execution-submission error_reason"
+                )
+
+            assignments.append("error_reason = ?")
+            params.append(error_reason)
+
+        if not assignments:
+            conn.rollback()
+            return
+
+        assignments.append("updated_at = CURRENT_TIMESTAMP")
+        params.append(submission_id)
+
+        cursor = conn.execute(
+            f"""
+            UPDATE execution_submission_journal
+            SET {", ".join(assignments)}
+            WHERE submission_id = ?
+            """,
+            params,
+        )
+
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: execution submission update failed"
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
 
 _EXECUTION_INTENT_TERMINAL = {
     "RECONCILED",
