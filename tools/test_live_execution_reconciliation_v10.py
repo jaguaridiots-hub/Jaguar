@@ -304,6 +304,62 @@ def test_position_observation_exception_persists_halt():
     print("D25_POSITION_OBSERVATION_FAILURE_PERSISTS_HALT: PASS")
 
 
+def test_position_only_boundary():
+    service, broker, db = build_service()
+
+    broker.position = {
+        "authorization_id": "AUTH-D25",
+        "symbol": "TEST",
+        "instrument_token": "TEST|001",
+        "quantity": 100.0,
+        "side": "BUY",
+    }
+
+    import intelligence.execution_recovery as recovery
+
+    original = recovery.reconcile_execution_position
+
+    def fake_position(
+        authorization_id,
+        *,
+        broker_position,
+        instrument_token,
+    ):
+        assert authorization_id == "AUTH-D25"
+        assert instrument_token == "TEST|001"
+        assert broker_position["quantity"] == 100.0
+        db.intent["status"] = "PROTECTION_PENDING"
+        return {
+            "authorization_id": authorization_id,
+            "status": "PROTECTION_PENDING",
+            "instrument_token": instrument_token,
+        }
+
+    recovery.reconcile_execution_position = fake_position
+
+    try:
+        result = service.reconcile_position("AUTH-D25")
+    finally:
+        recovery.reconcile_execution_position = original
+
+    assert_true(
+        result["status"] == "PROTECTION_PENDING",
+        "Position-only boundary did not stop at PROTECTION_PENDING",
+    )
+
+    assert_true(
+        broker.position_calls == 1,
+        "Position-only boundary did not observe position exactly once",
+    )
+
+    assert_true(
+        broker.protection_calls == [],
+        "Position-only boundary performed protection observation",
+    )
+
+    print("D25_POSITION_ONLY_BOUNDARY: PASS")
+
+
 def test_position_then_protection_order():
     service, broker, db = build_service()
 
@@ -510,6 +566,7 @@ def main():
     test_terminal_execution_is_unchanged()
     test_missing_position_observation()
     test_position_observation_exception_persists_halt()
+    test_position_only_boundary()
     test_position_then_protection_order()
     test_instrument_identity_is_durable()
     test_missing_protection_becomes_fail_closed_observation()

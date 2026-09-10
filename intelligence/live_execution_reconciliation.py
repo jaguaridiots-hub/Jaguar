@@ -168,6 +168,91 @@ class LiveExecutionReconciliationService:
 
         return next(iter(tokens))
 
+    def reconcile_position(self, authorization_id):
+        """Reconcile only the broker position and stop at PROTECTION_PENDING."""
+        authorization_id = self._authorization_id(
+            authorization_id
+        )
+
+        intent = self._load_intent(
+            authorization_id
+        )
+
+        current_status = str(
+            intent.get("status", "")
+        ).strip().upper()
+
+        if current_status in {
+            "RECONCILED",
+            "REJECTED",
+            "CANCELLED",
+            "HALTED",
+        }:
+            return {
+                "authorization_id": authorization_id,
+                "previous_status": current_status,
+                "status": current_status,
+                "action": "UNCHANGED_TERMINAL",
+            }
+
+        instrument_token = self._instrument_token(
+            self._resolve_instrument_token(
+                authorization_id
+            )
+        )
+
+        try:
+            broker_position = self.broker.observe_position(
+                intent,
+                instrument_token=instrument_token,
+            )
+        except Exception as exc:
+            return self._halt_intent(
+                authorization_id,
+                f"Broker position observation failed: {type(exc).__name__}",
+            )
+
+        if broker_position is None:
+            return self._halt_intent(
+                authorization_id,
+                "Broker position was not observed",
+            )
+
+        try:
+            position_result = (
+                execution_recovery.reconcile_execution_position(
+                    authorization_id,
+                    broker_position=broker_position,
+                    instrument_token=instrument_token,
+                )
+            )
+        except Exception as exc:
+            raise LiveExecutionReconciliationError(
+                "FAIL-CLOSED: V9 position reconciliation failed"
+            ) from exc
+
+        if not isinstance(position_result, dict):
+            raise LiveExecutionReconciliationError(
+                "FAIL-CLOSED: V9 position reconciliation returned invalid result"
+            )
+
+        position_status = str(
+            position_result.get("status", "")
+        ).strip().upper()
+
+        if position_status in {
+            "HALTED",
+            "RECONCILED",
+        }:
+            return position_result
+
+        if position_status != "PROTECTION_PENDING":
+            raise LiveExecutionReconciliationError(
+                "FAIL-CLOSED: unexpected V9 position reconciliation state"
+            )
+
+        return position_result
+
     def reconcile_execution(self, authorization_id):
         """Reconcile position first, then every durable protection."""
         authorization_id = self._authorization_id(
