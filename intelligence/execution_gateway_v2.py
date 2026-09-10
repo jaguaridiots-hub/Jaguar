@@ -846,6 +846,8 @@ class ExecutionGatewayV2:
 
             "reason": "Execution authorized",
 
+            "mode": config.get_execution_mode(),
+
             "broker": "Paper",
             "symbol": symbol,
 

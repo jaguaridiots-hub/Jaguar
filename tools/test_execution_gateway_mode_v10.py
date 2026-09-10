@@ -20,7 +20,6 @@ def clear_mode():
 
 def build_state():
     state = MarketState()
-
     state.symbol = "GOLDM"
     state.timeframe = "15m"
 
@@ -32,19 +31,43 @@ def build_state():
         "instrument_token": "MCX_FO|GOLDM_TEST",
     }
 
-    state.execution_confirmation = {
+    state.idm = {
         "decision": "ENTER_LONG",
-        "score": 80,
-        "probability": 90,
+    }
+
+    state.structural_zone = {
+        "readiness": "CONFIRMED",
+        "direction": "BULLISH",
+        "zone_direction": "BULLISH",
+        "location_quality": "INTERACTING",
+    }
+
+    state.trade = {
+        "status": "READY",
+        "entry": 100.0,
+        "stop_loss": 99.0,
+        "targets": [101.0],
+        "side": "LONG",
     }
 
     state.risk = {
+        "approved": True,
+        "reason": "Risk approved",
         "position_size": 1.0,
         "risk_amount": 1.0,
         "risk_percent": 1.0,
     }
 
     state.price = 100.0
+    state.atr = 2.0
+    state.spread = 0.0
+    state.market = {
+        "price": 100.0,
+        "symbol": "GOLDM",
+        "session": {
+            "name": "OPEN",
+        },
+    }
 
     return state
 
@@ -55,8 +78,18 @@ def authorize():
     gateway = ExecutionGatewayV2()
 
     result = gateway.process(state)
+    execution = result.execution
 
-    return result.execution
+    assert_true(
+        execution["status"] == "EXECUTE",
+        f"Fixture did not reach EXECUTE: {execution!r}",
+    )
+    assert_true(
+        execution["gate"] == "AUTHORIZED",
+        f"Fixture did not reach AUTHORIZED: {execution!r}",
+    )
+
+    return execution
 
 
 def test_unset_mode_propagates_paper():
