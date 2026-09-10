@@ -88,6 +88,110 @@ def test_live_delegation():
     print("D27_LIVE_DELEGATION: PASS")
 
 
+def test_recovered_submission_does_not_block():
+    dispatcher, runtime, calls = build()
+    runtime.recovery_result = [
+        {"authorization_id": "AUTH", "status": "SUBMITTED"}
+    ]
+
+    result = dispatcher.dispatch(
+        {"mode": "LIVE"},
+        {"live_data_valid": True},
+        activation_requested=True,
+    )
+
+    assert_true(
+        result["status"] == "LIVE_OK",
+        "Successful recovery incorrectly blocked LIVE",
+    )
+    assert_true(calls == ["live"], "LIVE executor was not called")
+    assert_true(runtime.recovery_calls == 1, "Recovery was not called")
+    assert_true(runtime.activation_calls == 1, "Activation was not called")
+    print("D27_RECOVERED_SUBMISSION_DOES_NOT_BLOCK: PASS")
+
+
+def test_halted_recovery_fail_closed():
+    dispatcher, runtime, calls = build()
+    runtime.recovery_result = [
+        {"authorization_id": "AUTH", "status": "HALTED"}
+    ]
+
+    try:
+        dispatcher.dispatch(
+            {"mode": "LIVE"},
+            {"live_data_valid": True},
+            activation_requested=True,
+        )
+    except LiveExecutionDispatchError:
+        pass
+    else:
+        raise AssertionError("HALTED recovery did not fail closed")
+
+    assert_true(
+        runtime.activation_calls == 0,
+        "Activation ran after HALTED recovery",
+    )
+    assert_true(
+        calls == [],
+        "LIVE executor ran after HALTED recovery",
+    )
+    print("D27_HALTED_RECOVERY_FAIL_CLOSED: PASS")
+
+
+def test_unknown_recovery_status_fail_closed():
+    dispatcher, runtime, calls = build()
+    runtime.recovery_result = [
+        {"authorization_id": "AUTH", "status": "UNKNOWN"}
+    ]
+
+    try:
+        dispatcher.dispatch(
+            {"mode": "LIVE"},
+            {"live_data_valid": True},
+            activation_requested=True,
+        )
+    except LiveExecutionDispatchError:
+        pass
+    else:
+        raise AssertionError("Unknown recovery status did not fail closed")
+
+    assert_true(
+        runtime.activation_calls == 0,
+        "Activation ran after unknown recovery status",
+    )
+    assert_true(
+        calls == [],
+        "LIVE executor ran after unknown recovery status",
+    )
+    print("D27_UNKNOWN_RECOVERY_STATUS_FAIL_CLOSED: PASS")
+
+
+def test_malformed_recovery_record_fail_closed():
+    dispatcher, runtime, calls = build()
+    runtime.recovery_result = [None]
+
+    try:
+        dispatcher.dispatch(
+            {"mode": "LIVE"},
+            {"live_data_valid": True},
+            activation_requested=True,
+        )
+    except LiveExecutionDispatchError:
+        pass
+    else:
+        raise AssertionError("Malformed recovery record did not fail closed")
+
+    assert_true(
+        runtime.activation_calls == 0,
+        "Activation ran after malformed recovery record",
+    )
+    assert_true(
+        calls == [],
+        "LIVE executor ran after malformed recovery record",
+    )
+    print("D27_MALFORMED_RECOVERY_RECORD_FAIL_CLOSED: PASS")
+
+
 def test_missing_mode_fail_closed():
     dispatcher, _, _ = build()
 
@@ -297,6 +401,10 @@ def test_dispatch_contract():
 def run():
     test_paper_delegation()
     test_live_delegation()
+    test_recovered_submission_does_not_block()
+    test_halted_recovery_fail_closed()
+    test_unknown_recovery_status_fail_closed()
+    test_malformed_recovery_record_fail_closed()
     test_missing_mode_fail_closed()
     test_invalid_mode_fail_closed()
     test_live_requires_activation()

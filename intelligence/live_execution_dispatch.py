@@ -107,10 +107,20 @@ class ExecutionDispatchRuntime:
                 "FAIL-CLOSED: invalid LIVE recovery result"
             )
 
-        if recovery:
-            raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: LIVE execution blocked by unresolved recovery"
-            )
+        allowed_recovery_statuses = {"SUBMITTED"}
+
+        for result in recovery:
+            if not isinstance(result, dict):
+                raise LiveExecutionDispatchError(
+                    "FAIL-CLOSED: invalid LIVE recovery record"
+                )
+
+            status = str(result.get("status", "")).strip().upper()
+
+            if status not in allowed_recovery_statuses:
+                raise LiveExecutionDispatchError(
+                    "FAIL-CLOSED: LIVE execution blocked by unresolved recovery"
+                )
 
         activation = self.live_runtime.evaluate_activation(
             execution,
