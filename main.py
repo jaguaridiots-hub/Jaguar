@@ -1,6 +1,5 @@
 import os
 import time
-import uuid
 from datetime import datetime
 
 from core.kernel import JaguarKernel
@@ -38,6 +37,7 @@ from research.database import (
     update_execution_intent,
 )
 from intelligence.execution_adapter import ExecutionAdapter
+from intelligence.execution_identity import bind_execution_identity
 
 
 SYMBOL = "BTCUSDT"
@@ -298,6 +298,13 @@ if isinstance(enterprise_execution, dict):
     )
 
     if execution_ready:
+        # Canonical execution identity is established once, before any
+        # transport-specific execution path consumes the authorized contract.
+        enterprise_execution = bind_execution_identity(
+            enterprise_execution
+        )
+        enterprise["execution"] = enterprise_execution
+
         paper_authorization = execution_adapter.authorize(
             enterprise_execution
         )
@@ -747,7 +754,17 @@ if (
                 "FAIL-CLOSED: Authorized execution has no authorization ID"
             )
 
-        trade_uuid = str(uuid.uuid4())
+        trade_uuid = execution.get(
+            "trade_uuid"
+        )
+
+        if (
+            not isinstance(trade_uuid, str)
+            or not trade_uuid.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has no trade UUID"
+            )
 
         client_order_id = execution.get(
             "client_order_id"
