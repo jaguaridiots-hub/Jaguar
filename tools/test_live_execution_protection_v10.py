@@ -15,12 +15,20 @@ SYMBOL = "SBIN"
 class FakeDB:
     def __init__(self):
         self.intents = {}
+        self.orders = {}
         self.protections = {}
         self.intent_updates = []
 
     def get_execution_intent(self, authorization_id):
         row = self.intents.get(authorization_id)
         return deepcopy(row) if row is not None else None
+
+    def list_execution_orders(self, authorization_id):
+        return [
+            deepcopy(row)
+            for row in self.orders.values()
+            if row["authorization_id"] == authorization_id
+        ]
 
     def update_execution_intent(self, authorization_id, *, status=None):
         row = self.intents[authorization_id]
@@ -121,7 +129,6 @@ def live_intent(status="PROTECTION_PENDING"):
         "take_profit": 110.0,
         "run_id": "RUN-D26",
         "status": status,
-        "instrument_token": TOKEN,
     }
 
 
@@ -129,6 +136,10 @@ def build():
     db = FakeDB()
     broker = FakeBroker()
     db.intents[AUTH] = live_intent()
+    db.orders["ORDER-D26"] = {
+        "authorization_id": AUTH,
+        "instrument_token": TOKEN,
+    }
 
     service = LiveExecutionProtectionService(
         broker,
@@ -452,6 +463,35 @@ def main():
     else:
         raise AssertionError(
             "Infinite protection price was accepted"
+        )
+
+    # Missing durable execution-order lineage must fail closed.
+    db, broker, service = build()
+    db.orders.clear()
+
+    try:
+        service.ensure_protections(AUTH)
+    except LiveExecutionProtectionError:
+        print("D26_MISSING_INSTRUMENT_LINEAGE_FAIL_CLOSED: PASS")
+    else:
+        raise AssertionError(
+            "Protection service accepted missing durable instrument lineage"
+        )
+
+    # Conflicting durable execution-order tokens must fail closed.
+    db, broker, service = build()
+    db.orders["ORDER-D26-2"] = {
+        "authorization_id": AUTH,
+        "instrument_token": "NSE_EQ|CONFLICT",
+    }
+
+    try:
+        service.ensure_protections(AUTH)
+    except LiveExecutionProtectionError:
+        print("D26_AMBIGUOUS_INSTRUMENT_LINEAGE_FAIL_CLOSED: PASS")
+    else:
+        raise AssertionError(
+            "Protection service accepted conflicting durable instrument lineage"
         )
 
     # Missing required DB parent-update API must fail closed at construction.

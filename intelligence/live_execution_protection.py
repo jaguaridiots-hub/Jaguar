@@ -152,6 +152,49 @@ class LiveExecutionProtectionService:
 
         return tag
 
+    def _resolve_instrument_token(self, authorization_id):
+        rows = self.db.list_execution_orders(
+            authorization_id
+        )
+
+        if rows is None:
+            rows = []
+
+        if not isinstance(rows, (list, tuple)):
+            raise LiveExecutionProtectionError(
+                "FAIL-CLOSED: execution order lineage must be a sequence"
+            )
+
+        if not rows:
+            raise LiveExecutionProtectionError(
+                "FAIL-CLOSED: execution order lineage not found"
+            )
+
+        tokens = set()
+
+        for row in rows:
+            if not isinstance(row, dict):
+                row = dict(row)
+
+            token = row.get("instrument_token")
+
+            if (
+                not isinstance(token, str)
+                or not token.strip()
+            ):
+                raise LiveExecutionProtectionError(
+                    "FAIL-CLOSED: execution order lineage missing instrument_token"
+                )
+
+            tokens.add(token.strip())
+
+        if len(tokens) != 1:
+            raise LiveExecutionProtectionError(
+                "FAIL-CLOSED: execution order lineage has ambiguous instrument identity"
+            )
+
+        return next(iter(tokens))
+
     def _load_live_intent(self, authorization_id):
         row = self.db.get_execution_intent(
             authorization_id
@@ -184,7 +227,6 @@ class LiveExecutionProtectionService:
             "client_order_id",
             "symbol",
             "timeframe",
-            "instrument_token",
             "decision",
         ):
             self._required_string(
@@ -220,6 +262,14 @@ class LiveExecutionProtectionService:
                 "FAIL-CLOSED: protection submission requires "
                 "parent PROTECTION_PENDING"
             )
+
+        instrument_token = self._resolve_instrument_token(
+            authorization_id
+        )
+
+        # The token is authoritative durable lineage, but this copy is
+        # ephemeral and exists only for broker-facing validation/submission.
+        intent["instrument_token"] = instrument_token
 
         return intent
 
