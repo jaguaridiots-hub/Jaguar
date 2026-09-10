@@ -235,6 +235,84 @@ def load_market(
     )
 
 
+def load_market_with_identity(
+    symbol,
+    interval="15m",
+    limit=300,
+):
+    """
+    Load canonical live market data together with execution identity.
+
+    Existing load_market() remains candle-only.
+    Identity-aware loading is currently defined for MCX.
+    """
+
+    normalized_symbol = _normalize_symbol(symbol)
+
+    normalized_interval = str(
+        interval
+    ).strip()
+
+    if not normalized_interval:
+        raise LiveMarketLoaderError(
+            "Market interval is required for live loading"
+        )
+
+    normalized_limit = _normalize_limit(
+        limit
+    )
+
+    market = MarketDetector.detect(
+        normalized_symbol
+    )
+
+    if market != "MCX":
+        candles = load_market(
+            normalized_symbol,
+            normalized_interval,
+            normalized_limit,
+        )
+
+        return {
+            "candles": _validate_candles(candles),
+            "instrument_token": None,
+        }
+
+    try:
+        result = MarketAdapter.load_with_identity(
+            normalized_symbol,
+            normalized_interval,
+            normalized_limit,
+            intraday=True,
+        )
+    except (MarketProviderError, ValueError) as exc:
+        raise LiveMarketLoaderError(
+            "Canonical live market identity load failed for "
+            f"{normalized_symbol!r}"
+        ) from exc
+
+    if not isinstance(result, dict):
+        raise LiveMarketLoaderError(
+            "Identity-aware market provider result must be a dictionary"
+        )
+
+    candles = result.get("candles")
+
+    instrument_token = str(
+        result.get("instrument_key", "") or ""
+    ).strip()
+
+    if not instrument_token:
+        raise LiveMarketLoaderError(
+            "Canonical live market identity is unavailable"
+        )
+
+    return {
+        "candles": _validate_candles(candles),
+        "instrument_token": instrument_token,
+    }
+
+
 def update_state(
     state,
     symbol=None,
@@ -273,11 +351,21 @@ def update_state(
         limit
     )
 
-    candles = load_market(
+    load_result = load_market_with_identity(
         normalized_symbol,
         interval,
         normalized_limit,
     )
+
+    if not isinstance(load_result, dict):
+        raise LiveMarketLoaderError(
+            "Canonical live market load result is invalid"
+        )
+
+    candles = load_result.get("candles")
+    instrument_token = str(
+        load_result.get("instrument_token", "") or ""
+    ).strip()
 
     latest = candles[-1]
 
@@ -393,6 +481,7 @@ def update_state(
         "synthetic": not provider_known,
         "live_data_valid": integrity_ok and provider_known,
         "execution_allowed": integrity_ok and provider_known,
+        "instrument_token": instrument_token,
     }
 
     return state

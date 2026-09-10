@@ -875,6 +875,23 @@ class ExecutionGatewayV2:
             "authorization_id": authorization_id,
             "client_order_id": client_order_id,
 
+            # Canonical market identity propagated from the
+            # live-loader market metadata boundary.
+            "instrument_token": market_metadata.get(
+                "instrument_token"
+            ),
+
+            # Canonical execution timeframe propagated from
+            # MarketState rather than reconstructed downstream.
+            "timeframe": str(
+                getattr(
+                    state,
+                    "timeframe",
+                    "",
+                )
+                or ""
+            ).strip(),
+
         }
 
         # ==================================================

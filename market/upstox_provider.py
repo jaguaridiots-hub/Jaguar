@@ -214,6 +214,7 @@ class UpstoxProvider:
         from_date=None,
         as_of=None,
         intraday=False,
+        include_identity=False,
     ):
         """
         Load canonical Jaguar candles for one MCX commodity
@@ -379,5 +380,11 @@ class UpstoxProvider:
             candles = candles[
                 -normalized_limit:
             ]
+
+        if include_identity is True:
+            return {
+                "candles": candles,
+                "instrument_key": instrument_key,
+            }
 
         return candles

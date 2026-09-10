@@ -142,6 +142,64 @@ class MarketProvider:
             ) from exc
 
     @staticmethod
+    def load_with_identity(
+        symbol,
+        interval="15m",
+        limit=500,
+        *,
+        intraday=None,
+        to_date=None,
+        from_date=None,
+        as_of=None,
+    ):
+        """
+        Load canonical MCX candles together with the exact
+        resolver-selected Upstox instrument identity.
+        """
+
+        market = MarketDetector.detect(symbol)
+
+        if market != "MCX":
+            raise MarketProviderError(
+                "Identity-aware loading is currently "
+                "supported only for MCX"
+            )
+
+        if intraday is None:
+            raise MarketProviderError(
+                "MCX provider requires explicit intraday mode"
+            )
+
+        if not isinstance(intraday, bool):
+            raise MarketProviderError(
+                "MCX intraday mode must be boolean"
+            )
+
+        from market.upstox_provider import (
+            UpstoxProvider,
+            UpstoxProviderError,
+        )
+
+        try:
+            provider = UpstoxProvider()
+
+            return provider.load_mcx(
+                family=symbol,
+                interval=interval,
+                limit=limit,
+                to_date=to_date,
+                from_date=from_date,
+                as_of=as_of,
+                intraday=intraday,
+                include_identity=True,
+            )
+
+        except UpstoxProviderError as exc:
+            raise MarketProviderError(
+                "MCX provider routing failed"
+            ) from exc
+
+    @staticmethod
     def load(
         symbol,
         interval="15m",

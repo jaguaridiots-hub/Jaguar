@@ -5,7 +5,7 @@ Live Loader Hydration Contract
 Purpose:
 Prove that the canonical live-loader boundary:
 
-- delegates live CRYPTO through MarketProvider
+- delegates live CRYPTO through MarketAdapter
 - declares explicit MCX intraday intent
 - hydrates legacy MarketState scalar market fields
 - preserves state object identity
@@ -56,7 +56,7 @@ CANDLES = [
 ]
 
 
-class FakeMarketProvider:
+class FakeMarketAdapter:
     calls = []
 
     @staticmethod
@@ -71,7 +71,7 @@ class FakeMarketProvider:
         as_of=None,
     ):
 
-        FakeMarketProvider.calls.append(
+        FakeMarketAdapter.calls.append(
             {
                 "symbol": symbol,
                 "interval": interval,
@@ -92,6 +92,37 @@ class FakeMarketProvider:
             dict(candle)
             for candle in CANDLES
         ]
+
+    @staticmethod
+    def load_with_identity(
+        symbol,
+        interval="15m",
+        limit=500,
+        *,
+        intraday=None,
+        to_date=None,
+        from_date=None,
+        as_of=None,
+    ):
+        FakeMarketAdapter.calls.append(
+            {
+                "symbol": symbol,
+                "interval": interval,
+                "limit": limit,
+                "intraday": intraday,
+                "to_date": to_date,
+                "from_date": from_date,
+                "as_of": as_of,
+            }
+        )
+
+        return {
+            "candles": [
+                dict(candle)
+                for candle in CANDLES
+            ],
+            "instrument_key": "MCX_FO|GOLDM_TEST",
+        }
 
 
 class InvalidListProvider:
@@ -172,17 +203,17 @@ def main():
 
     failures = []
 
-    original_provider = (
-        live_loader.MarketProvider
+    original_adapter = (
+        live_loader.MarketAdapter
     )
 
     try:
 
-        live_loader.MarketProvider = (
-            FakeMarketProvider
+        live_loader.MarketAdapter = (
+            FakeMarketAdapter
         )
 
-        FakeMarketProvider.calls = []
+        FakeMarketAdapter.calls = []
 
         # ==================================================
         # CRYPTO LIVE HYDRATION
@@ -312,14 +343,14 @@ def main():
                     }
                 )
 
-        if len(FakeMarketProvider.calls) != 1:
+        if len(FakeMarketAdapter.calls) != 1:
 
             failures.append(
                 {
                     "contract": "CRYPTO_PROVIDER_CALL_COUNT",
                     "expected": 1,
                     "actual": len(
-                        FakeMarketProvider.calls
+                        FakeMarketAdapter.calls
                     ),
                 }
             )
@@ -327,7 +358,7 @@ def main():
         else:
 
             crypto_call = (
-                FakeMarketProvider.calls[0]
+                FakeMarketAdapter.calls[0]
             )
 
             expected_crypto_call = {
@@ -354,7 +385,7 @@ def main():
         # MCX EXPLICIT LIVE TEMPORAL INTENT
         # ==================================================
 
-        FakeMarketProvider.calls = []
+        FakeMarketAdapter.calls = []
 
         mcx_state = MarketState()
 
@@ -365,14 +396,14 @@ def main():
             mcx_state
         )
 
-        if len(FakeMarketProvider.calls) != 1:
+        if len(FakeMarketAdapter.calls) != 1:
 
             failures.append(
                 {
                     "contract": "MCX_PROVIDER_CALL_COUNT",
                     "expected": 1,
                     "actual": len(
-                        FakeMarketProvider.calls
+                        FakeMarketAdapter.calls
                     ),
                 }
             )
@@ -380,7 +411,7 @@ def main():
         else:
 
             mcx_call = (
-                FakeMarketProvider.calls[0]
+                FakeMarketAdapter.calls[0]
             )
 
             expected_mcx_call = {
@@ -415,6 +446,20 @@ def main():
                 }
             )
 
+        if mcx_state.market_metadata.get(
+            "instrument_token"
+        ) != "MCX_FO|GOLDM_TEST":
+
+            failures.append(
+                {
+                    "contract": "MCX_INSTRUMENT_IDENTITY",
+                    "expected": "MCX_FO|GOLDM_TEST",
+                    "actual": mcx_state.market_metadata.get(
+                        "instrument_token"
+                    ),
+                }
+            )
+
         # ==================================================
         # EXPLICIT SYMBOL OVERRIDE
         # ==================================================
@@ -441,7 +486,7 @@ def main():
             )
 
         override_call = (
-            FakeMarketProvider.calls[-1]
+            FakeMarketAdapter.calls[-1]
         )
 
         if override_call.get("interval") != "4h":
@@ -558,7 +603,7 @@ def main():
         # PROVIDER PAYLOAD FAIL CLOSED
         # ==================================================
 
-        live_loader.MarketProvider = (
+        live_loader.MarketAdapter = (
             InvalidListProvider
         )
 
@@ -570,7 +615,7 @@ def main():
             ),
         )
 
-        live_loader.MarketProvider = (
+        live_loader.MarketAdapter = (
             EmptyProvider
         )
 
@@ -582,7 +627,7 @@ def main():
             ),
         )
 
-        live_loader.MarketProvider = (
+        live_loader.MarketAdapter = (
             InvalidFieldProvider
         )
 
@@ -596,8 +641,8 @@ def main():
 
     finally:
 
-        live_loader.MarketProvider = (
-            original_provider
+        live_loader.MarketAdapter = (
+            original_adapter
         )
 
     if failures:
