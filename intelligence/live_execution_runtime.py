@@ -90,3 +90,56 @@ class LiveExecutionRuntimeBoundary:
             self.broker,
             activation_requested=activation_requested,
         )
+
+    def submit_live(
+        self,
+        execution,
+        market_metadata,
+        *,
+        activation_requested=False,
+    ):
+        """Submit LIVE execution only after recovery and activation gates pass."""
+        recovery = self.recover_unresolved()
+
+        if recovery is None:
+            recovery = []
+
+        if not isinstance(recovery, (list, tuple)):
+            raise LiveExecutionRuntimeError(
+                "FAIL-CLOSED: invalid LIVE recovery result"
+            )
+
+        for result in recovery:
+            if not isinstance(result, dict):
+                raise LiveExecutionRuntimeError(
+                    "FAIL-CLOSED: invalid LIVE recovery record"
+                )
+
+            status = str(result.get("status", "")).strip().upper()
+
+            if status != "SUBMITTED":
+                raise LiveExecutionRuntimeError(
+                    "FAIL-CLOSED: LIVE submission blocked by unresolved recovery"
+                )
+
+        activation = self.evaluate_activation(
+            execution,
+            market_metadata,
+            activation_requested=activation_requested,
+        )
+
+        if not isinstance(activation, dict):
+            raise LiveExecutionRuntimeError(
+                "FAIL-CLOSED: invalid LIVE activation result"
+            )
+
+        if (
+            activation.get("allowed") is not True
+            or activation.get("status") != "ALLOW"
+            or activation.get("gate") != "LIVE_ACTIVATION"
+        ):
+            raise LiveExecutionRuntimeError(
+                "FAIL-CLOSED: LIVE activation denied"
+            )
+
+        return self.coordinator.start_submission(execution)
