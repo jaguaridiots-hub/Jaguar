@@ -8,28 +8,29 @@ from intelligence.live_execution_dispatch import (
 
 class FakeRuntime:
     def __init__(self):
-        self.recovery_calls = 0
-        self.activation_calls = 0
-        self.recovery_result = []
-        self.activation_result = {
-            "allowed": True,
-            "status": "ALLOW",
-            "gate": "LIVE_ACTIVATION",
+        self.submit_calls = 0
+        self.submit_args = []
+        self.submit_result = {
+            "mode": "LIVE",
+            "status": "LIVE_OK",
         }
 
-    def recover_unresolved(self):
-        self.recovery_calls += 1
-        return self.recovery_result
-
-    def evaluate_activation(
+    def submit_live(
         self,
         execution,
         market_metadata,
         *,
         activation_requested=False,
     ):
-        self.activation_calls += 1
-        return self.activation_result
+        self.submit_calls += 1
+        self.submit_args.append(
+            (
+                execution,
+                market_metadata,
+                activation_requested,
+            )
+        )
+        return self.submit_result
 
 
 def assert_true(condition, message):
@@ -45,13 +46,8 @@ def build():
         calls.append("paper")
         return {"mode": "PAPER", "status": "PAPER_OK"}
 
-    def live(execution):
-        calls.append("live")
-        return {"mode": "LIVE", "status": "LIVE_OK"}
-
     dispatcher = ExecutionDispatchRuntime(
         paper_executor=paper,
-        live_executor=live,
         live_runtime=runtime,
     )
 
@@ -67,129 +63,38 @@ def test_paper_delegation():
 
     assert_true(result["status"] == "PAPER_OK", "PAPER did not delegate")
     assert_true(calls == ["paper"], "PAPER executor was not called")
-    assert_true(runtime.recovery_calls == 0, "PAPER touched LIVE recovery")
-    assert_true(runtime.activation_calls == 0, "PAPER touched LIVE activation")
     print("D27_PAPER_DELEGATION: PASS")
 
 
 def test_live_delegation():
     dispatcher, runtime, calls = build()
 
+    execution = {"mode": "LIVE"}
+    market = {"live_data_valid": True}
+
     result = dispatcher.dispatch(
-        {"mode": "LIVE"},
-        {"live_data_valid": True},
+        execution,
+        market,
         activation_requested=True,
     )
 
     assert_true(result["status"] == "LIVE_OK", "LIVE did not delegate")
-    assert_true(calls == ["live"], "LIVE executor was not called")
-    assert_true(runtime.recovery_calls == 1, "LIVE recovery was not called")
-    assert_true(runtime.activation_calls == 1, "LIVE activation was not called")
+    assert_true(calls == [], "PAPER executor ran for LIVE")
+    assert_true(
+        runtime.submit_calls == 1,
+        "LIVE submission handoff was not called exactly once",
+    )
+    assert_true(
+        runtime.submit_args == [
+            (
+                execution,
+                market,
+                True,
+            )
+        ],
+        "LIVE handoff arguments were incorrect",
+    )
     print("D27_LIVE_DELEGATION: PASS")
-
-
-def test_recovered_submission_does_not_block():
-    dispatcher, runtime, calls = build()
-    runtime.recovery_result = [
-        {"authorization_id": "AUTH", "status": "SUBMITTED"}
-    ]
-
-    result = dispatcher.dispatch(
-        {"mode": "LIVE"},
-        {"live_data_valid": True},
-        activation_requested=True,
-    )
-
-    assert_true(
-        result["status"] == "LIVE_OK",
-        "Successful recovery incorrectly blocked LIVE",
-    )
-    assert_true(calls == ["live"], "LIVE executor was not called")
-    assert_true(runtime.recovery_calls == 1, "Recovery was not called")
-    assert_true(runtime.activation_calls == 1, "Activation was not called")
-    print("D27_RECOVERED_SUBMISSION_DOES_NOT_BLOCK: PASS")
-
-
-def test_halted_recovery_fail_closed():
-    dispatcher, runtime, calls = build()
-    runtime.recovery_result = [
-        {"authorization_id": "AUTH", "status": "HALTED"}
-    ]
-
-    try:
-        dispatcher.dispatch(
-            {"mode": "LIVE"},
-            {"live_data_valid": True},
-            activation_requested=True,
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("HALTED recovery did not fail closed")
-
-    assert_true(
-        runtime.activation_calls == 0,
-        "Activation ran after HALTED recovery",
-    )
-    assert_true(
-        calls == [],
-        "LIVE executor ran after HALTED recovery",
-    )
-    print("D27_HALTED_RECOVERY_FAIL_CLOSED: PASS")
-
-
-def test_unknown_recovery_status_fail_closed():
-    dispatcher, runtime, calls = build()
-    runtime.recovery_result = [
-        {"authorization_id": "AUTH", "status": "UNKNOWN"}
-    ]
-
-    try:
-        dispatcher.dispatch(
-            {"mode": "LIVE"},
-            {"live_data_valid": True},
-            activation_requested=True,
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("Unknown recovery status did not fail closed")
-
-    assert_true(
-        runtime.activation_calls == 0,
-        "Activation ran after unknown recovery status",
-    )
-    assert_true(
-        calls == [],
-        "LIVE executor ran after unknown recovery status",
-    )
-    print("D27_UNKNOWN_RECOVERY_STATUS_FAIL_CLOSED: PASS")
-
-
-def test_malformed_recovery_record_fail_closed():
-    dispatcher, runtime, calls = build()
-    runtime.recovery_result = [None]
-
-    try:
-        dispatcher.dispatch(
-            {"mode": "LIVE"},
-            {"live_data_valid": True},
-            activation_requested=True,
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("Malformed recovery record did not fail closed")
-
-    assert_true(
-        runtime.activation_calls == 0,
-        "Activation ran after malformed recovery record",
-    )
-    assert_true(
-        calls == [],
-        "LIVE executor ran after malformed recovery record",
-    )
-    print("D27_MALFORMED_RECOVERY_RECORD_FAIL_CLOSED: PASS")
 
 
 def test_missing_mode_fail_closed():
@@ -228,17 +133,72 @@ def test_live_requires_activation():
     else:
         raise AssertionError("LIVE without activation did not fail closed")
 
-    assert_true(runtime.recovery_calls == 0, "Recovery ran before activation")
-    assert_true(runtime.activation_calls == 0, "Activation ran before explicit request")
     assert_true(calls == [], "LIVE executor was called before activation")
     print("D27_LIVE_WITHOUT_ACTIVATION_FAIL_CLOSED: PASS")
+
+
+def test_live_runtime_submission_result_propagates():
+    dispatcher, runtime, _ = build()
+
+    runtime.submit_result = {
+        "mode": "LIVE",
+        "status": "SUBMITTED",
+        "authorization_id": "AUTH",
+    }
+
+    result = dispatcher.dispatch(
+        {"mode": "LIVE"},
+        {"live_data_valid": True},
+        activation_requested=True,
+    )
+
+    assert_true(
+        result == runtime.submit_result,
+        "LIVE runtime result was not propagated",
+    )
+    print("D27_LIVE_RESULT_PROPAGATION: PASS")
+
+
+def test_live_runtime_requires_submission_api():
+    class InvalidRuntime:
+        pass
+
+    try:
+        ExecutionDispatchRuntime(
+            paper_executor=lambda execution: None,
+            live_runtime=InvalidRuntime(),
+        )
+    except LiveExecutionDispatchError:
+        pass
+    else:
+        raise AssertionError(
+            "Missing LIVE submission API did not fail closed"
+        )
+
+    print("D27_SUBMISSION_API_FAIL_CLOSED: PASS")
+
+
+def test_legacy_live_executor_removed():
+    try:
+        ExecutionDispatchRuntime(
+            paper_executor=lambda execution: None,
+            live_executor=lambda execution: None,
+            live_runtime=FakeRuntime(),
+        )
+    except TypeError:
+        pass
+    else:
+        raise AssertionError(
+            "Legacy live_executor injection is still accepted"
+        )
+
+    print("D27_LEGACY_LIVE_EXECUTOR_REMOVED: PASS")
 
 
 def test_live_requires_runtime():
     try:
         ExecutionDispatchRuntime(
             paper_executor=lambda execution: None,
-            live_executor=lambda execution: None,
             live_runtime=None,
         )
     except LiveExecutionDispatchError:
@@ -249,71 +209,32 @@ def test_live_requires_runtime():
     print("D27_LIVE_WITHOUT_RUNTIME_FAIL_CLOSED: PASS")
 
 
-def test_live_recovery_blocks():
-    dispatcher, runtime, calls = build()
-    runtime.recovery_result = [{"authorization_id": "AUTH"}]
-
-    try:
-        dispatcher.dispatch(
-            {"mode": "LIVE"},
-            {},
-            activation_requested=True,
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("Unresolved recovery did not block LIVE")
-
-    assert_true(runtime.activation_calls == 0, "Activation ran despite recovery")
-    assert_true(calls == [], "LIVE executor ran despite recovery")
-    print("D27_UNRESOLVED_RECOVERY_FAIL_CLOSED: PASS")
-
-
-def test_live_activation_blocks():
-    dispatcher, runtime, calls = build()
-    runtime.activation_result = {
-        "allowed": False,
-        "status": "BLOCKED",
-        "gate": "ACTIVATION",
-    }
-
-    try:
-        dispatcher.dispatch(
-            {"mode": "LIVE"},
-            {},
-            activation_requested=True,
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("Denied activation did not block LIVE")
-
-    assert_true(runtime.recovery_calls == 1, "Recovery was not checked")
-    assert_true(runtime.activation_calls == 1, "Activation was not checked")
-    assert_true(calls == [], "LIVE executor ran after denied activation")
-    print("D27_ACTIVATION_FAIL_CLOSED: PASS")
-
-
 def test_no_paper_fallback():
     dispatcher, runtime, calls = build()
-    runtime.activation_result = {
-        "allowed": False,
-        "status": "BLOCKED",
-        "gate": "BROKER",
+
+    runtime.submit_result = {
+        "mode": "LIVE",
+        "status": "LIVE_BLOCKED",
     }
 
-    try:
-        dispatcher.dispatch(
-            {"mode": "LIVE"},
-            {},
-            activation_requested=True,
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("LIVE silently fell back to PAPER")
+    result = dispatcher.dispatch(
+        {"mode": "LIVE"},
+        {},
+        activation_requested=True,
+    )
 
-    assert_true(calls == [], "Fallback PAPER execution occurred")
+    assert_true(
+        result["mode"] == "LIVE",
+        "LIVE path changed mode",
+    )
+    assert_true(
+        calls == [],
+        "LIVE silently fell back to PAPER",
+    )
+    assert_true(
+        runtime.submit_calls == 1,
+        "LIVE runtime submission was not called",
+    )
     print("D27_NO_PAPER_FALLBACK: PASS")
 
 
@@ -340,6 +261,31 @@ def test_no_direct_broker_api():
     print("D27_NO_DIRECT_BROKER_API: PASS")
 
 
+def test_no_runtime_gate_bypass():
+    source = open(
+        "intelligence/live_execution_dispatch.py",
+        encoding="utf-8",
+    ).read()
+
+    forbidden = (
+        "recover_unresolved",
+        "evaluate_activation",
+    )
+
+    for token in forbidden:
+        assert_true(
+            token not in source,
+            f"Runtime gate bypass remains: {token}",
+        )
+
+    assert_true(
+        "submit_live" in source,
+        "D2.4 submit_live() handoff missing",
+    )
+
+    print("D27_NO_RUNTIME_GATE_BYPASS: PASS")
+
+
 def test_production_wiring_absent():
     main_text = open("main.py", encoding="utf-8").read()
 
@@ -355,24 +301,12 @@ def test_constructor_fail_closed():
     try:
         ExecutionDispatchRuntime(
             paper_executor=None,
-            live_executor=lambda execution: None,
             live_runtime=FakeRuntime(),
         )
     except LiveExecutionDispatchError:
         pass
     else:
         raise AssertionError("Invalid paper executor did not fail closed")
-
-    try:
-        ExecutionDispatchRuntime(
-            paper_executor=lambda execution: None,
-            live_executor=None,
-            live_runtime=FakeRuntime(),
-        )
-    except LiveExecutionDispatchError:
-        pass
-    else:
-        raise AssertionError("Invalid LIVE executor did not fail closed")
 
     print("D27_CONSTRUCTOR_FAIL_CLOSED: PASS")
 
@@ -401,18 +335,14 @@ def test_dispatch_contract():
 def run():
     test_paper_delegation()
     test_live_delegation()
-    test_recovered_submission_does_not_block()
-    test_halted_recovery_fail_closed()
-    test_unknown_recovery_status_fail_closed()
-    test_malformed_recovery_record_fail_closed()
-    test_missing_mode_fail_closed()
-    test_invalid_mode_fail_closed()
     test_live_requires_activation()
+    test_live_runtime_submission_result_propagates()
     test_live_requires_runtime()
-    test_live_recovery_blocks()
-    test_live_activation_blocks()
+    test_live_runtime_requires_submission_api()
+    test_legacy_live_executor_removed()
     test_no_paper_fallback()
     test_no_direct_broker_api()
+    test_no_runtime_gate_bypass()
     test_production_wiring_absent()
     test_constructor_fail_closed()
     test_dispatch_contract()

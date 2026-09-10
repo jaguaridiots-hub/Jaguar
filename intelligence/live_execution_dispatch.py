@@ -20,17 +20,11 @@ class ExecutionDispatchRuntime:
         self,
         *,
         paper_executor,
-        live_executor,
         live_runtime,
     ):
         if not callable(paper_executor):
             raise LiveExecutionDispatchError(
                 "FAIL-CLOSED: paper executor is required"
-            )
-
-        if not callable(live_executor):
-            raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: LIVE executor is required"
             )
 
         if live_runtime is None:
@@ -39,21 +33,13 @@ class ExecutionDispatchRuntime:
             )
 
         if not callable(
-            getattr(live_runtime, "recover_unresolved", None)
+            getattr(live_runtime, "submit_live", None)
         ):
             raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: LIVE runtime recovery API unavailable"
-            )
-
-        if not callable(
-            getattr(live_runtime, "evaluate_activation", None)
-        ):
-            raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: LIVE runtime activation API unavailable"
+                "FAIL-CLOSED: LIVE runtime submission API unavailable"
             )
 
         self.paper_executor = paper_executor
-        self.live_executor = live_executor
         self.live_runtime = live_runtime
 
     @staticmethod
@@ -97,49 +83,8 @@ class ExecutionDispatchRuntime:
                 "FAIL-CLOSED: LIVE execution requires explicit activation"
             )
 
-        recovery = self.live_runtime.recover_unresolved()
-
-        if recovery is None:
-            recovery = []
-
-        if not isinstance(recovery, (list, tuple)):
-            raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: invalid LIVE recovery result"
-            )
-
-        allowed_recovery_statuses = {"SUBMITTED"}
-
-        for result in recovery:
-            if not isinstance(result, dict):
-                raise LiveExecutionDispatchError(
-                    "FAIL-CLOSED: invalid LIVE recovery record"
-                )
-
-            status = str(result.get("status", "")).strip().upper()
-
-            if status not in allowed_recovery_statuses:
-                raise LiveExecutionDispatchError(
-                    "FAIL-CLOSED: LIVE execution blocked by unresolved recovery"
-                )
-
-        activation = self.live_runtime.evaluate_activation(
+        return self.live_runtime.submit_live(
             execution,
             market_metadata,
             activation_requested=True,
         )
-
-        if not isinstance(activation, dict):
-            raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: invalid LIVE activation result"
-            )
-
-        if (
-            activation.get("allowed") is not True
-            or activation.get("status") != "ALLOW"
-            or activation.get("gate") != "LIVE_ACTIVATION"
-        ):
-            raise LiveExecutionDispatchError(
-                "FAIL-CLOSED: LIVE activation denied"
-            )
-
-        return self.live_executor(execution)
