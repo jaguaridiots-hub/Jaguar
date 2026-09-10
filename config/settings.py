@@ -8,6 +8,16 @@ Jaguar Quant X Enterprise Configuration
 # Trading
 # -----------------------------
 
+# -----------------------------
+# Execution Mode
+# -----------------------------
+
+# Authoritative transport selection.
+# Unset defaults to PAPER. LIVE must be selected explicitly at runtime.
+EXECUTION_MODE_ENV = "JAGUAR_EXECUTION_MODE"
+DEFAULT_EXECUTION_MODE = "PAPER"
+ALLOWED_EXECUTION_MODES = frozenset({"PAPER", "LIVE"})
+
 DEFAULT_SYMBOL = "BTCUSDT"
 DEFAULT_INTERVAL = "15m"
 

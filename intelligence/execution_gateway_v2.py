@@ -31,6 +31,7 @@ The gateway fails closed.
 
 
 import hashlib
+from config.config_manager import config
 
 
 class ExecutionGatewayV2:
@@ -95,6 +96,8 @@ class ExecutionGatewayV2:
             "gate": gate,
 
             "reason": reason,
+
+            "mode": config.get_execution_mode(),
 
             "broker": "Paper",
 
