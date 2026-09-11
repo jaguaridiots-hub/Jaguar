@@ -136,7 +136,7 @@ def test_main_wiring_order():
         "enterprise_execution = bind_execution_identity("
     )
     authorize = main_source.index(
-        "paper_authorization = execution_adapter.authorize("
+        "paper_authorization = execution_dispatch_runtime.paper_authorizer("
     )
     consume = main_source.index(
         'trade_uuid = execution.get(\n'
