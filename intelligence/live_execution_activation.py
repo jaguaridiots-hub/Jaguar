@@ -130,15 +130,31 @@ class LiveExecutionActivationBarrier:
                 "LIVE activation requires decision=LONG or SHORT",
             )
 
-        try:
-            quantity = float(execution.get("position_size", 0.0))
-        except (TypeError, ValueError):
-            quantity = 0.0
+        raw_quantity = execution.get("quantity")
 
-        if quantity <= 0:
+        if isinstance(raw_quantity, bool):
             return self._blocked(
                 "EXECUTION",
-                "LIVE activation requires positive position_size",
+                "LIVE activation requires a valid quantity",
+            )
+
+        try:
+            quantity = float(raw_quantity)
+        except (TypeError, ValueError):
+            return self._blocked(
+                "EXECUTION",
+                "LIVE activation requires a valid quantity",
+            )
+
+        if (
+            quantity != quantity
+            or quantity in (float("inf"), float("-inf"))
+            or quantity <= 0
+            or not quantity.is_integer()
+        ):
+            return self._blocked(
+                "EXECUTION",
+                "LIVE activation requires a positive integer quantity",
             )
 
         if not isinstance(market_metadata, dict):

@@ -48,7 +48,7 @@ def valid_execution():
         "timeframe": "15m",
         "instrument_token": "TOKEN-D23-001",
         "decision": "LONG",
-        "position_size": 1.0,
+        "quantity": 1,
     }
 
 

@@ -69,7 +69,11 @@ def test_paper_delegation():
 def test_live_delegation():
     dispatcher, runtime, calls = build()
 
-    execution = {"mode": "LIVE"}
+    execution = {
+        "mode": "LIVE",
+        "decision": "ENTER_LONG",
+        "position_size": 1,
+    }
     market = {"live_data_valid": True}
 
     result = dispatcher.dispatch(
@@ -87,7 +91,11 @@ def test_live_delegation():
     assert_true(
         runtime.submit_args == [
             (
-                execution,
+                {
+                    "mode": "LIVE",
+                    "decision": "LONG",
+                    "quantity": 1,
+                },
                 market,
                 True,
             )
@@ -147,7 +155,11 @@ def test_live_runtime_submission_result_propagates():
     }
 
     result = dispatcher.dispatch(
-        {"mode": "LIVE"},
+        {
+            "mode": "LIVE",
+            "decision": "ENTER_LONG",
+            "position_size": 1,
+        },
         {"live_data_valid": True},
         activation_requested=True,
     )
@@ -218,7 +230,11 @@ def test_no_paper_fallback():
     }
 
     result = dispatcher.dispatch(
-        {"mode": "LIVE"},
+        {
+            "mode": "LIVE",
+            "decision": "ENTER_LONG",
+            "position_size": 1,
+        },
         {},
         activation_requested=True,
     )

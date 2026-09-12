@@ -27,10 +27,10 @@ class FakeLiveBroker:
             "instrument_token": execution["instrument_token"],
             "transaction_type": (
                 "BUY"
-                if execution["decision"] == "LONG"
+                if execution["decision"] == "ENTER_LONG"
                 else "SELL"
             ),
-            "quantity": execution["quantity"],
+            "quantity": execution["position_size"],
             "status": "OPEN",
         })
 

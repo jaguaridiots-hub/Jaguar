@@ -159,7 +159,12 @@ def main():
 
         # LIVE dispatch reaches only the LIVE runtime.
         result = runtime.dispatch(
-            {"mode": "LIVE", "authorization_id": "AUTH-LIVE"},
+        {
+            "mode": "LIVE",
+            "authorization_id": "AUTH-LIVE",
+            "decision": "ENTER_LONG",
+            "position_size": 1,
+        },
             market_metadata={"live_data_valid": True},
             activation_requested=True,
         )

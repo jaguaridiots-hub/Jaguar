@@ -173,6 +173,27 @@ class LiveExecutionCoordinator:
         return result
 
     @staticmethod
+    def _broker_execution(execution):
+        """Build an ephemeral broker-facing copy from canonical D2 execution."""
+        decision_map = {
+            "LONG": "ENTER_LONG",
+            "SHORT": "ENTER_SHORT",
+        }
+
+        decision = str(execution.get("decision", "")).strip().upper()
+        if decision not in decision_map:
+            raise LiveExecutionCoordinatorError(
+                "FAIL-CLOSED: invalid broker execution direction"
+            )
+
+        broker_execution = dict(execution)
+        broker_execution["decision"] = decision_map[decision]
+        broker_execution["position_size"] = execution["quantity"]
+        broker_execution.pop("quantity", None)
+
+        return broker_execution
+
+    @staticmethod
     def _submission_id(authorization_id):
         return f"SUB:{authorization_id}"
 
@@ -594,8 +615,9 @@ class LiveExecutionCoordinator:
             )
 
         try:
+            broker_execution = self._broker_execution(execution)
             submission = self.broker.submit_entry(
-                execution
+                broker_execution
             )
         except Exception as exc:
             # Do not resubmit. The broker may have accepted the request

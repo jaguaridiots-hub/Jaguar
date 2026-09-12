@@ -111,7 +111,7 @@ def main():
         return CANONICAL_CANDLES
 
     with patch(
-        "market.provider.get_klines",
+        "market.providers.binance.get_klines",
         new=fake_get_klines,
     ):
 
