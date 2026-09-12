@@ -21,14 +21,9 @@ def build_assistant_context(state: Any, report: dict) -> dict:
     system = dict(_mapping(ui.get("system")))
     execution = dict(_mapping(ui.get("execution")))
 
-    runtime_mode = str(
-        execution.get("mode")
-        or getattr(state, "mode", "")
-        or system.get("mode")
-        or "PAPER"
-    ).strip().upper()
-
-    system["mode"] = runtime_mode
+    # build_ui_state() already resolves PAPER/LIVE from the authoritative
+    # execution configuration. Do not reinterpret state.mode here because
+    # that field represents the analysis profile (SCALP/SWING/CLASSIC).
 
     # Never expose execution authorization identity to the LLM.
     execution.pop("authorization_id", None)

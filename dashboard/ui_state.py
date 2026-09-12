@@ -93,6 +93,12 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         or getattr(state, "execution", None)
     )
 
+    # PAPER/LIVE is an execution concern, not the SCALP/SWING/CLASSIC
+    # analysis-profile mode stored on state.mode.
+    from config.config_manager import config
+
+    execution_mode = config.get_execution_mode()
+
     # Master IDM is the canonical decision authority.
     decision = _text(
         master.get(
@@ -209,7 +215,8 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     return {
         "system": {
             "mode": _text(
-                execution.get("mode", getattr(state, "mode", "PAPER"))
+                execution_mode,
+                "PAPER",
             ).upper(),
             "health": "HEALTHY",
         },
