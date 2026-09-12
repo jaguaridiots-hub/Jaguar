@@ -1,5 +1,7 @@
 # api.py – FastAPI backend for Jaguar Quant X
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
+from pathlib import Path
 from pydantic import BaseModel
 import uvicorn
 from core.orchestrator import JaguarOrchestrator
@@ -7,6 +9,9 @@ from core.state import JaguarState
 from assistant.service import AssistantService, AssistantServiceError
 
 app = FastAPI(title="Jaguar Quant X API", version="2.0")
+
+DASHBOARD_ROOT = Path(__file__).resolve().parent
+_DASHBOARD_FIXED_FILES = {"index.html", "portfolio.html", "command_center.html"}
 
 class AnalyzeRequest(BaseModel):
     symbol: str = "BTCUSDT"
@@ -70,6 +75,35 @@ async def assistant_chat(req: AssistantChatRequest):
             status_code=500,
             detail="Assistant request failed",
         )
+
+
+@app.get("/dashboard", include_in_schema=False)
+@app.get("/dashboard/", include_in_schema=False)
+async def dashboard_home():
+    index = DASHBOARD_ROOT / "index.html"
+    if not index.is_file():
+        raise HTTPException(status_code=404, detail="Dashboard index not found")
+    return FileResponse(index)
+
+
+@app.get("/dashboard/{filename:path}", include_in_schema=False)
+async def dashboard_file(filename: str):
+    candidate = (DASHBOARD_ROOT / filename).resolve()
+
+    valid_name = (
+        candidate.name in _DASHBOARD_FIXED_FILES
+        or candidate.name.startswith("dashboard_")
+    )
+
+    if (
+        candidate.parent != DASHBOARD_ROOT
+        or candidate.suffix.lower() != ".html"
+        or not valid_name
+        or not candidate.is_file()
+    ):
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+
+    return FileResponse(candidate)
 
 
 @app.post("/chat")

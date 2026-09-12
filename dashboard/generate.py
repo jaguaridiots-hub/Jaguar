@@ -61,6 +61,7 @@ def generate_dashboard(state, output_file="dashboard.html"):
 
     symbol = getattr(state, "symbol", "BTCUSDT")
     mode = getattr(state, "mode", "SWING")
+    interval = getattr(state, "interval", "15m")
     price = getattr(state, "price", 0)
     high = getattr(state, "high", 0)
     low = getattr(state, "low", 0)
@@ -179,6 +180,7 @@ def generate_dashboard(state, output_file="dashboard.html"):
         "regime": regime,
         "structure": structure,
         "mode": mode,
+        "interval": interval,
         "price": price,
         "high": high,
         "low": low,
@@ -527,10 +529,15 @@ def generate_dashboard(state, output_file="dashboard.html"):
         try {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 3000);
-            const resp = await fetch('http://localhost:8082/chat', {
+            const resp = await fetch('/assistant/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ question, context: state }),
+                body: JSON.stringify({
+                    question,
+                    symbol: state.symbol,
+                    interval: state.interval || '15m',
+                    mode: state.mode || 'SWING'
+                }),
                 signal: controller.signal
             });
             clearTimeout(timeout);
