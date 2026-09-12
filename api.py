@@ -4,6 +4,7 @@ from pydantic import BaseModel
 import uvicorn
 from core.orchestrator import JaguarOrchestrator
 from core.state import JaguarState
+from assistant.service import AssistantService, AssistantServiceError
 
 app = FastAPI(title="Jaguar Quant X API", version="2.0")
 
@@ -11,6 +12,15 @@ class AnalyzeRequest(BaseModel):
     symbol: str = "BTCUSDT"
     interval: str = "15m"
     mode: str = "SWING"
+
+class AssistantChatRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+
+    question: str
+    symbol: str = "BTCUSDT"
+    interval: str = "15m"
+    mode: str = "SWING"
+
 
 class ChatRequest(BaseModel):
     question: str
@@ -36,6 +46,31 @@ async def analyze(req: AnalyzeRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+assistant_service = AssistantService()
+
+
+@app.post("/assistant/chat")
+async def assistant_chat(req: AssistantChatRequest):
+    try:
+        reply = assistant_service.answer(
+            question=req.question,
+            symbol=req.symbol,
+            interval=req.interval,
+            mode=req.mode,
+        )
+        return {"reply": reply}
+    except AssistantServiceError:
+        raise HTTPException(
+            status_code=503,
+            detail="Assistant unavailable",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Assistant request failed",
+        )
+
 
 @app.post("/chat")
 async def chat(req: ChatRequest):
