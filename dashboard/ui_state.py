@@ -30,7 +30,7 @@ def _text(value: Any, default: str = "") -> str:
     return str(value)
 
 
-def build_ui_state(state: Any) -> dict:
+def build_ui_state(state: Any, report: dict | None = None) -> dict:
     """
     Build a read-only presentation snapshot from canonical Jaguar state.
 
@@ -43,7 +43,8 @@ def build_ui_state(state: Any) -> dict:
     """
 
     institutional = _mapping(
-        getattr(state, "institutional_report", None)
+        report
+        or getattr(state, "institutional_report", None)
     )
 
     enterprise = _mapping(
@@ -51,7 +52,8 @@ def build_ui_state(state: Any) -> dict:
     )
 
     master = _mapping(
-        getattr(state, "master_decision", None)
+        getattr(state, "idm", None)
+        or getattr(state, "master_decision", None)
     )
 
     components = _mapping(
@@ -59,7 +61,8 @@ def build_ui_state(state: Any) -> dict:
     )
 
     structural = _mapping(
-        components.get("structural_zone")
+        master.get("structural")
+        or components.get("structural_zone")
     )
 
     execution_confirmation = _mapping(
@@ -82,10 +85,12 @@ def build_ui_state(state: Any) -> dict:
 
     risk = _mapping(
         enterprise.get("risk")
+        or getattr(state, "risk", None)
     )
 
     execution = _mapping(
         enterprise.get("execution")
+        or getattr(state, "execution", None)
     )
 
     # Master IDM is the canonical decision authority.
@@ -115,8 +120,10 @@ def build_ui_state(state: Any) -> dict:
     if not timeframe:
         timeframe = getattr(state, "interval", "")
 
-    market_tf = _mapping(
-        market.get(timeframe)
+    market_tf = (
+        _mapping(market.get(timeframe))
+        if timeframe in market
+        else market
     )
 
     candles = market_tf.get("candles", [])
@@ -127,6 +134,9 @@ def build_ui_state(state: Any) -> dict:
         if isinstance(latest, dict)
         else None
     )
+
+    if price is None:
+        price = market_tf.get("price")
 
     if price is None:
         price = getattr(state, "close", 0.0)
@@ -198,7 +208,9 @@ def build_ui_state(state: Any) -> dict:
 
     return {
         "system": {
-            "mode": "PAPER",
+            "mode": _text(
+                execution.get("mode", getattr(state, "mode", "PAPER"))
+            ).upper(),
             "health": "HEALTHY",
         },
 
@@ -224,7 +236,9 @@ def build_ui_state(state: Any) -> dict:
 
         "idm": {
             "decision": decision,
-            "approved": bool(master.get("approved", False)),
+            "approved": bool(
+                master.get("approved", enterprise.get("approved", False))
+            ),
             "direction": direction,
             "score": _number(
                 master.get(
@@ -246,7 +260,10 @@ def build_ui_state(state: Any) -> dict:
                 "F",
             ),
             "priority": _text(
-                master.get("priority", "UNKNOWN"),
+                master.get(
+                    "priority",
+                    enterprise.get("priority", "UNKNOWN"),
+                ),
                 "UNKNOWN",
             ),
             "structure": _text(
@@ -281,7 +298,7 @@ def build_ui_state(state: Any) -> dict:
 
         "structure": {
             "trend": _text(
-                structure.get("trend"),
+                structure.get("trend", getattr(state, "trend", None)),
                 "UNDEFINED",
             ),
             "bos": _text(

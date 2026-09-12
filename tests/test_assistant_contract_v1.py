@@ -86,6 +86,80 @@ def test_context_is_canonical_and_read_only():
     assert "authorization_id" not in context["ui_state"]["execution"]
 
 
+def test_context_preserves_canonical_enterprise_state():
+    state = SimpleNamespace(
+        symbol="BTCUSDT",
+        interval="15m",
+        timeframe="15m",
+        mode="SWING",
+        idm={
+            "decision": "WAIT",
+            "approved": False,
+            "score": 62.2,
+            "confidence": 67.2,
+            "priority": "HIGH",
+            "structural": {
+                "direction": "BULLISH",
+                "structure_state": "STRUCTURE_BREAK",
+                "trigger_status": "BOS_CONFIRMED",
+                "zone_type": "FVG",
+                "zone_lifecycle": "PARTIAL_FILL",
+                "location_quality": "INTERACTING",
+                "readiness": "ZONE_INTERACTION",
+            },
+        },
+        market={
+            "symbol": "BTCUSDT",
+            "price": 77483.31,
+            "candles": [
+                {"close": 77483.31, "timestamp": "TEST"}
+            ],
+        },
+        risk={
+            "approved": False,
+            "status": "REJECTED",
+            "position_size": 0.0,
+        },
+        execution={
+            "ready": False,
+            "approved": False,
+            "status": "WAIT",
+            "gate": "IDM",
+            "mode": "PAPER",
+            "authorization_id": "MUST_NOT_LEAK",
+        },
+        mtf_indicators={},
+        structure={},
+        run_id="TEST-RUN",
+    )
+
+    report = {
+        "enterprise": {
+            "score": 62.2,
+            "grade": "C",
+            "confidence": 67.2,
+            "decision": "WAIT",
+            "priority": "HIGH",
+            "approved": False,
+        }
+    }
+
+    context = build_assistant_context(state, report)
+    ui = context["ui_state"]
+
+    assert ui["market"]["price"] == 77483.31
+    assert ui["idm"]["decision"] == "WAIT"
+    assert ui["idm"]["score"] == 62.2
+    assert ui["idm"]["confidence"] == 67.2
+    assert ui["idm"]["grade"] == "C"
+    assert ui["idm"]["priority"] == "HIGH"
+    assert ui["structure"]["direction"] == "BULLISH"
+    assert ui["structure"]["state"] == "STRUCTURE_BREAK"
+    assert ui["execution"]["mode"] == "PAPER"
+    assert "authorization_id" not in ui["execution"]
+
+
+
 def test_service_uses_server_owned_analysis():
     llm = FakeLLM()
 

@@ -16,7 +16,7 @@ def build_assistant_context(state: Any, report: dict) -> dict:
     if not isinstance(report, dict):
         raise ValueError("Canonical Jaguar report must be a dictionary")
 
-    ui = build_ui_state(state)
+    ui = build_ui_state(state, report=report)
 
     system = dict(_mapping(ui.get("system")))
     execution = dict(_mapping(ui.get("execution")))
