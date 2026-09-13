@@ -68,6 +68,73 @@ def test_net_quantity_uses_signed_filled_quantity():
     assert result.quantity_source == "EXECUTION_ORDERS"
 
 
+
+def test_instrument_token_is_derived_from_execution_orders():
+    trade = {
+        "uuid": "TRADE-ID-1",
+        "symbol": "GOLDM",
+        "timeframe": "15m",
+        "mode": "SWING",
+        "entry_price": 5867.0,
+        "status": "OPEN",
+        "close_time": None,
+    }
+
+    orders = [
+        {
+            "transaction_type": "BUY",
+            "filled_qty": 2.0,
+            "status": "FILLED",
+            "instrument_token": "MCX_FO|GOLDM_TEST",
+        },
+    ]
+
+    with __import__("unittest").mock.patch.object(
+        prm,
+        "_execution_orders",
+        return_value=orders,
+    ):
+        result = prm._project_trade(trade)
+
+    assert result.instrument_token == "MCX_FO|GOLDM_TEST"
+    assert "authorization_id" not in str(result)
+    assert result.quantity == pytest.approx(2.0)
+
+
+def test_conflicting_execution_order_instrument_tokens_fail_closed():
+    trade = {
+        "uuid": "TRADE-ID-2",
+        "symbol": "GOLDM",
+        "timeframe": "15m",
+        "mode": "SWING",
+        "entry_price": 5867.0,
+        "status": "OPEN",
+        "close_time": None,
+    }
+
+    orders = [
+        {
+            "transaction_type": "BUY",
+            "filled_qty": 1.0,
+            "status": "FILLED",
+            "instrument_token": "MCX_FO|GOLDM_A",
+        },
+        {
+            "transaction_type": "BUY",
+            "filled_qty": 1.0,
+            "status": "FILLED",
+            "instrument_token": "MCX_FO|GOLDM_B",
+        },
+    ]
+
+    with __import__("unittest").mock.patch.object(
+        prm,
+        "_execution_orders",
+        return_value=orders,
+    ):
+        with pytest.raises(prm.PortfolioReadModelError):
+            prm._project_trade(trade)
+
 def test_non_filled_orders_do_not_count():
     trade = {
         "uuid": "TRADE-2",

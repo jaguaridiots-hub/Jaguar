@@ -64,9 +64,37 @@ def test_assistant_receives_read_only_portfolio_state():
         "quantity_source": "EXECUTION_ORDERS",
     }
 
+    canonical_portfolio = dict(portfolio)
+    canonical_portfolio["broker"] = {
+        "authority": "UPSTOX_SHORT_TERM_POSITIONS",
+        "status": "UNAVAILABLE",
+        "positions": [],
+        "freshness": "UNKNOWN",
+        "quantity_source": "UPSTOX_POSITION_API",
+    }
+    canonical_portfolio["account"] = {
+        "authority": "UPSTOX_FUND_AND_MARGIN_V3",
+        "status": "UNAVAILABLE",
+        "available_to_trade": None,
+        "cash_available_to_trade": None,
+        "pledge_available_to_trade": None,
+        "cash_margin_used": None,
+        "pledge_margin_used": None,
+        "unsettled_profit_today": None,
+        "unsettled_profit_previous_days": None,
+        "freshness": "UNKNOWN",
+    }
+    canonical_portfolio["reconciliation"] = {
+        "status": "BROKER_UNAVAILABLE",
+        "matches": [],
+        "mismatches": [],
+        "unmatched_broker_positions": [],
+        "freshness": "UNKNOWN",
+    }
+
     with patch(
-        "core.portfolio_read_model.build_portfolio_snapshot",
-        return_value=portfolio,
+        "core.canonical_portfolio_read_model.build_canonical_portfolio_snapshot",
+        return_value=canonical_portfolio,
     ):
         context = build_assistant_context(
             state,

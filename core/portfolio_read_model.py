@@ -19,6 +19,7 @@ class PortfolioPosition:
     timeframe: str
     mode: str
     trade_uuid: str
+    instrument_token: str | None
     side: str
     quantity: float
     entry_price: float | None
@@ -114,7 +115,8 @@ def _execution_orders(trade_uuid: str):
             SELECT
                 transaction_type,
                 filled_qty,
-                status
+                status,
+                instrument_token
             FROM execution_orders
             WHERE trade_uuid = ?
             ORDER BY child_index ASC
@@ -136,12 +138,21 @@ def _project_trade(trade: Any) -> PortfolioPosition:
             "Open trade is missing required identity fields"
         )
 
+    instrument_tokens = set()
+
     net_quantity = 0.0
     any_filled = False
 
     for order in _execution_orders(trade_uuid):
         if str(_value(order, "status", "")).strip().upper() != "FILLED":
             continue
+
+        raw_instrument_token = str(
+            _value(order, "instrument_token", "")
+        ).strip()
+
+        if raw_instrument_token:
+            instrument_tokens.add(raw_instrument_token)
 
         transaction_type = str(
             _value(order, "transaction_type", "")
@@ -164,6 +175,18 @@ def _project_trade(trade: Any) -> PortfolioPosition:
         else:
             net_quantity -= filled_qty
 
+    if len(instrument_tokens) > 1:
+        raise PortfolioReadModelError(
+            f"Open trade {trade_uuid} has conflicting "
+            "instrument identities"
+        )
+
+    instrument_token = (
+        next(iter(instrument_tokens))
+        if instrument_tokens
+        else None
+    )
+
     if not any_filled or abs(net_quantity) <= 1e-12:
         raise PortfolioReadModelError(
             f"Open trade {trade_uuid} has no positive net executed quantity"
@@ -180,6 +203,7 @@ def _project_trade(trade: Any) -> PortfolioPosition:
         timeframe=timeframe,
         mode=mode,
         trade_uuid=trade_uuid,
+        instrument_token=instrument_token,
         side=side,
         quantity=abs(net_quantity),
         entry_price=(

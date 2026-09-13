@@ -167,11 +167,11 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     generated_at = datetime.now().astimezone()
 
     try:
-        from core.portfolio_read_model import (
-            build_portfolio_snapshot,
+        from core.canonical_portfolio_read_model import (
+            build_canonical_portfolio_snapshot,
         )
 
-        portfolio = build_portfolio_snapshot()
+        portfolio = build_canonical_portfolio_snapshot()
     except Exception:
         portfolio = {
             "authority": "JAGUAR_EXECUTION_DATABASE",
@@ -183,6 +183,32 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             "available_cash": None,
             "freshness": "UNKNOWN",
             "quantity_source": "EXECUTION_ORDERS",
+            "broker": {
+                "authority": "UPSTOX_SHORT_TERM_POSITIONS",
+                "status": "UNAVAILABLE",
+                "positions": [],
+                "freshness": "UNKNOWN",
+                "quantity_source": "UPSTOX_POSITION_API",
+            },
+            "account": {
+                "authority": "UPSTOX_FUND_AND_MARGIN_V3",
+                "status": "UNAVAILABLE",
+                "available_to_trade": None,
+                "cash_available_to_trade": None,
+                "pledge_available_to_trade": None,
+                "cash_margin_used": None,
+                "pledge_margin_used": None,
+                "unsettled_profit_today": None,
+                "unsettled_profit_previous_days": None,
+                "freshness": "UNKNOWN",
+            },
+            "reconciliation": {
+                "status": "BROKER_UNAVAILABLE",
+                "matches": [],
+                "mismatches": [],
+                "unmatched_broker_positions": [],
+                "freshness": "UNKNOWN",
+            },
         }
 
     market_timestamp = None
