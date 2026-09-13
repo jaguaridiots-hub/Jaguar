@@ -115,6 +115,17 @@ class MarketState:
         self.tp3 = 0.0
 
         self.position = "NONE"
+        self.portfolio = {
+            "authority": "JAGUAR_EXECUTION_DATABASE",
+            "status": "UNAVAILABLE",
+            "positions": [],
+            "realized_pnl": None,
+            "unrealized_pnl": None,
+            "equity": None,
+            "available_cash": None,
+            "freshness": "UNKNOWN",
+            "quantity_source": "EXECUTION_ORDERS",
+        }
 
         self.pnl = 0.0
         self.pnl_percent = 0.0

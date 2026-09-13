@@ -166,6 +166,25 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     generated_epoch = time.time()
     generated_at = datetime.now().astimezone()
 
+    try:
+        from core.portfolio_read_model import (
+            build_portfolio_snapshot,
+        )
+
+        portfolio = build_portfolio_snapshot()
+    except Exception:
+        portfolio = {
+            "authority": "JAGUAR_EXECUTION_DATABASE",
+            "status": "UNAVAILABLE",
+            "positions": [],
+            "realized_pnl": None,
+            "unrealized_pnl": None,
+            "equity": None,
+            "available_cash": None,
+            "freshness": "UNKNOWN",
+            "quantity_source": "EXECUTION_ORDERS",
+        }
+
     market_timestamp = None
 
     if isinstance(latest, dict):
@@ -231,6 +250,8 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         },
 
         "mtf": mtf,
+
+        "portfolio": portfolio,
 
         "market": {
             "symbol": _text(
@@ -369,6 +390,10 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         },
 
         "execution": {
+            "mode": _text(
+                execution_mode,
+                "PAPER",
+            ).upper(),
             "ready": bool(execution.get("ready", False)),
             "approved": bool(execution.get("approved", False)),
             "status": _text(
