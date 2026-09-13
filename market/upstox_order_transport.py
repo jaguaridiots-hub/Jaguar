@@ -167,7 +167,12 @@ class UpstoxOrderTransport:
 
         return self._decode(response)
 
-    def _get_json(self, path, params=None):
+    def _get_json(
+        self,
+        path,
+        params=None,
+        extra_headers=None,
+    ):
         path = self._validate_path(path)
 
         if params is not None and not isinstance(params, dict):
@@ -175,12 +180,25 @@ class UpstoxOrderTransport:
                 "Upstox GET parameters must be an object"
             )
 
+        if extra_headers is not None and not isinstance(
+            extra_headers,
+            dict,
+        ):
+            raise UpstoxOrderTransportError(
+                "Upstox GET extra headers must be an object"
+            )
+
+        headers = self._headers()
+
+        if extra_headers:
+            headers.update(extra_headers)
+
         url = f"{self.READ_BASE_URL}{path}"
 
         try:
             response = self._session.get(
                 url,
-                headers=self._headers(),
+                headers=headers,
                 params=params,
                 timeout=self._timeout,
             )
@@ -278,4 +296,12 @@ class UpstoxOrderTransport:
         return self._get_json(
             "/v2/user/get-funds-and-margin",
             params=params or None,
+        )
+
+    def get_funds_and_margin_v3(self):
+        return self._get_json(
+            "/v3/user/get-funds-and-margin",
+            extra_headers={
+                "Api-Version": "3.0",
+            },
         )

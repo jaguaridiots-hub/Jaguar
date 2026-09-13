@@ -1,4 +1,4 @@
-"""Read-only Upstox account funds and margin model."""
+"""Read-only Upstox Fund & Margin V3 account model."""
 
 from __future__ import annotations
 
@@ -20,11 +20,13 @@ class AccountReadModelError(RuntimeError):
 class AccountSnapshot:
     authority: str
     status: str
-    available_margin: float | None
-    used_margin: float | None
-    payin_amount: float | None
-    notional_cash: float | None
-    segment: str | None
+    available_to_trade: float | None
+    cash_available_to_trade: float | None
+    pledge_available_to_trade: float | None
+    cash_margin_used: float | None
+    pledge_margin_used: float | None
+    unsettled_profit_today: float | None
+    unsettled_profit_previous_days: float | None
     freshness: str
 
     def to_dict(self) -> dict[str, Any]:
@@ -56,26 +58,35 @@ def _number(
 def _mapping(value: Any) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise AccountReadModelError(
-            "Upstox funds response must be an object"
+            "Upstox funds V3 response must be an object"
         )
 
     status = str(value.get("status", "")).strip().lower()
-    if status and status != "success":
+
+    if status != "success":
         raise AccountReadModelError(
-            "Upstox funds response was not successful"
+            "Upstox funds V3 response was not successful"
         )
 
     data = value.get("data")
 
     if not isinstance(data, dict):
         raise AccountReadModelError(
-            "Upstox funds response data must be an object"
+            "Upstox funds V3 response data must be an object"
         )
 
-    equity = data.get("equity")
+    available = data.get("available_to_trade")
+    unavailable = data.get("unavailable_to_trade")
 
-    if isinstance(equity, dict):
-        return equity
+    if not isinstance(available, dict):
+        raise AccountReadModelError(
+            "Upstox funds V3 available_to_trade is unavailable"
+        )
+
+    if not isinstance(unavailable, dict):
+        raise AccountReadModelError(
+            "Upstox funds V3 unavailable_to_trade is unavailable"
+        )
 
     return data
 
@@ -83,49 +94,96 @@ def _mapping(value: Any) -> dict[str, Any]:
 def build_account_snapshot(
     *,
     transport: UpstoxOrderTransport | None = None,
-    segment: str | None = None,
 ) -> dict[str, Any]:
-    """Return one strictly read-only broker account observation."""
+    """Return one strictly read-only Upstox Fund & Margin V3 observation."""
 
     if transport is None:
         transport = UpstoxOrderTransport()
 
     try:
-        response = transport.get_funds_and_margin(
-            segment=segment
-        )
+        response = transport.get_funds_and_margin_v3()
         data = _mapping(response)
 
+        available = data["available_to_trade"]
+        cash = available.get("cash_available_to_trade")
+        pledge = available.get("pledge_available_to_trade")
+
+        if not isinstance(cash, dict):
+            raise AccountReadModelError(
+                "Upstox funds V3 cash_available_to_trade is unavailable"
+            )
+
+        if not isinstance(pledge, dict):
+            raise AccountReadModelError(
+                "Upstox funds V3 pledge_available_to_trade is unavailable"
+            )
+
+        cash_margin = cash.get("margin_used")
+        pledge_margin = pledge.get("margin_used")
+
+        if not isinstance(cash_margin, dict):
+            raise AccountReadModelError(
+                "Upstox funds V3 cash margin_used is unavailable"
+            )
+
+        if not isinstance(pledge_margin, dict):
+            raise AccountReadModelError(
+                "Upstox funds V3 pledge margin_used is unavailable"
+            )
+
+        unavailable_cash = data[
+            "unavailable_to_trade"
+        ].get("cash_unavailable_to_trade")
+
+        if not isinstance(unavailable_cash, dict):
+            raise AccountReadModelError(
+                "Upstox funds V3 cash_unavailable_to_trade is unavailable"
+            )
+
+        unsettled = unavailable_cash.get("unsettled_profit")
+
+        if not isinstance(unsettled, dict):
+            raise AccountReadModelError(
+                "Upstox funds V3 unsettled_profit is unavailable"
+            )
+
         return AccountSnapshot(
-            authority="UPSTOX_FUND_AND_MARGIN_API",
+            authority="UPSTOX_FUND_AND_MARGIN_V3",
             status="AVAILABLE",
-            available_margin=_number(
-                data.get("available_margin"),
-                "available_margin",
+            available_to_trade=_number(
+                available.get("total"),
+                "available_to_trade.total",
             ),
-            used_margin=_number(
-                data.get("used_margin"),
-                "used_margin",
+            cash_available_to_trade=_number(
+                cash.get("total"),
+                "cash_available_to_trade.total",
             ),
-            payin_amount=_number(
-                data.get("payin_amount"),
-                "payin_amount",
+            pledge_available_to_trade=_number(
+                pledge.get("total"),
+                "pledge_available_to_trade.total",
             ),
-            notional_cash=_number(
-                data.get("notional_cash"),
-                "notional_cash",
+            cash_margin_used=_number(
+                cash_margin.get("total"),
+                "cash_available_to_trade.margin_used.total",
             ),
-            segment=(
-                str(segment).strip().upper()
-                if segment is not None
-                else None
+            pledge_margin_used=_number(
+                pledge_margin.get("total"),
+                "pledge_available_to_trade.margin_used.total",
+            ),
+            unsettled_profit_today=_number(
+                unsettled.get("todays_profit"),
+                "cash_unavailable_to_trade.unsettled_profit.todays_profit",
+            ),
+            unsettled_profit_previous_days=_number(
+                unsettled.get("previous_days"),
+                "cash_unavailable_to_trade.unsettled_profit.previous_days",
             ),
             freshness="CURRENT",
         ).to_dict()
 
     except UpstoxOrderTransportError as exc:
         raise AccountReadModelError(
-            "Upstox account funds read failed"
+            "Upstox account funds V3 read failed"
         ) from exc
     except AccountReadModelError:
         raise
