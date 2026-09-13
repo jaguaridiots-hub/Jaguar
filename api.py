@@ -81,6 +81,14 @@ async def assistant_chat(req: AssistantChatRequest):
         )
 
 
+
+@app.get("/dashboard/assets/jaguar_quant_x_logo.png", include_in_schema=False)
+async def dashboard_logo():
+    logo = Path(__file__).resolve().parent / "dashboard" / "assets" / "jaguar_quant_x_logo.png"
+    if not logo.is_file():
+        raise HTTPException(status_code=404, detail="Dashboard logo not found")
+    return FileResponse(logo, media_type="image/png")
+
 @app.get("/dashboard/state", include_in_schema=False)
 async def dashboard_state(
     symbol: str = "BTCUSDT",

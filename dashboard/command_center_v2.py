@@ -29,6 +29,8 @@ radial-gradient(circle at -10% 35%,rgba(0,216,255,.05),transparent 28%),var(--bg
 button,input,select{font:inherit}
 button{cursor:pointer}
 .shell{max-width:1500px;margin:auto;padding:14px}
+.brand-logo{width:48px;height:48px;display:block;object-fit:cover;border-radius:50%;
+border:1px solid rgba(212,175,55,.42);box-shadow:0 0 18px rgba(212,175,55,.12)}
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:14px;
 padding:14px 16px;border:1px solid rgba(212,175,55,.20);border-radius:18px;
 background:rgba(9,13,18,.94);backdrop-filter:blur(18px)}
@@ -120,7 +122,8 @@ border-left:3px solid var(--yellow);font-size:10px;line-height:1.45}
 <div class="shell">
 <header class="topbar">
 <div class="brand-wrap">
-<div class="brand-mark" aria-label="Jaguar Quant X logo">🐆</div>
+<img class="brand-logo" src="/dashboard/assets/jaguar_quant_x_logo.png"
+alt="Jaguar Quant X logo" width="48" height="48" decoding="async">
 <div><div class="brand">JAGUAR <span>QUANT X</span></div>
 <div class="subtitle">INSTITUTIONAL TRADING INTELLIGENCE</div></div>
 </div>
