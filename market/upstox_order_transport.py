@@ -261,3 +261,21 @@ class UpstoxOrderTransport:
         return self._get_json(
             "/v2/portfolio/short-term-positions"
         )
+
+    def get_funds_and_margin(self, segment=None):
+        params = {}
+
+        if segment is not None:
+            segment = str(segment).strip().upper()
+
+            if segment not in {"SEC", "COM"}:
+                raise UpstoxOrderTransportError(
+                    "Upstox funds segment must be SEC or COM"
+                )
+
+            params["segment"] = segment
+
+        return self._get_json(
+            "/v2/user/get-funds-and-margin",
+            params=params or None,
+        )
