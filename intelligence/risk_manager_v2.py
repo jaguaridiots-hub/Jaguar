@@ -23,6 +23,8 @@ This engine only validates and sizes authorized trade plans.
 
 import math
 
+from config.config_manager import config
+
 
 class RiskManagerV2:
 
@@ -163,7 +165,6 @@ class RiskManagerV2:
 
     @classmethod
     def _capital(cls, state):
-
         account = cls._dictionary(
             getattr(
                 state,
@@ -171,6 +172,24 @@ class RiskManagerV2:
                 {},
             )
         )
+
+        if config.get_execution_mode() == "LIVE":
+            status = str(account.get("status", "")).upper().strip()
+            freshness = str(account.get("freshness", "")).upper().strip()
+            capital = cls._float(
+                account.get("available_to_trade"),
+                0.0,
+            )
+
+            if (
+                status != "AVAILABLE"
+                or freshness != "CURRENT"
+                or not math.isfinite(capital)
+                or capital <= 0.0
+            ):
+                return 0.0
+
+            return capital
 
         capital = cls._float(
             account.get(
@@ -184,7 +203,6 @@ class RiskManagerV2:
         )
 
         if capital <= 0:
-
             return cls.DEFAULT_CAPITAL
 
         return capital
@@ -593,6 +611,20 @@ class RiskManagerV2:
         capital = self._capital(
             state
         )
+
+        if (
+            config.get_execution_mode() == "LIVE"
+            and capital <= 0.0
+        ):
+            state.risk = self._empty_risk(
+                decision=decision,
+                reason="LIVE account trading capital is unavailable.",
+                reasons=[
+                    "Authoritative Upstox available_to_trade must be positive and current.",
+                ],
+                warnings=warnings,
+            )
+            return state
 
         risk_percent = self._risk_percent(
             priority

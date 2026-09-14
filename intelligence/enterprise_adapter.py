@@ -19,6 +19,8 @@ Canonical raw specialist results must never be
 overwritten by legacy boolean compatibility fields.
 """
 
+from config.config_manager import config
+from core.account_read_model import build_account_snapshot
 from intelligence.enterprise_pipeline import EnterprisePipeline
 
 
@@ -196,6 +198,23 @@ class EnterpriseAdapter:
     # ==================================================
 
     def process(self, state):
+
+        # ==================================================
+        # AUTHORITATIVE LIVE ACCOUNT CONTRACT
+        # ==================================================
+
+        if config.get_execution_mode() == "LIVE":
+            try:
+                state.account = build_account_snapshot()
+            except Exception:
+                state.account = {
+                    "authority": "UPSTOX_FUNDS_V3",
+                    "status": "UNAVAILABLE",
+                    "freshness": "UNKNOWN",
+                    "available_to_trade": None,
+                    "cash_available_to_trade": None,
+                    "pledge_available_to_trade": None,
+                }
 
         # ==================================================
         # ENSURE ENTERPRISE CONTAINERS
