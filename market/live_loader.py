@@ -35,6 +35,7 @@ Runtime constraints:
 """
 
 import math
+import time
 from core.market_detector import MarketDetector
 from market.adapter import MarketAdapter
 from market.provider import MarketProviderError
@@ -44,6 +45,62 @@ class LiveMarketLoaderError(RuntimeError):
     """
     Raised when canonical live market hydration cannot be completed.
     """
+
+
+CANDLE_FRESHNESS_LATE_TOLERANCE_MS = 30_000
+
+
+def _validate_candle_temporal_freshness(candle, *, now_ms=None):
+    """
+    Validate canonical candle timestamps and reject materially stale data.
+
+    The latest Binance candle may still be forming, so freshness is defined
+    against its close_time plus a bounded provider/network lateness allowance.
+    """
+    if not isinstance(candle, dict):
+        raise LiveMarketLoaderError(
+            "Latest canonical candle must be a dictionary"
+        )
+
+    try:
+        candle_time = int(candle["time"])
+        close_time = int(candle["close_time"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise LiveMarketLoaderError(
+            "Latest canonical candle timestamps are invalid"
+        ) from exc
+
+    if candle_time < 0 or close_time < 0:
+        raise LiveMarketLoaderError(
+            "Latest canonical candle timestamps must be non-negative"
+        )
+
+    if close_time <= candle_time:
+        raise LiveMarketLoaderError(
+            "Latest canonical candle close_time must be greater than time"
+        )
+
+    current_ms = (
+        int(float(now_ms))
+        if now_ms is not None
+        else int(time.time() * 1000)
+    )
+
+    if current_ms < candle_time:
+        raise LiveMarketLoaderError(
+            "Latest canonical candle is future-dated"
+        )
+
+    if current_ms > close_time + CANDLE_FRESHNESS_LATE_TOLERANCE_MS:
+        raise LiveMarketLoaderError(
+            "Latest canonical candle is stale"
+        )
+
+    return {
+        "candle_time": candle_time,
+        "candle_close_time": close_time,
+        "freshness": "CURRENT",
+    }
 
 
 def _normalize_symbol(symbol):
@@ -317,6 +374,8 @@ def update_state(
     state,
     symbol=None,
     limit=300,
+    *,
+    now_ms=None,
 ):
     """
     Hydrate the existing Jaguar MarketState from canonical live candles.
@@ -368,6 +427,10 @@ def update_state(
     ).strip()
 
     latest = candles[-1]
+    freshness = _validate_candle_temporal_freshness(
+        latest,
+        now_ms=now_ms,
+    )
 
     try:
 
@@ -476,12 +539,25 @@ def update_state(
 
     provider_known = provider_source != "UNKNOWN"
 
+    temporal_ok = freshness["freshness"] == "CURRENT"
+
     state.market_metadata = {
         "source": provider_source,
         "synthetic": not provider_known,
-        "live_data_valid": integrity_ok and provider_known,
-        "execution_allowed": integrity_ok and provider_known,
+        "live_data_valid": (
+            integrity_ok
+            and provider_known
+            and temporal_ok
+        ),
+        "execution_allowed": (
+            integrity_ok
+            and provider_known
+            and temporal_ok
+        ),
         "instrument_token": instrument_token,
+        "candle_time": freshness["candle_time"],
+        "candle_close_time": freshness["candle_close_time"],
+        "freshness": freshness["freshness"],
     }
 
     return state

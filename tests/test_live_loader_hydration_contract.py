@@ -235,7 +235,8 @@ def main():
         )
 
         result = live_loader.update_state(
-            state
+            state,
+            now_ms=2_500,
         )
 
         if id(result) != state_identity:
@@ -393,7 +394,8 @@ def main():
         mcx_state.timeframe = "15m"
 
         live_loader.update_state(
-            mcx_state
+            mcx_state,
+            now_ms=2_500,
         )
 
         if len(FakeMarketAdapter.calls) != 1:
@@ -473,6 +475,7 @@ def main():
             override_state,
             "btcusdt",
             limit=2,
+            now_ms=2_500,
         )
 
         if override_state.symbol != "BTCUSDT":
