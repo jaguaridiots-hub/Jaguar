@@ -17,6 +17,9 @@ class LiveFeed:
         self.symbol = symbol.upper()
         self.running = False
         self.thread = None
+        self.alert_observer = None
+        self.alert_engine = None
+        self.alert_interval_seconds = 30.0
 
     def dashboard(self):
 
@@ -251,10 +254,25 @@ class LiveFeed:
         )
 
     def loop(self):
+        next_alert_check = 0.0
 
         while self.running:
 
             self.dashboard()
+
+            now = time.monotonic()
+            if (
+                self.alert_observer is not None
+                and self.alert_engine is not None
+                and now >= next_alert_check
+            ):
+                try:
+                    portfolio = self.alert_observer()
+                except Exception:
+                    portfolio = None
+
+                self.alert_engine.evaluate_portfolio(portfolio)
+                next_alert_check = now + self.alert_interval_seconds
 
             time.sleep(5)
 

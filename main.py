@@ -1386,12 +1386,35 @@ print(
 )
 
 
+from core.alert_engine import AlertEngine
+from core.notification_adapter import TermuxNotificationAdapter
+from core.canonical_portfolio_read_model import (
+    build_canonical_portfolio_snapshot,
+)
+
+
+def observe_portfolio_for_alerts():
+    try:
+        portfolio = build_canonical_portfolio_snapshot()
+    except Exception:
+        return None
+    return portfolio if isinstance(portfolio, dict) else None
+
+
+alert_engine = AlertEngine(
+    TermuxNotificationAdapter(),
+    cooldown_seconds=300.0,
+)
+
 feed = LiveFeed(
     state,
     plan,
     trade_status,
     "btcusdt",
 )
+feed.alert_observer = observe_portfolio_for_alerts
+feed.alert_engine = alert_engine
+feed.alert_interval_seconds = 30.0
 
 feed.start()
 
