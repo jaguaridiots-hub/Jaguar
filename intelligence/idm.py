@@ -819,7 +819,8 @@ class InstitutionalDecisionMatrix:
 
 
         structural_conflict = (
-            structural_direction
+            structure_confirmed
+            and structural_direction
             in (
                 "BULLISH",
                 "BEARISH",
@@ -848,6 +849,26 @@ class InstitutionalDecisionMatrix:
             and zone_direction
             != direction
         )
+
+        # ==================================================
+        # DIRECTION RELATIONSHIP CONTRACT
+        # ==================================================
+        # ALIGNED     = confirmed structural direction matches
+        #               institutional direction.
+        # UNCONFIRMED = structural direction is not confirmed.
+        # CONFLICT    = confirmed structural direction opposes
+        #               institutional direction.
+        direction_relationship = "UNCONFIRMED"
+
+        if (
+            structure_confirmed
+            and structural_direction in ("BULLISH", "BEARISH")
+            and direction in ("BULLISH", "BEARISH")
+        ):
+            if structural_direction == direction:
+                direction_relationship = "ALIGNED"
+            else:
+                direction_relationship = "CONFLICT"
 
         # ==================================================
         # STRUCTURAL DIRECTION PENDING
@@ -2066,6 +2087,13 @@ class InstitutionalDecisionMatrix:
             "confidence": confidence,
 
             "direction": direction,
+            "direction_relationship": direction_relationship,
+            "structural_conflict": structural_conflict,
+            "zone_conflict": zone_conflict,
+            "zone_available": zone_available,
+            "zone_aligned": zone_aligned,
+            "zone_valid": zone_valid,
+            "location_confirmed": location_confirmed,
 
             "confirmed": confirmed,
 
