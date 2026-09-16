@@ -83,7 +83,11 @@ def record_trade_open(
         if isinstance(getattr(state, "market", None), dict)
         else {}
     )
-    fvg = getattr(state, "fvg", {})
+    fvg = (
+        state.market.get("structural_results", {}).get("fvg", {})
+        if isinstance(getattr(state, "market", None), dict)
+        else {}
+    )
     orderflow = getattr(state, "orderflow", {})
     enterprise_targets = trade_plan.get("targets", [])
 

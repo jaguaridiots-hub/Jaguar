@@ -109,9 +109,15 @@ class BacktestEngine:
                     "FAIL-CLOSED: Invalid JAGUAR_BACKTEST_MAX_CANDLES"
                 ) from exc
 
-            if max_candles < replay_start + 1:
+            # One replay candle needs the following candle as the
+            # forward-looking simulation boundary, so the minimum
+            # bounded replay window is replay_start + 2.
+            minimum_candles = replay_start + 2
+
+            if max_candles < minimum_candles:
                 raise RuntimeError(
-                    "FAIL-CLOSED: JAGUAR_BACKTEST_MAX_CANDLES must be >= 201"
+                    "FAIL-CLOSED: JAGUAR_BACKTEST_MAX_CANDLES must be >= "
+                    f"{minimum_candles}"
                 )
 
             if len(candles) > max_candles:
@@ -330,6 +336,17 @@ class BacktestEngine:
                 execution = {}
 
             # --------------------------------------------------
+            # Canonical enterprise gate attribution.
+            #
+            # Instrumentation only. This reads the canonical
+            # contracts produced by the enterprise authority
+            # and never modifies IDM, trade, risk, or execution.
+            # --------------------------------------------------
+            attribution.record_canonical_gate(
+                state
+            )
+
+            # --------------------------------------------------
             # Backtest only canonical executable decisions.
             # --------------------------------------------------
             decision = str(
@@ -429,7 +446,6 @@ class BacktestEngine:
             if quantity <= 0:
                 continue
 
-            attribution.count_candidate_setup()
             attribution.count_executed_trade()
 
             trade_uuid = str(
@@ -816,6 +832,52 @@ class BacktestEngine:
         print("BACKTEST ENGINE")
         print("=" * 60)
         print(f"Historical candles : {len(candles)}")
+
+        # --------------------------------------------------
+        # FAIL-CLOSED: historical execution audits must
+        # never run on synthetic/offline market data.
+        #
+        # A provider fallback may be useful for research,
+        # but it must not masquerade as historical market
+        # evidence in the canonical backtest/audit path.
+        # --------------------------------------------------
+        market_metadata = getattr(
+            state,
+            "market_metadata",
+            {},
+        )
+
+        if not isinstance(
+            market_metadata,
+            dict,
+        ):
+            market_metadata = {}
+
+        if (
+            market_metadata.get(
+                "synthetic"
+            ) is True
+            or str(
+                market_metadata.get(
+                    "source",
+                    "",
+                )
+            ).lower().strip()
+            == "offline_fallback"
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Backtest requires "
+                "non-synthetic market data; "
+                "synthetic/offline fallback detected"
+            )
+
+        if market_metadata.get(
+            "live_data_valid"
+        ) is not True:
+            raise RuntimeError(
+                "FAIL-CLOSED: Backtest requires "
+                "valid market data"
+            )
 
         self.result.total_trades = 0
         self.result.wins = 0

@@ -1015,6 +1015,17 @@ class InstitutionalDecisionMatrix:
             and structural_alignment
             and structure_confirmed
             and structural_trigger
+            and not (
+                structure_state == "CHARACTER_CHANGE"
+                and trigger_status == "CHOCH_CONFIRMED"
+                and zone_available
+                and zone_aligned
+                and zone_valid
+                and location_confirmed
+                and score >= 40
+                and confidence >= 45
+                and len(conflicts) == 0
+            )
         ):
 
             setup = "CONTINUATION"
@@ -1221,6 +1232,17 @@ class InstitutionalDecisionMatrix:
             and structural_alignment
             and structure_confirmed
             and structural_trigger
+            and not (
+                structure_state == "CHARACTER_CHANGE"
+                and trigger_status == "CHOCH_CONFIRMED"
+                and zone_available
+                and zone_aligned
+                and zone_valid
+                and location_confirmed
+                and score >= 40
+                and confidence >= 45
+                and len(conflicts) == 0
+            )
         ):
 
             setup = "CONTINUATION"
