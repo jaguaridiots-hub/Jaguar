@@ -60,10 +60,20 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         master.get("components")
     )
 
-    structural = _mapping(
+    # Canonical structural authority.
+    # The live canonical analysis path publishes structural state on
+    # state.structural_zone. Preserve the older IDM structural contract
+    # as a compatibility fallback for assistant/dashboard contract fixtures.
+    canonical_structural = _mapping(
+        getattr(state, "structural_zone", None)
+    )
+
+    legacy_structural = _mapping(
         master.get("structural")
         or components.get("structural_zone")
     )
+
+    structural = canonical_structural or legacy_structural
 
     execution_confirmation = _mapping(
         components.get("execution_confirmation")
@@ -72,11 +82,36 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     structure = _mapping(
         getattr(state, "structure", None)
     )
-    structure_bos = _mapping(
-        structure.get("bos")
+
+    # BOS/CHOCH authority comes from the canonical engine results.
+    # trigger_status in structural_zone is an execution/structure-trigger
+    # field and must not be used as a substitute for BOS/CHOCH engine output.
+    engines = _mapping(
+        report.get("engines") if isinstance(report, dict) else None
     )
-    structure_choch = _mapping(
-        structure.get("choch")
+
+    bos_engine = _mapping(engines.get("BOS"))
+    choch_engine = _mapping(engines.get("CHOCH"))
+
+    bos_signal = _text(
+        bos_engine.get("signal"),
+        "NEUTRAL",
+    )
+    choch_signal = _text(
+        choch_engine.get("signal"),
+        "NEUTRAL",
+    )
+
+    structure_bos = (
+        {"signal": bos_signal}
+        if bos_signal != "NEUTRAL"
+        else {}
+    )
+
+    structure_choch = (
+        {"signal": choch_signal}
+        if choch_signal != "NEUTRAL"
+        else {}
     )
 
     trade = _mapping(
