@@ -4,7 +4,6 @@ from fastapi.responses import FileResponse, HTMLResponse
 from pathlib import Path
 from pydantic import BaseModel
 import uvicorn
-from core.orchestrator import JaguarOrchestrator
 from core.kernel import JaguarKernel
 from core.jaguar_analysis_engine import JaguarAnalysisEngine
 from dashboard.ui_state import build_ui_state
@@ -38,21 +37,51 @@ class ChatRequest(BaseModel):
 @app.post("/analyze")
 async def analyze(req: AnalyzeRequest):
     try:
-        orch = JaguarOrchestrator()
-        state = orch.analyze(req.symbol, req.interval, req.mode)
-        # Return minimal JSON (you can expand later)
-        md = state.master_decision
+        if req.mode.upper() not in {"SCALP", "SWING", "CLASSIC"}:
+            raise HTTPException(status_code=400, detail="Invalid analysis mode")
+
+        kernel = JaguarKernel()
+        kernel.initialize(req.symbol, req.interval)
+
+        state = kernel.get_state()
+        state.mode = req.mode.upper()
+
+        result = JaguarAnalysisEngine(kernel).run(req.symbol)
+
+        if not isinstance(result, dict):
+            raise RuntimeError("Canonical analysis returned invalid result")
+
+        state = result.get("state")
+        report = result.get("report")
+
+        if state is None or not isinstance(report, dict):
+            raise RuntimeError("Canonical analysis result is incomplete")
+
+        enterprise = report.get("enterprise", {})
+
+        if not isinstance(enterprise, dict):
+            enterprise = {}
+
+        decision = report.get("decision", {})
+        if not isinstance(decision, dict):
+            decision = {}
+
         return {
             "symbol": req.symbol,
-            "mode": req.mode,
-            "decision": md.get("decision"),
-            "score": md.get("score"),
-            "grade": md.get("grade"),
-            "confidence": md.get("confidence"),
-            "reasoning": md.get("reasoning", []),
-            "trade_plan": state.trade_plan,
-            "risk": state.risk,
+            "interval": req.interval,
+            "mode": req.mode.upper(),
+            "decision": enterprise.get("decision"),
+            "score": enterprise.get("score"),
+            "grade": enterprise.get("grade"),
+            "confidence": enterprise.get("confidence"),
+            "reasoning": decision.get("reasons", []),
+            "trade": enterprise.get("trade", getattr(state, "trade", {})),
+            "risk": enterprise.get("risk", getattr(state, "risk", {})),
+            "execution": enterprise.get("execution", {}),
         }
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
