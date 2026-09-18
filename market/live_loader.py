@@ -36,6 +36,8 @@ Runtime constraints:
 
 import math
 import time
+from datetime import datetime, time as dt_time, timedelta, timezone
+
 from core.market_detector import MarketDetector
 from market.adapter import MarketAdapter
 from market.provider import MarketProviderError
@@ -49,8 +51,35 @@ class LiveMarketLoaderError(RuntimeError):
 
 CANDLE_FRESHNESS_LATE_TOLERANCE_MS = 30_000
 
+_NSE_TIMEZONE = timezone(timedelta(hours=5, minutes=30))
+_NSE_SESSION_OPEN = dt_time(9, 15)
+_NSE_SESSION_CLOSE = dt_time(15, 30)
 
-def _validate_candle_temporal_freshness(candle, *, now_ms=None):
+
+def _nse_session_is_closed(now_ms):
+    current = datetime.fromtimestamp(
+        int(now_ms) / 1000,
+        tz=_NSE_TIMEZONE,
+    )
+
+    if current.weekday() >= 5:
+        return True
+
+    current_time = current.timetz().replace(tzinfo=None)
+
+    return not (
+        _NSE_SESSION_OPEN
+        <= current_time
+        <= _NSE_SESSION_CLOSE
+    )
+
+
+def _validate_candle_temporal_freshness(
+    candle,
+    *,
+    now_ms=None,
+    market_identity=None,
+):
     """
     Validate canonical candle timestamps and reject materially stale data.
 
@@ -92,6 +121,16 @@ def _validate_candle_temporal_freshness(candle, *, now_ms=None):
         )
 
     if current_ms > close_time + CANDLE_FRESHNESS_LATE_TOLERANCE_MS:
+        if (
+            str(market_identity or "").upper() == "NSE"
+            and _nse_session_is_closed(current_ms)
+        ):
+            return {
+                "candle_time": candle_time,
+                "candle_close_time": close_time,
+                "freshness": "SESSION_CLOSED",
+            }
+
         raise LiveMarketLoaderError(
             "Latest canonical candle is stale"
         )
@@ -427,9 +466,12 @@ def update_state(
     ).strip()
 
     latest = candles[-1]
+    market_identity = MarketDetector.detect(symbol)
+
     freshness = _validate_candle_temporal_freshness(
         latest,
         now_ms=now_ms,
+        market_identity=market_identity,
     )
 
     try:
@@ -532,6 +574,7 @@ def update_state(
     provider_source = {
         "CRYPTO": "BINANCE",
         "MCX": "UPSTOX",
+        "NSE": "YAHOO_NSE",
     }.get(
         market_identity,
         "UNKNOWN",
@@ -539,7 +582,17 @@ def update_state(
 
     provider_known = provider_source != "UNKNOWN"
 
-    temporal_ok = freshness["freshness"] == "CURRENT"
+    execution_authorized_sources = {
+        "BINANCE",
+        "UPSTOX",
+    }
+
+    temporal_ok = freshness["freshness"] in {
+        "CURRENT",
+        "SESSION_CLOSED",
+    }
+
+    execution_temporal_ok = freshness["freshness"] == "CURRENT"
 
     state.market_metadata = {
         "source": provider_source,
@@ -552,7 +605,8 @@ def update_state(
         "execution_allowed": (
             integrity_ok
             and provider_known
-            and temporal_ok
+            and execution_temporal_ok
+            and provider_source in execution_authorized_sources
         ),
         "instrument_token": instrument_token,
         "candle_time": freshness["candle_time"],

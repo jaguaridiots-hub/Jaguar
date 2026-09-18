@@ -255,6 +255,15 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             or latest.get("datetime")
         )
 
+    market_metadata = _mapping(
+        getattr(state, "market_metadata", None)
+    )
+
+    market_freshness = _text(
+        market_metadata.get("freshness"),
+        "CURRENT",
+    )
+
     raw_mtf = getattr(state, "mtf_indicators", None)
     if not isinstance(raw_mtf, dict):
         raw_mtf = {}
@@ -307,7 +316,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             ),
             "generated_epoch": generated_epoch,
             "market_timestamp": market_timestamp,
-            "initial_status": "CURRENT",
+            "initial_status": market_freshness,
         },
 
         "mtf": mtf,

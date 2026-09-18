@@ -142,6 +142,38 @@ class MarketProvider:
             ) from exc
 
     @staticmethod
+    def _load_nse(
+        symbol,
+        interval,
+        limit,
+    ):
+        """
+        Load canonical NSE equity candles.
+
+        NSE is a market-data capability for dashboard/PAPER
+        analysis. It is not an execution-authorized broker source.
+        """
+
+        from market.nse_provider import (
+            NSEProvider,
+            NSEProviderError,
+        )
+
+        try:
+            provider = NSEProvider()
+
+            return provider.load(
+                symbol=symbol,
+                interval=interval,
+                limit=limit,
+            )
+
+        except NSEProviderError as exc:
+            raise MarketProviderError(
+                "NSE provider routing failed"
+            ) from exc
+
+    @staticmethod
     def load_with_identity(
         symbol,
         interval="15m",
@@ -260,12 +292,16 @@ class MarketProvider:
                 as_of=as_of,
             )
 
-        if market in {
-            "NSE",
-            "BSE",
-        }:
+        if market == "NSE":
+            return MarketProvider._load_nse(
+                symbol=symbol,
+                interval=interval,
+                limit=limit,
+            )
+
+        if market == "BSE":
             raise MarketProviderError(
-                f"{market} provider capability is not implemented"
+                "BSE provider capability is not implemented"
             )
 
         if market == "FOREX":
