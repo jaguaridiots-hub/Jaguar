@@ -65,3 +65,34 @@ def test_reversed_candle_times_are_rejected():
         assert "close_time" in str(exc)
     else:
         raise AssertionError("reversed candle timestamps were accepted")
+
+
+def test_nse_session_closed_candle_is_accepted():
+    # 17:30 IST on Friday, after NSE regular session.
+    now_ms = 1789732800000
+
+    result = live_loader._validate_candle_temporal_freshness(
+        BASE_CANDLE,
+        now_ms=now_ms,
+        market_identity="NSE",
+    )
+
+    assert result["freshness"] == "SESSION_CLOSED"
+
+
+def test_nse_stale_candle_during_session_is_rejected():
+    # 12:00 IST on Friday, during NSE regular session.
+    now_ms = 1789713000000
+
+    try:
+        live_loader._validate_candle_temporal_freshness(
+            BASE_CANDLE,
+            now_ms=now_ms,
+            market_identity="NSE",
+        )
+    except live_loader.LiveMarketLoaderError as exc:
+        assert "stale" in str(exc).lower()
+    else:
+        raise AssertionError(
+            "stale NSE candle was accepted during session"
+        )
