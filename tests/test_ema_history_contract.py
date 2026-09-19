@@ -1,4 +1,26 @@
+from pathlib import Path
+import sys
+import types
+
+ROOT = Path(__file__).resolve().parents[1]
+INDICATORS_DIR = ROOT / "indicators"
+
+# The legacy historical/indicators.py can shadow Jaguar's namespace package
+# during full-repository pytest collection. Explicitly establish Jaguar's
+# indicators namespace before importing indicator modules.
+package = types.ModuleType("indicators")
+package.__path__ = [str(INDICATORS_DIR)]
+package.__package__ = "indicators"
+sys.modules["indicators"] = package
+
+sys.modules.pop("indicators.ema", None)
+
 from indicators.ema import ema, ema_value
+from core.kernel import JaguarKernel
+from indicators.indicator_engine import update_market_state
+from engine.ai_brain import analyze as ai_analyze
+from engine.market_regime import analyze as regime_analyze
+from engine.gann_engine import analyze as gann_analyze
 
 
 def _candles(count):
