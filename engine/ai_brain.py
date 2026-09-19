@@ -16,15 +16,22 @@ def analyze(state):
     rsi = state.rsi
 
     # EMA Trend
-    if ema20 > ema50 > ema100 > ema200:
-        score += 4
-        signal = "BULLISH"
-        reasons.append("EMA Bullish")
+    ema_ready = all(
+        value is not None
+        for value in (ema20, ema50, ema100, ema200)
+    )
 
-    elif ema20 < ema50 < ema100 < ema200:
-        score -= 4
-        signal = "BEARISH"
-        reasons.append("EMA Bearish")
+    if ema_ready:
+        if ema20 > ema50 > ema100 > ema200:
+            score += 4
+            signal = "BULLISH"
+            reasons.append("EMA Bullish")
+        elif ema20 < ema50 < ema100 < ema200:
+            score -= 4
+            signal = "BEARISH"
+            reasons.append("EMA Bearish")
+    else:
+        reasons.append("EMA Trend Unavailable")
 
     # RSI
     if rsi <= 30:

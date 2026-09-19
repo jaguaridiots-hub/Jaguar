@@ -59,6 +59,26 @@ def _to_float(value, default=0.0):
         return default
 
 
+def _optional_float(value):
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _first_optional_value(data, keys, default=None):
+    if not isinstance(data, dict):
+        return default
+
+    for key in keys:
+        if key in data:
+            return data[key]
+
+    return default
+
+
 def _first_value(data, keys, default=0.0):
 
     if not isinstance(data, dict):
@@ -111,29 +131,29 @@ def update_market_state(state, candles=None):
 
     ema_data = indicators.get("ema", {}) or {}
 
-    state.ema20 = _to_float(
-        _first_value(
+    state.ema20 = _optional_float(
+        _first_optional_value(
             ema_data,
             ["ema20", "EMA20", "20"]
         )
     )
 
-    state.ema50 = _to_float(
-        _first_value(
+    state.ema50 = _optional_float(
+        _first_optional_value(
             ema_data,
             ["ema50", "EMA50", "50"]
         )
     )
 
-    state.ema100 = _to_float(
-        _first_value(
+    state.ema100 = _optional_float(
+        _first_optional_value(
             ema_data,
             ["ema100", "EMA100", "100"]
         )
     )
 
-    state.ema200 = _to_float(
-        _first_value(
+    state.ema200 = _optional_float(
+        _first_optional_value(
             ema_data,
             ["ema200", "EMA200", "200"]
         )

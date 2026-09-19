@@ -28,7 +28,7 @@ class NSEProviderError(RuntimeError):
 
 _INTERVAL_CONFIG = {
     "15m": {
-        "range": "5d",
+        "range": "1mo",
         "seconds": 900,
     },
 }
