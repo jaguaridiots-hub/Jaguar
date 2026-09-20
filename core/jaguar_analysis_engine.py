@@ -24,6 +24,13 @@ class JaguarAnalysisEngine:
 
         state = update_market_state(state)
 
+        # Keep the lightweight API analysis path intact while restoring
+        # the canonical Session Engine state required by the dashboard.
+        from core.event_bus import EventBus
+        from strategy.session_engine import SessionEngine
+
+        SessionEngine().run(state, EventBus())
+
         from engine.institutional_master import analyze
 
         report = analyze(state)

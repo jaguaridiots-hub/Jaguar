@@ -1,0 +1,69 @@
+from pathlib import Path
+
+
+def test_command_center_v3_is_read_only():
+    source = Path("dashboard/command_center_v3.py").read_text().lower()
+
+    assert "fetch(u" in source
+    assert "/dashboard/state" in source
+    assert "/assistant/chat" in source
+
+    forbidden = (
+        '"/order"',
+        "'/order'",
+        "place_order",
+        "cancel_order",
+        "enable_live",
+        "execute_trade",
+    )
+
+    for token in forbidden:
+        assert token not in source
+
+
+def test_command_center_v3_contains_core_sections():
+    source = Path("dashboard/command_center_v3.py").read_text().lower()
+
+    for label in (
+        "institutional decision",
+        "price structure",
+        "structure",
+        "risk",
+        "execution chain",
+        "multi-timeframe market context",
+        "why jaguar decided this",
+        "portfolio / broker",
+        "audit",
+        "jaguar ai",
+        "no live authority",
+    ):
+        assert label in source
+
+
+def test_command_center_v3_contains_indicator_session_market_coverage():
+    source = Path("dashboard/command_center_v3.py").read_text()
+
+    for token in (
+        "function emaSeries(",
+        "function vwapSeries(",
+        'id="indicatorToolbar"',
+        'id="sessionPanel"',
+        'id="marketCoverage"',
+        "EMA20",
+        "EMA50",
+        "EMA100",
+        "EMA200",
+        "VWAP",
+        "CRYPTO",
+        "NSE",
+        "MCX",
+        "US",
+    ):
+        assert token in source
+
+
+def test_dashboard_api_exposes_session_and_extended_candles():
+    source = Path("api.py").read_text()
+
+    assert 'ui["session"] = {' in source
+    assert "for candle in candles[-300:]" in source
