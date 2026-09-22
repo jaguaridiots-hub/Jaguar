@@ -28,10 +28,20 @@ def analyze(state):
     signal = "NEUTRAL"
 
     # ======================================
+    # ======================================
     # MARKET REGIME
     # ======================================
 
-    if ema20 > ema50 > ema100 > ema200:
+    ema_ready = all(
+        value is not None
+        for value in (ema20, ema50, ema100, ema200)
+    )
+
+    if not ema_ready:
+        signal = "NEUTRAL"
+        reasons.append("EMA Regime Unavailable")
+
+    elif ema20 > ema50 > ema100 > ema200:
         signal = "BULLISH"
         score += 3
         reasons.append("EMA Bull Trend")

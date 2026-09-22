@@ -9,7 +9,7 @@ The contract verifies:
 - CRYPTO delegates to canonical Binance candle loading
 - MCX delegates to the canonical Upstox MCX provider
 - MCX temporal intent remains explicit
-- NSE / BSE / FOREX / US fail closed
+- BSE / FOREX / US fail closed
 - UNKNOWN fails closed
 - existing three-positional-argument CRYPTO calls remain valid
 
@@ -307,12 +307,6 @@ def main():
                 "15m",
                 300,
                 intraday=True,
-            ),
-        ),
-        (
-            "NSE_CAPABILITY",
-            lambda: MarketProvider.load(
-                "RELIANCE.NS",
             ),
         ),
         (

@@ -8,6 +8,7 @@ from core.kernel import JaguarKernel
 from core.jaguar_analysis_engine import JaguarAnalysisEngine
 from dashboard.ui_state import build_ui_state
 from dashboard.command_center_v2 import render_command_center_v2
+from dashboard.command_center_v3 import render_command_center_v3
 from core.state import JaguarState
 from assistant.service import AssistantService, AssistantServiceError
 
@@ -208,6 +209,35 @@ async def dashboard_state(
         execution.pop("authorization_id", None)
         ui["execution"] = execution
 
+        # Dashboard-only session presentation.
+        # This mirrors canonical_state.session when populated.
+        # It does not create or modify execution authority.
+        canonical_session = getattr(canonical_state, "session", None)
+
+        if isinstance(canonical_session, dict) and canonical_session:
+            ui["session"] = {
+                "session": canonical_session.get("session", "UNKNOWN"),
+                "score": canonical_session.get("score", 0),
+                "reasons": (
+                    canonical_session.get("reasons", [])
+                    if isinstance(
+                        canonical_session.get("reasons", []),
+                        list,
+                    )
+                    else []
+                ),
+                "status": "AVAILABLE",
+            }
+        else:
+            ui["session"] = {
+                "session": "UNAVAILABLE",
+                "score": 0,
+                "reasons": [
+                    "Canonical Session Engine state is not populated."
+                ],
+                "status": "UNAVAILABLE",
+            }
+
         market = getattr(canonical_state, "market_current", None)
         if not isinstance(market, dict):
             market = getattr(canonical_state, "market", None)
@@ -219,7 +249,7 @@ async def dashboard_state(
             candles = []
 
         safe_candles = []
-        for candle in candles[-180:]:
+        for candle in candles[-300:]:
             if not isinstance(candle, dict):
                 continue
             safe_candles.append({
@@ -251,6 +281,12 @@ async def dashboard_home():
 @app.get("/dashboard/command_center.html", include_in_schema=False)
 async def dashboard_command_center():
     return HTMLResponse(render_command_center_v2())
+
+
+@app.get("/dashboard/v3", include_in_schema=False)
+@app.get("/dashboard/v3/", include_in_schema=False)
+async def dashboard_v3():
+    return HTMLResponse(render_command_center_v3())
 
 
 @app.get("/dashboard/{filename:path}", include_in_schema=False)

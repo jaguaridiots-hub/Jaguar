@@ -36,8 +36,8 @@ EXPECTED_FIELDS = (
 
 CANDLES = [
     {
-        "time": 1000,
-        "close_time": 1999,
+        "time": 1_700_000_000_000,
+        "close_time": 1_700_000_899_999,
         "open": 100.0,
         "high": 105.0,
         "low": 99.0,
@@ -45,8 +45,8 @@ CANDLES = [
         "volume": 1000.0,
     },
     {
-        "time": 2000,
-        "close_time": 2999,
+        "time": 1_700_000_900_000,
+        "close_time": 1_700_001_799_999,
         "open": 103.0,
         "high": 108.0,
         "low": 102.0,
@@ -54,6 +54,35 @@ CANDLES = [
         "volume": 1200.0,
     },
 ]
+
+
+_INTERVAL_MS = {
+    "15m": 900_000,
+    "4h": 14_400_000,
+}
+
+
+def candles_for_interval(interval):
+    step = _INTERVAL_MS.get(
+        str(interval),
+        900_000,
+    )
+
+    base = CANDLES[0]["time"]
+
+    first = dict(
+        CANDLES[0],
+        time=base,
+        close_time=base + step - 1,
+    )
+
+    second = dict(
+        CANDLES[1],
+        time=base + step,
+        close_time=base + (step * 2) - 1,
+    )
+
+    return [first, second]
 
 
 class FakeMarketAdapter:
@@ -88,10 +117,9 @@ class FakeMarketAdapter:
                 "NSE provider capability is not implemented"
             )
 
-        return [
-            dict(candle)
-            for candle in CANDLES
-        ]
+        return candles_for_interval(
+            interval
+        )
 
     @staticmethod
     def load_with_identity(
@@ -117,10 +145,9 @@ class FakeMarketAdapter:
         )
 
         return {
-            "candles": [
-                dict(candle)
-                for candle in CANDLES
-            ],
+            "candles": candles_for_interval(
+                interval
+            ),
             "instrument_key": "MCX_FO|GOLDM_TEST",
         }
 
@@ -236,7 +263,7 @@ def main():
 
         result = live_loader.update_state(
             state,
-            now_ms=2_500,
+            now_ms=1_700_001_799_999,
         )
 
         if id(result) != state_identity:
@@ -395,7 +422,7 @@ def main():
 
         live_loader.update_state(
             mcx_state,
-            now_ms=2_500,
+            now_ms=1_700_001_799_999,
         )
 
         if len(FakeMarketAdapter.calls) != 1:
@@ -475,7 +502,7 @@ def main():
             override_state,
             "btcusdt",
             limit=2,
-            now_ms=2_500,
+            now_ms=1_700_014_499_999,
         )
 
         if override_state.symbol != "BTCUSDT":

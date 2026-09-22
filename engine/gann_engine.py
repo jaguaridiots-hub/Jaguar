@@ -22,25 +22,37 @@ def analyze(state):
 
     angle = "SIDEWAYS"
 
-    if ema20 > ema50 > ema100 > ema200:
-        angle = "1x1 BULLISH"
-        score += 2
-        reasons.append("Bullish Gann Angle")
+    ema_ready = all(
+        value is not None
+        for value in (ema20, ema50, ema100, ema200)
+    )
 
-    elif ema20 < ema50 < ema100 < ema200:
-        angle = "1x1 BEARISH"
-        score -= 2
-        reasons.append("Bearish Gann Angle")
+    if ema_ready:
+        if ema20 > ema50 > ema100 > ema200:
+            angle = "1x1 BULLISH"
+            score += 2
+            reasons.append("Bullish Gann Angle")
 
-    cycle = "DOWN"
-
-    if price > ema20:
-        cycle = "UP"
-        score += 1
-        reasons.append("Up Cycle")
+        elif ema20 < ema50 < ema100 < ema200:
+            angle = "1x1 BEARISH"
+            score -= 2
+            reasons.append("Bearish Gann Angle")
     else:
-        score -= 1
-        reasons.append("Down Cycle")
+        reasons.append("Gann EMA Angle Unavailable")
+
+    cycle = "UNKNOWN"
+
+    if ema20 is not None:
+        if price > ema20:
+            cycle = "UP"
+            score += 1
+            reasons.append("Up Cycle")
+        else:
+            cycle = "DOWN"
+            score -= 1
+            reasons.append("Down Cycle")
+    else:
+        reasons.append("Gann EMA20 Cycle Unavailable")
 
     if abs(price - support) < atr:
         score += 1
