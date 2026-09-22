@@ -163,20 +163,43 @@ def analyze(state):
         - diff * 0.786
     )
 
-    ext127 = (
+    # Fibonacci extensions are separate from retracement levels.
+    # Exact Fibonacci extension ratios: 127.2%, 161.8%, 261.8%.
+    ext127_2 = (
         swing_high
-        + diff * 0.272
+        + diff * (1.272 - 1.0)
     )
 
-    ext161 = (
+    ext161_8 = (
         swing_high
-        + diff * 0.618
+        + diff * (1.618 - 1.0)
     )
 
-    ext261 = (
+    ext261_8 = (
         swing_high
-        + diff * 1.618
+        + diff * (2.618 - 1.0)
     )
+
+    retracement_levels = {
+        "0.0": swing_high,
+        "23.6": fib236,
+        "38.2": fib382,
+        "50.0": fib500,
+        "61.8": fib618,
+        "78.6": fib786,
+        "100.0": swing_low,
+    }
+
+    extension_levels = {
+        "127.2": ext127_2,
+        "161.8": ext161_8,
+        "261.8": ext261_8,
+    }
+
+    # Backward-compatible aliases for existing consumers.
+    ext127 = ext127_2
+    ext161 = ext161_8
+    ext261 = ext261_8
 
     # ======================================================
     # CURRENT PRICE
@@ -246,14 +269,14 @@ def analyze(state):
 
         status = "BULLISH_RETRACEMENT"
 
-        zone = "DISCOUNT"
+        zone = "PREMIUM"
 
         reasons.append(
             "Bullish Retracement"
         )
 
         reasons.append(
-            "DISCOUNT"
+            "PREMIUM"
         )
 
     elif price > fib236:
@@ -353,6 +376,50 @@ def analyze(state):
                 price,
                 2,
             ),
+            "retracements": {
+                "0.0": round(
+                    retracement_levels["0.0"],
+                    2,
+                ),
+                "23.6": round(
+                    retracement_levels["23.6"],
+                    2,
+                ),
+                "38.2": round(
+                    retracement_levels["38.2"],
+                    2,
+                ),
+                "50.0": round(
+                    retracement_levels["50.0"],
+                    2,
+                ),
+                "61.8": round(
+                    retracement_levels["61.8"],
+                    2,
+                ),
+                "78.6": round(
+                    retracement_levels["78.6"],
+                    2,
+                ),
+                "100.0": round(
+                    retracement_levels["100.0"],
+                    2,
+                ),
+            },
+            "extensions": {
+                "127.2": round(
+                    extension_levels["127.2"],
+                    2,
+                ),
+                "161.8": round(
+                    extension_levels["161.8"],
+                    2,
+                ),
+                "261.8": round(
+                    extension_levels["261.8"],
+                    2,
+                ),
+            },
             "fib236": round(
                 fib236,
                 2,

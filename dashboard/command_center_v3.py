@@ -425,6 +425,162 @@ details[open]>summary::after{
   gap:6px;
 }
 
+
+
+
+.confidence-breakdown{
+  margin-top:8px;
+}
+.confidence-summary{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.confidence-tile{
+  border:1px solid var(--border,#263041);
+  border-radius:9px;
+  padding:9px;
+  min-width:0;
+}
+.confidence-label{
+  font-size:10px;
+  letter-spacing:.08em;
+  opacity:.65;
+  margin-bottom:5px;
+}
+.confidence-value{
+  font-weight:800;
+  font-size:16px;
+}
+.confidence-note{
+  font-size:11px;
+  opacity:.7;
+  margin-top:3px;
+}
+.confidence-engines{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:6px;
+  margin-top:8px;
+}
+.confidence-engine{
+  border:1px solid var(--border,#263041);
+  border-radius:8px;
+  padding:8px;
+}
+.confidence-engine-head{
+  display:flex;
+  justify-content:space-between;
+  gap:8px;
+  font-weight:700;
+}
+.confidence-engine-meta{
+  font-size:11px;
+  opacity:.7;
+  margin-top:3px;
+  line-height:1.35;
+}
+.confidence-method{
+  margin-top:8px;
+  font-size:11px;
+  opacity:.65;
+}
+@media(max-width:700px){
+  .confidence-summary{
+    grid-template-columns:1fr 1fr;
+  }
+  .confidence-engines{
+    grid-template-columns:1fr;
+  }
+}
+@media(max-width:430px){
+  .confidence-summary{
+    grid-template-columns:1fr;
+  }
+}
+
+.decision-gate{
+  border:1px solid var(--border,#263041);
+  border-radius:12px;
+  padding:10px;
+  margin-top:8px;
+}
+.decision-gate-grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+}
+.gate-block{
+  min-width:0;
+  border:1px solid var(--border,#263041);
+  border-radius:9px;
+  padding:9px;
+}
+.gate-label{
+  font-size:10px;
+  letter-spacing:.08em;
+  opacity:.65;
+  margin-bottom:5px;
+}
+.gate-value{
+  font-weight:700;
+  word-break:break-word;
+}
+.gate-reason{
+  margin-top:9px;
+  line-height:1.4;
+  opacity:.9;
+}
+.gate-list{
+  margin:5px 0 0 16px;
+  padding:0;
+}
+.gate-condition{
+  margin-top:4px;
+}
+.gate-authorized{
+  font-weight:800;
+}
+.gate-blocked{
+  font-weight:800;
+}
+.mtf-sufficiency{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;
+  margin-bottom:8px;
+}
+.mtf-suff-tile{
+  border:1px solid var(--border,#263041);
+  border-radius:9px;
+  padding:8px;
+}
+.mtf-suff-value{
+  font-weight:800;
+  font-size:16px;
+}
+.mtf-suff-note{
+  font-size:11px;
+  opacity:.7;
+  margin-top:3px;
+}
+@media(max-width:700px){
+  .decision-gate-grid{
+    grid-template-columns:1fr 1fr;
+  }
+  .mtf-sufficiency{
+    grid-template-columns:1fr 1fr;
+  }
+}
+@media(max-width:430px){
+  .decision-gate-grid{
+    grid-template-columns:1fr;
+  }
+  .mtf-sufficiency{
+    grid-template-columns:1fr;
+  }
+}
+
 .mtf-card{
   padding:9px;
   border:1px solid var(--line2);
@@ -542,6 +698,12 @@ details[open]>summary::after{
 @media(max-width:700px){
   .shell{padding:7px}
 
+  /* Mobile: MTF cards must be fully readable.
+     Keep multi-column layout only on wider screens. */
+  .mtf{
+    grid-template-columns:1fr;
+  }
+
   .topbar{
     position:static;
     align-items:flex-start;
@@ -578,7 +740,7 @@ details[open]>summary::after{
   }
 
   .metrics{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
   }
 
   .pipeline{
@@ -595,7 +757,7 @@ details[open]>summary::after{
   }
 
   .mtf{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
   }
 
   .side{
@@ -609,7 +771,7 @@ details[open]>summary::after{
 
 @media(max-width:430px){
   .metrics{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
   }
 
   .pipeline{
@@ -617,7 +779,7 @@ details[open]>summary::after{
   }
 
   .mtf{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
   }
 
   .brand-sub{
@@ -873,6 +1035,134 @@ details[open]>summary::after{
   }
 }
 
+
+/* CANONICAL FIBONACCI UI */
+.fibonacci-card{
+  margin-top:8px;
+}
+
+.fib-summary{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  margin-bottom:8px;
+}
+
+.fib-summary-tile{
+  padding:9px;
+  border:1px solid var(--line2);
+  border-radius:9px;
+  background:#0a1016;
+}
+
+.fib-summary-label{
+  color:var(--muted);
+  font-size:7px;
+  font-weight:900;
+  letter-spacing:.1em;
+}
+
+.fib-summary-value{
+  margin-top:4px;
+  font-size:11px;
+  font-weight:950;
+}
+
+.fib-level-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+.fib-level-panel{
+  padding:9px;
+  border:1px solid var(--line2);
+  border-radius:9px;
+  background:#0a1016;
+}
+
+.fib-level-title{
+  color:var(--gold);
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:.12em;
+  margin-bottom:5px;
+}
+
+.fib-level{
+  display:grid;
+  grid-template-columns:64px 1fr;
+  gap:7px;
+  padding:4px 0;
+  border-bottom:1px solid rgba(255,255,255,.045);
+  font-size:8px;
+}
+
+.fib-level:last-child{
+  border-bottom:0;
+}
+
+.fib-ratio{
+  color:var(--muted);
+  font-weight:800;
+}
+
+.fib-price{
+  text-align:right;
+  font-weight:900;
+}
+
+.fib-reasons{
+  margin-top:7px;
+  color:var(--muted);
+  font-size:8px;
+  line-height:1.5;
+}
+
+.fib-premium{
+  color:#ffd35a;
+}
+
+.fib-discount{
+  color:#53e39b;
+}
+
+.fib-bullish{
+  color:#53e39b;
+}
+
+.fib-bearish{
+  color:#ff6879;
+}
+
+.fib-neutral{
+  color:#ffd35a;
+}
+
+@media(max-width:700px){
+  .fib-summary{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .fib-summary-tile:last-child{
+    grid-column:1 / -1;
+  }
+
+  .fib-level-grid{
+    grid-template-columns:1fr;
+  }
+}
+
+@media(max-width:430px){
+  .fib-summary{
+    grid-template-columns:1fr;
+  }
+
+  .fib-summary-tile:last-child{
+    grid-column:auto;
+  }
+}
+
 </style>
 </head>
 
@@ -892,6 +1182,7 @@ details[open]>summary::after{
     <div class="badge paper" id="modeBadge">PAPER</div>
     <div class="badge" id="healthBadge">SYSTEM —</div>
     <div class="badge" id="freshBadge">FRESHNESS —</div>
+    <div class="badge" id="dataQualityBadge">DATA —</div>
   </div>
 </header>
 
@@ -908,6 +1199,7 @@ details[open]>summary::after{
       <div class="price" id="price">—</div>
       <div class="market-line" id="marketLine">—</div>
       <div class="market-line" id="freshLine">—</div>
+      <div class="market-line" id="dataQualityLine">—</div>
     </div>
 
     <div class="decision-wrap">
@@ -974,12 +1266,23 @@ details[open]>summary::after{
     <button class="indicator-toggle active" data-indicator="EMA100">EMA100</button>
     <button class="indicator-toggle active" data-indicator="EMA200">EMA200</button>
     <button class="indicator-toggle active" data-indicator="VWAP">VWAP</button>
+    <button class="indicator-toggle active" data-indicator="FIB_RETR">FIB RET</button>
+    <button class="indicator-toggle active" data-indicator="FIB_EXT">FIB EXT</button>
   </div>
   <div class="indicator-note">
-    Chart overlays are calculated from the canonical candle history shown by Jaguar.
+    EMA/VWAP overlays use canonical candle history. Fibonacci overlays use canonical Fibonacci metadata only.
   </div>
   <canvas id="chart"></canvas>
   <div class="chart-legend" id="chartLegend"></div>
+</section>
+
+<section class="card fibonacci-card">
+  <div class="section-head">
+    <span>FIBONACCI STRUCTURE</span>
+    <span class="meta">CANONICAL ENGINE</span>
+  </div>
+
+  <div class="content" id="fibonacciPanel"></div>
 </section>
 
 
@@ -992,6 +1295,91 @@ details[open]>summary::after{
   <div class="session-panel" id="sessionPanel"></div>
 
   <div class="coverage-grid" id="marketCoverage"></div>
+</section>
+
+<section class="card decision-gate">
+  <div class="section-head">
+    <span>JAGUAR DECISION GATE</span>
+    <span class="meta">DECISION · REASON · BLOCKER · NEXT CONDITION</span>
+  </div>
+
+  <div class="decision-gate-grid">
+    <div class="gate-block">
+      <div class="gate-label">DECISION</div>
+      <div class="gate-value" id="gateDecision">—</div>
+    </div>
+
+    <div class="gate-block">
+      <div class="gate-label">AUTHORIZATION</div>
+      <div class="gate-value" id="gateAuthorization">—</div>
+    </div>
+
+    <div class="gate-block">
+      <div class="gate-label">PRIMARY BLOCKER</div>
+      <div class="gate-value" id="gateBlocker">—</div>
+    </div>
+
+    <div class="gate-block">
+      <div class="gate-label">BLOCKER STATUS</div>
+      <div class="gate-value" id="gateBlockerStatus">—</div>
+    </div>
+  </div>
+
+  <div class="gate-reason">
+    <div class="gate-label">WHY</div>
+    <div id="gateReason">—</div>
+  </div>
+
+  <div class="gate-reason">
+    <div class="gate-label">NEXT REQUIRED CONDITIONS</div>
+    <div id="gateConditions">—</div>
+  </div>
+</section>
+
+<section class="card decision-gate">
+  <div class="section-head">
+    <span>MTF DATA SUFFICIENCY</span>
+    <span class="meta">DATA COVERAGE ≠ MARKET DIRECTION</span>
+  </div>
+  <div class="mtf-sufficiency" id="mtfSufficiency"></div>
+</section>
+
+
+<section class="card thesis-invalidation-card">
+  <div class="section-head">
+    <span>THESIS / INVALIDATION</span>
+    <span class="meta">CANONICAL DIRECTIONAL EVIDENCE</span>
+  </div>
+  <div class="thesis-invalidation" id="thesisInvalidation"></div>
+</section>
+
+<section class="card what-change-card">
+  <div class="section-head">
+    <span>WHAT WOULD CHANGE DECISION</span>
+    <span class="meta">CANONICAL DECISION TRANSITION</span>
+  </div>
+  <div class="what-would-change" id="whatWouldChange"></div>
+</section>
+
+<section class="card trade-setup-card">
+  <div class="section-head">
+    <span>TRADE SETUP</span>
+    <span class="meta">CANONICAL SETUP STATE</span>
+  </div>
+  <div class="trade-setup" id="tradeSetup"></div>
+</section>
+
+<section class="card confidence-breakdown">
+  <div class="section-head">
+    <span>CONFIDENCE BREAKDOWN</span>
+    <span class="meta">CANONICAL EVIDENCE PROVENANCE</span>
+  </div>
+
+  <div class="confidence-summary" id="confidenceSummary"></div>
+
+  <div class="confidence-engines" id="confidenceEngines"></div>
+
+  <div class="confidence-method" id="confidenceMethod"></div>
 </section>
 
 <div class="grid2">
@@ -1091,7 +1479,9 @@ const state={
     EMA50:true,
     EMA100:true,
     EMA200:true,
-    VWAP:true
+    VWAP:true,
+    FIB_RETR:true,
+    FIB_EXT:true
   }
 };
 
@@ -1160,6 +1550,10 @@ function cls(v){
 
 function row(label,value){
   return `<div class="row"><div class="label">${esc(label)}</div><div class="value">${esc(value)}</div></div>`;
+}
+
+function rowMarkup(label,markup){
+  return `<div class="row"><div class="label">${esc(label)}</div><div class="value">${markup}</div></div>`;
 }
 
 function prettyTime(v){
@@ -1353,12 +1747,18 @@ function render(){
   const u=state.ui||{};
   const sys=u.system||{};
   const fresh=u.freshness||{};
+  const dataQuality=u.data_quality||{};
   const market=u.market||{};
   const idm=u.idm||{};
   const st=u.structure||{};
   const risk=u.risk||{};
   const exe=u.execution||{};
   const mtf=u.mtf||{};
+const mtfSuff=u.mtf_sufficiency||{};
+const decisionGate=u.decision_gate||{};
+const confidence=u.confidence_breakdown||{};
+
+
   const portfolio=u.portfolio||{};
   const audit=u.audit||{};
 
@@ -1375,6 +1775,41 @@ function render(){
   document.getElementById("freshBadge").textContent="FRESHNESS · "+freshness;
   document.getElementById("freshBadge").className="badge "+
     (freshness==="CURRENT"?"ok":freshness.startsWith("AGING")?"warn":"bad");
+
+  const qualityStatus=String(
+    dataQuality.status||"UNKNOWN"
+  ).toUpperCase();
+
+  const qualityOk=Boolean(
+    dataQuality.integrity_ok
+  );
+
+  const qualityReason=String(
+    dataQuality.reason||""
+  ).trim();
+
+  document.getElementById(
+    "dataQualityBadge"
+  ).textContent="DATA · "+qualityStatus;
+
+  document.getElementById(
+    "dataQualityBadge"
+  ).className="badge "+
+    (
+      qualityOk
+        ? "ok"
+        : qualityStatus==="UNKNOWN"
+          ? "warn"
+          : "bad"
+    );
+
+  document.getElementById(
+    "dataQualityLine"
+  ).textContent =
+    `Data Quality ${qualityStatus} · `+
+    `Candles ${dataQuality.candle_count ?? "—"} · `+
+    `Gaps ${dataQuality.gap_count ?? 0}`+
+    (qualityReason ? ` · ${qualityReason}` : "");
 
   document.getElementById("symbol").textContent=market.symbol||state.symbol;
   document.getElementById("price").textContent=fmt(market.price,2);
@@ -1414,29 +1849,540 @@ function render(){
   document.getElementById("chartMeta").textContent=
     `${state.candles.length} candles · ${market.timeframe||state.interval}`;
 
-  document.getElementById("idmRows").innerHTML=[
+  const idmMissing=Array.isArray(idm.missing)
+    ? idm.missing.join(", ")
+    : (idm.missing||"—");
+
+  document.getElementById("gateDecision").textContent =
+  decisionGate.decision || idm.decision || "WAIT";
+
+document.getElementById("gateAuthorization").textContent =
+  decisionGate.authorization ||
+  (idm.approved ? "AUTHORIZED" : "BLOCKED");
+
+document.getElementById("gateBlocker").textContent =
+  decisionGate.blocker || "NONE";
+
+document.getElementById("gateBlockerStatus").textContent =
+  decisionGate.blocker_status || "CLEAR";
+
+document.getElementById("gateReason").textContent =
+  decisionGate.reason || "—";
+
+const gateConditions =
+  decisionGate.next_conditions || [];
+
+document.getElementById("gateConditions").innerHTML =
+  gateConditions.length
+    ? `<ul class="gate-list">${gateConditions.map(
+        x => `<li class="gate-condition">${
+          escapeHtml(String(x))
+        }</li>`
+      ).join("")}</ul>`
+    : "No additional condition identified.";
+
+document.getElementById("mtfSufficiency").innerHTML = `
+  <div class="mtf-suff-tile">
+    <div class="gate-label">STATUS</div>
+    <div class="mtf-suff-value">${escapeHtml(
+      String(mtfSuff.status || "UNKNOWN")
+    )}</div>
+    <div class="mtf-suff-note">${escapeHtml(
+      String(mtfSuff.impact || "—")
+    )}</div>
+  </div>
+
+  <div class="mtf-suff-tile">
+    <div class="gate-label">COVERAGE</div>
+    <div class="mtf-suff-value">${
+      Number(mtfSuff.available_count || 0)
+    }/${Number(mtfSuff.required_count || 0)}</div>
+    <div class="mtf-suff-note">timeframes available</div>
+  </div>
+
+  <div class="mtf-suff-tile">
+    <div class="gate-label">AVAILABLE</div>
+    <div class="mtf-suff-value">${escapeHtml(
+      (mtfSuff.available || []).join(", ") || "NONE"
+    )}</div>
+    <div class="mtf-suff-note">usable MTF context</div>
+  </div>
+
+  <div class="mtf-suff-tile">
+    <div class="gate-label">UNAVAILABLE</div>
+    <div class="mtf-suff-value">${escapeHtml(
+      (mtfSuff.unavailable || []).join(", ") || "NONE"
+    )}</div>
+    <div class="mtf-suff-note">missing MTF context</div>
+  </div>
+`;
+
+
+  // ----------------------------------------------------------
+  // THESIS / INVALIDATION
+  // Presentation-only canonical evidence.
+  // ----------------------------------------------------------
+
+  const thesis =
+    u.thesis_invalidation || {};
+
+  const thesisSupport =
+    Array.isArray(
+      thesis.supporting_evidence
+    )
+      ? thesis.supporting_evidence
+      : [];
+
+  const thesisWeakening =
+    Array.isArray(
+      thesis.weakening_evidence
+    )
+      ? thesis.weakening_evidence
+      : [];
+
+  const thesisGates =
+    Array.isArray(
+      thesis.canonical_invalidation_gates
+    )
+      ? thesis.canonical_invalidation_gates
+      : [];
+
+  const activeInvalidation =
+    Array.isArray(
+      thesis.active_invalidation
+    )
+      ? thesis.active_invalidation
+      : [];
+
+  const thesisList = values =>
+    values.length
+      ? `<ul class="gate-list">${values.map(
+          x => `<li class="gate-condition">${
+            escapeHtml(String(x))
+          }</li>`
+        ).join("")}</ul>`
+      : "None recorded.";
+
+  document.getElementById(
+    "thesisInvalidation"
+  ).innerHTML = `
+    <div class="rows">
+      ${row(
+        "Direction",
+        thesis.direction || "NEUTRAL"
+      )}
+
+      ${row(
+        "Thesis Status",
+        thesis.status || "UNDEFINED"
+      )}
+
+      ${row(
+        "Setup",
+        thesis.setup || "UNKNOWN"
+      )}
+
+      ${row(
+        "Direction Relationship",
+        thesis.direction_relationship || "UNKNOWN"
+      )}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">SUPPORTING EVIDENCE</div>
+      ${thesisList(thesisSupport)}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">CURRENT WEAKENING EVIDENCE</div>
+      ${thesisList(thesisWeakening)}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">CANONICAL INVALIDATION GATES</div>
+      ${thesisList(thesisGates)}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">ACTIVE INVALIDATION</div>
+      ${thesisList(activeInvalidation)}
+    </div>
+  `;
+
+  // ----------------------------------------------------------
+  // WHAT WOULD CHANGE DECISION
+  // Presentation-only canonical evidence.
+  // ----------------------------------------------------------
+
+  const whatWouldChange =
+    u.what_would_change || {};
+
+  const requiredConditions =
+    Array.isArray(
+      whatWouldChange.required_conditions
+    )
+      ? whatWouldChange.required_conditions
+      : [];
+
+  const decisionReasons =
+    Array.isArray(
+      whatWouldChange.decision_reasons
+    )
+      ? whatWouldChange.decision_reasons
+      : [];
+
+  const confirmationReasons =
+    Array.isArray(
+      whatWouldChange.execution_confirmation_reasons
+    )
+      ? whatWouldChange.execution_confirmation_reasons
+      : [];
+
+  const conflicts =
+    Array.isArray(
+      whatWouldChange.conflicts
+    )
+      ? whatWouldChange.conflicts
+      : [];
+
+  const conditionList =
+    requiredConditions.length
+      ? `<ul class="gate-list">${requiredConditions.map(
+          x => `<li class="gate-condition">${
+            escapeHtml(String(x))
+          }</li>`
+        ).join("")}</ul>`
+      : "No additional transition condition recorded.";
+
+  const decisionReasonList =
+    decisionReasons.length
+      ? `<ul class="gate-list">${decisionReasons.map(
+          x => `<li class="gate-condition">${
+            escapeHtml(String(x))
+          }</li>`
+        ).join("")}</ul>`
+      : "None recorded.";
+
+  const confirmationReasonList =
+    confirmationReasons.length
+      ? `<ul class="gate-list">${confirmationReasons.map(
+          x => `<li class="gate-condition">${
+            escapeHtml(String(x))
+          }</li>`
+        ).join("")}</ul>`
+      : "None recorded.";
+
+  const conflictList =
+    conflicts.length
+      ? `<ul class="gate-list">${conflicts.map(
+          x => `<li class="gate-condition">${
+            escapeHtml(String(x))
+          }</li>`
+        ).join("")}</ul>`
+      : "None recorded.";
+
+  document.getElementById("whatWouldChange").innerHTML = `
+    <div class="rows">
+      ${row(
+        "Current Decision",
+        whatWouldChange.current_decision || "WAIT"
+      )}
+
+      ${row(
+        "Authorization",
+        whatWouldChange.current_authorization || "BLOCKED"
+      )}
+
+      ${row(
+        "Structural Readiness",
+        whatWouldChange.structural_readiness || "UNKNOWN"
+      )}
+
+      ${row(
+        "Trigger Status",
+        whatWouldChange.trigger_status || "UNKNOWN"
+      )}
+
+      ${row(
+        "Trigger Confirmed",
+        whatWouldChange.trigger_confirmed
+          ? "YES"
+          : "NO"
+      )}
+
+      ${row(
+        "Execution Confirmation",
+        whatWouldChange.execution_confirmation || "WAIT"
+      )}
+
+      ${row(
+        "Execution Confirmed",
+        whatWouldChange.execution_confirmation_confirmed
+          ? "YES"
+          : "NO"
+      )}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">REQUIRED CONDITIONS</div>
+      ${conditionList}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">CURRENT DECISION REASONS</div>
+      ${decisionReasonList}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">EXECUTION EVIDENCE</div>
+      ${confirmationReasonList}
+    </div>
+
+    <div class="gate-reason">
+      <div class="gate-label">CURRENT CONFLICTS</div>
+      ${conflictList}
+    </div>
+  `;
+
+  // ----------------------------------------------------------
+  // TRADE SETUP
+  // Presentation-only canonical setup state.
+  // ----------------------------------------------------------
+
+  const tradeSetup =
+    u.trade_setup || {};
+
+  document.getElementById("tradeSetup").innerHTML = `
+    <div class="rows">
+      ${row(
+        "Status",
+        tradeSetup.status || "UNKNOWN"
+      )}
+      ${rowMarkup(
+        "Direction",
+        directionMarkup(
+          tradeSetup.direction || "NEUTRAL"
+        )
+      )}
+      ${row(
+        "Setup Type",
+        tradeSetup.setup_type || "UNKNOWN"
+      )}
+      ${row(
+        "Zone",
+        tradeSetup.zone || "NONE"
+      )}
+      ${row(
+        "Zone Status",
+        tradeSetup.zone_status || "UNKNOWN"
+      )}
+      ${row(
+        "Zone Lifecycle",
+        tradeSetup.zone_lifecycle || "UNKNOWN"
+      )}
+      ${row(
+        "Location",
+        tradeSetup.location || "UNKNOWN"
+      )}
+      ${row(
+        "Readiness",
+        tradeSetup.readiness || "UNKNOWN"
+      )}
+      ${row(
+        "Trigger",
+        tradeSetup.trigger || "NONE"
+      )}
+      ${row(
+        "Trigger Confirmed",
+        tradeSetup.trigger_confirmed
+          ? "YES"
+          : "NO"
+      )}
+      ${row(
+        "Execution Confirmation",
+        tradeSetup.execution_confirmation || "WAIT"
+      )}
+      ${row(
+        "Risk",
+        tradeSetup.risk_status || "UNKNOWN"
+      )}
+      ${row(
+        "Execution",
+        tradeSetup.execution_status || "WAIT"
+      )}
+      ${row(
+        "Execution Ready",
+        tradeSetup.execution_ready
+          ? "YES"
+          : "NO"
+      )}
+    </div>
+  `;
+
+  // ----------------------------------------------------------
+  // CONFIDENCE BREAKDOWN
+  // Presentation-only. Values come from canonical Jaguar
+  // evidence already exposed by the UI state.
+  // No composite confidence is calculated here.
+  // ----------------------------------------------------------
+
+  const confidenceMtf =
+    confidence.mtf || {};
+
+  document.getElementById("confidenceSummary").innerHTML = `
+    <div class="rows">
+      ${row(
+        "IDM Confidence",
+        confidence.idm_confidence == null
+          ? "—"
+          : fmt(confidence.idm_confidence) + "%"
+      )}
+
+      ${row(
+        "Institutional Confidence",
+        confidence.institutional_confidence == null
+          ? "—"
+          : fmt(confidence.institutional_confidence) + "%"
+      )}
+
+      ${row(
+        "Institutional Score",
+        confidence.institutional_score == null
+          ? "—"
+          : fmt(confidence.institutional_score)
+      )}
+
+      ${row(
+        "Probability",
+        confidence.probability == null
+          ? "—"
+          : fmt(confidence.probability)
+      )}
+
+      ${row(
+        "State Confidence Grade",
+        confidence.grade || "—"
+      )}
+
+      ${row(
+        "Context Confidence Grade",
+        confidence.context_grade || "—"
+      )}
+
+      ${row(
+        "MTF Confidence",
+        confidenceMtf.confidence == null
+          ? "—"
+          : fmt(confidenceMtf.confidence) + "%"
+      )}
+
+      ${row(
+        "MTF Bias",
+        confidenceMtf.bias || "—"
+      )}
+
+      ${row(
+        "MTF Alignment",
+        confidenceMtf.alignment == null
+          ? "—"
+          : fmt(confidenceMtf.alignment, 0)
+      )}
+
+      ${row(
+        "MTF Score",
+        confidenceMtf.score == null
+          ? "—"
+          : fmt(confidenceMtf.score)
+      )}
+    </div>
+  `;
+
+  const confidenceEngines =
+    confidence.engines &&
+    typeof confidence.engines === "object"
+      ? confidence.engines
+      : {};
+
+  const confidenceEngineRows =
+    Object.entries(confidenceEngines)
+      .sort((a, b) =>
+        String(a[0]).localeCompare(String(b[0]))
+      )
+      .map(([name, evidence]) => {
+        const item =
+          evidence &&
+          typeof evidence === "object"
+            ? evidence
+            : {};
+
+        const percent =
+          item.confidence_percent == null
+            ? "—"
+            : fmt(item.confidence_percent) + "%";
+
+        const signal =
+          item.signal || "NEUTRAL";
+
+        const score =
+          item.score == null
+            ? "—"
+            : fmt(item.score);
+
+        return `
+          <div class="confidence-engine">
+            <div class="section-head">
+              <span>${esc(name)}</span>
+              <span class="meta">${esc(signal)}</span>
+            </div>
+
+            ${row("Confidence", percent)}
+            ${row("Score", score)}
+          </div>
+        `;
+      })
+      .join("");
+
+  document.getElementById("confidenceEngines").innerHTML =
+    confidenceEngineRows ||
+    `<div class="banner">No canonical engine confidence evidence available.</div>`;
+
+  document.getElementById("confidenceMethod").innerHTML =
+    `<div class="banner">${esc(
+      confidence.method ||
+      "Canonical evidence only; no derived composite confidence."
+    )}</div>`;
+
+document.getElementById("idmRows").innerHTML=[
     row("Decision",idm.decision),
     row("Approved",idm.approved?"YES":"NO"),
-    row("Direction",directionMarkup(idm.direction)),
+    rowMarkup("Direction",directionMarkup(idm.direction)),
     row("Score",fmt(idm.score)),
     row("Confidence",fmt(idm.confidence)+"%"),
-    row("Grade",idm.grade),
+    row("Institutional Grade",idm.grade),
     row("Priority",idm.priority),
+    row("Setup",idm.setup||"—"),
     row("Readiness",idm.readiness),
     row("Trigger",idm.trigger),
-    row("Confirmed",idm.trigger_confirmed?"YES":"NO")
+    row("Confirmed",idm.trigger_confirmed?"YES":"NO"),
+    row("Missing",idmMissing)
   ].join("");
 
   document.getElementById("structureRows").innerHTML=[
     row("Trend",st.trend),
-    row("BOS",st.bos),
-    row("CHoCH",st.choch),
-    row("Direction",directionMarkup(st.direction)),
+    row("BOS",st.bos||"NEUTRAL"),
+    row("BOS Score",fmt(st.bos_score)),
+    row("BOS Confidence",fmt(st.bos_confidence)+"%"),
+    row("BOS Reason",st.bos_reason||"—"),
+    row("CHoCH",st.choch||"NEUTRAL"),
+    row("CHoCH Score",fmt(st.choch_score)),
+    row("CHoCH Confidence",fmt(st.choch_confidence)+"%"),
+    row("CHoCH Reason",st.choch_reason||"—"),
+    rowMarkup("Direction",directionMarkup(st.direction)),
     row("State",st.state),
     row("Readiness",st.readiness),
     row("Trigger",st.trigger),
     row("Zone",st.zone_type),
-    row("Zone Direction",directionMarkup(st.zone_direction)),
+    rowMarkup("Zone Direction",directionMarkup(st.zone_direction)),
     row("Lifecycle",st.zone_lifecycle)
   ].join("");
 
@@ -1475,7 +2421,7 @@ function render(){
     return `
       <div class="mtf-card">
         <div class="mtf-title">${tf}</div>
-        ${row("Trend",directionMarkup(a.trend))}
+        ${rowMarkup("Trend",directionMarkup(a.trend))}
         ${row("RSI",a.rsi==null?"—":Number(a.rsi).toFixed(2))}
         ${row("Signal",a.rsi_signal)}
         ${row("Volume",a.volume_signal)}
@@ -1523,6 +2469,7 @@ function render(){
 
   renderSession();
   renderMarkets();
+  renderFibonacci();
   renderChart();
   renderWatch();
 }
@@ -1560,6 +2507,18 @@ function renderChart(){
 
   const closes=candles.map(c=>Number(c.close));
 
+  const fibMetadata=state.ui?.fibonacci?.metadata||{};
+  const fibRetracements=fibMetadata.retracements||{};
+  const fibExtensions=fibMetadata.extensions||{};
+
+  const fibRetracementValues=Object.values(fibRetracements)
+    .map(Number)
+    .filter(Number.isFinite);
+
+  const fibExtensionValues=Object.values(fibExtensions)
+    .map(Number)
+    .filter(Number.isFinite);
+
   const series={
     EMA20:emaSeries(closes,20),
     EMA50:emaSeries(closes,50),
@@ -1590,6 +2549,15 @@ function renderChart(){
         finiteValues.push(n);
       }
     }
+  }
+
+
+  if(state.chartIndicators.FIB_RETR){
+    finiteValues.push(...fibRetracementValues);
+  }
+
+  if(state.chartIndicators.FIB_EXT){
+    finiteValues.push(...fibExtensionValues);
   }
 
   if(!finiteValues.length){
@@ -1719,6 +2687,42 @@ function renderChart(){
     linePath(ctx,pointsFor(name));
   }
 
+  const drawFibLevels=(levels,style,dash)=>{
+    ctx.save();
+    ctx.strokeStyle=style;
+    ctx.lineWidth=Math.max(1,dpr);
+    ctx.setLineDash(dash);
+
+    for(const value of Object.values(levels)){
+      const n=Number(value);
+
+      if(!Number.isFinite(n)){
+        continue;
+      }
+
+      const y=yOf(n);
+
+      if(y<top || y>top+plotH){
+        continue;
+      }
+
+      ctx.beginPath();
+      ctx.moveTo(left,y);
+      ctx.lineTo(left+plotW,y);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  };
+
+  if(state.chartIndicators.FIB_RETR){
+    drawFibLevels(fibRetracements,"rgba(214,178,89,.70)",[6*dpr,4*dpr]);
+  }
+
+  if(state.chartIndicators.FIB_EXT){
+    drawFibLevels(fibExtensions,"rgba(167,139,250,.70)",[2*dpr,4*dpr]);
+  }
+
   // Right-side price marker.
   ctx.fillStyle="#9fb1c1";
   ctx.font=`${8*dpr}px system-ui`;
@@ -1742,7 +2746,9 @@ function renderChart(){
     ["EMA50","#38d7ff"],
     ["EMA100","#a78bfa"],
     ["EMA200","#ff8e9b"],
-    ["VWAP","#53e39b"]
+    ["VWAP","#53e39b"],
+    ["FIB_RETR","#d6b259"],
+    ["FIB_EXT","#a78bfa"]
   ].filter(x=>state.chartIndicators[x[0]])
    .map(x=>`
      <span class="legend-item">
@@ -1753,20 +2759,106 @@ function renderChart(){
    .join("");
 }
 
-function load(){
-  try{
-    const url=
-      `/dashboard/state?symbol=${encodeURIComponent(state.symbol)}`+
-      `&interval=${encodeURIComponent(state.interval)}`+
-      `&mode=${encodeURIComponent(state.mode)}`;
 
-    const r=await fetch(url,{cache:"no-store"});
-    if(!r.ok) throw new Error("HTTP "+r.status);
+function fibLevelClass(value){
+  const v=String(value||"").toUpperCase();
 
-    const d=await r.json();
+  if(v.includes("PREMIUM")){
+    return "fib-premium";
+  }
 
-    if(!d||!d.ui) throw new Error("Invalid dashboard state");
+  if(v.includes("DISCOUNT")){
+    return "fib-discount";
+  }
 
+  if(v.includes("BULLISH")){
+    return "fib-bullish";
+  }
+
+  if(v.includes("BEARISH")){
+    return "fib-bearish";
+  }
+
+  return "fib-neutral";
+}
+
+function renderFibonacci(){
+  const box=document.getElementById("fibonacciPanel");
+  if(!box){
+    return;
+  }
+
+  const fib=state.ui?.fibonacci;
+
+  if(!fib){
+    box.innerHTML='<div class="banner">Canonical Fibonacci data unavailable.</div>';
+    return;
+  }
+
+  const metadata=fib.metadata||{};
+  const retracements=metadata.retracements||{};
+  const extensions=metadata.extensions||{};
+  const reasons=Array.isArray(fib.reasons)?fib.reasons:[];
+
+  const renderLevels=(levels)=>{
+    const entries=Object.entries(levels);
+
+    if(!entries.length){
+      return '<div class="fib-reasons">No canonical levels available.</div>';
+    }
+
+    return entries.map(([ratio,value])=>`
+      <div class="fib-level">
+        <div class="fib-ratio">${esc(ratio)}%</div>
+        <div class="fib-price">${fmt(value,2)}</div>
+      </div>
+    `).join("");
+  };
+
+  box.innerHTML=`
+    <div class="fib-summary">
+      <div class="fib-summary-tile">
+        <div class="fib-summary-label">STATUS</div>
+        <div class="fib-summary-value ${fibLevelClass(fib.status)}">
+          ${esc(fib.status||"UNKNOWN")}
+        </div>
+      </div>
+
+      <div class="fib-summary-tile">
+        <div class="fib-summary-label">ZONE</div>
+        <div class="fib-summary-value ${fibLevelClass(fib.zone)}">
+          ${esc(fib.zone||"UNKNOWN")}
+        </div>
+      </div>
+
+      <div class="fib-summary-tile">
+        <div class="fib-summary-label">SIGNAL</div>
+        <div class="fib-summary-value ${fibLevelClass(fib.signal)}">
+          ${esc(fib.signal||"NEUTRAL")}
+        </div>
+      </div>
+    </div>
+
+    <div class="fib-level-grid">
+      <div class="fib-level-panel">
+        <div class="fib-level-title">RETRACEMENTS</div>
+        ${renderLevels(retracements)}
+      </div>
+
+      <div class="fib-level-panel">
+        <div class="fib-level-title">EXTENSIONS</div>
+        ${renderLevels(extensions)}
+      </div>
+    </div>
+
+    <div class="fib-reasons">
+      ${reasons.length
+        ? reasons.map(reason=>`• ${esc(reason)}`).join("<br>")
+        : "No Fibonacci reasons reported."
+      }
+    </div>
+  `;
+}
 
 function renderSession(){
   const box=document.getElementById("sessionPanel");
@@ -1867,6 +2959,19 @@ function initIndicatorControls(){
   });
 }
 
+async function load(){
+  try{
+    const url=
+      `/dashboard/state?symbol=${encodeURIComponent(state.symbol)}`+
+      `&interval=${encodeURIComponent(state.interval)}`;
+
+    const r=await fetch(url,{cache:"no-store"});
+    if(!r.ok) throw new Error("HTTP "+r.status);
+
+    const d=await r.json();
+
+    if(!d||!d.ui) throw new Error("Invalid dashboard state");
+
 
     state.ui=d.ui;
     state.candles=Array.isArray(d.candles)?d.candles:[];
@@ -1877,6 +2982,8 @@ function initIndicatorControls(){
     document.getElementById("healthBadge").className="badge bad";
     document.getElementById("freshBadge").textContent="FRESHNESS · ERROR";
     document.getElementById("freshBadge").className="badge bad";
+    document.getElementById("dataQualityBadge").textContent="DATA · ERROR";
+    document.getElementById("dataQualityBadge").className="badge bad";
     console.error(e);
   }
 }

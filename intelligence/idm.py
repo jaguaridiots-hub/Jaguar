@@ -1023,8 +1023,8 @@ class InstitutionalDecisionMatrix:
             )
 
             reasons.append(
-                "Structural trigger exists but the "
-                "selected execution zone is invalid."
+                "Selected execution zone is invalid or "
+                "mitigated; waiting for a valid execution zone."
             )
 
         # ==================================================

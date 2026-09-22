@@ -41,6 +41,7 @@ from datetime import datetime, time as dt_time, timedelta, timezone
 from core.market_detector import MarketDetector
 from market.adapter import MarketAdapter
 from market.provider import MarketProviderError
+from market.data_quality import validate_candle_series
 
 
 class LiveMarketLoaderError(RuntimeError):
@@ -326,9 +327,23 @@ def load_market(
             f"{normalized_symbol!r}"
         ) from exc
 
-    return _validate_candles(
+    candles = _validate_candles(
         candles
     )
+
+    data_quality = validate_candle_series(
+        candles,
+        interval=normalized_interval,
+        market_identity=market,
+    )
+
+    if not data_quality["integrity_ok"]:
+        raise LiveMarketLoaderError(
+            "Canonical market data integrity failed: "
+            f"{data_quality.get('reason') or 'unknown reason'}"
+        )
+
+    return candles
 
 
 def load_market_with_identity(
@@ -369,9 +384,16 @@ def load_market_with_identity(
             normalized_limit,
         )
 
+        data_quality = validate_candle_series(
+            candles,
+            interval=normalized_interval,
+            market_identity=market,
+        )
+
         return {
             "candles": _validate_candles(candles),
             "instrument_token": None,
+            "data_quality": data_quality,
         }
 
     try:
@@ -403,9 +425,24 @@ def load_market_with_identity(
             "Canonical live market identity is unavailable"
         )
 
+    candles = _validate_candles(candles)
+
+    data_quality = validate_candle_series(
+        candles,
+        interval=normalized_interval,
+        market_identity=market,
+    )
+
+    if not data_quality["integrity_ok"]:
+        raise LiveMarketLoaderError(
+            "Canonical market data integrity failed: "
+            f"{data_quality.get('reason') or 'unknown reason'}"
+        )
+
     return {
-        "candles": _validate_candles(candles),
+        "candles": candles,
         "instrument_token": instrument_token,
+        "data_quality": data_quality,
     }
 
 
@@ -464,6 +501,25 @@ def update_state(
     instrument_token = str(
         load_result.get("instrument_token", "") or ""
     ).strip()
+
+    market_identity = MarketDetector.detect(
+        normalized_symbol
+    )
+
+    data_quality = load_result.get("data_quality")
+
+    if not isinstance(data_quality, dict):
+        data_quality = validate_candle_series(
+            candles,
+            interval=interval,
+            market_identity=market_identity,
+        )
+
+    if not data_quality.get("integrity_ok", False):
+        raise LiveMarketLoaderError(
+            "Canonical market data integrity failed before hydration: "
+            f"{data_quality.get('reason') or 'unknown reason'}"
+        )
 
     latest = candles[-1]
     market_identity = MarketDetector.detect(symbol)
@@ -536,40 +592,18 @@ def update_state(
     market["candles"] = candles
 
     # ==================================================
-    # CANONICAL LIVE MARKET INTEGRITY CONTRACT
+    # CANONICAL DATA-QUALITY / EXECUTION CONTRACT
     # ==================================================
-    # CRYPTO currently resolves through the implemented
-    # Binance provider. Other ProviderManager entries are
-    # currently fail-closed non-implemented provider stubs.
-    # Execution authorization is derived from the actual
-    # latest canonical OHLCV candle.
+    # Full candle-series integrity is authoritative.
+    # Latest-candle freshness remains a separate temporal gate.
     # ==================================================
 
-    try:
-        o = float(latest["open"])
-        h = float(latest["high"])
-        l = float(latest["low"])
-        c = float(latest["close"])
-        v = float(latest["volume"])
-
-        integrity_ok = (
-            all(
-                map(
-                    math.isfinite,
-                    (o, h, l, c, v),
-                )
-            )
-            and o > 0
-            and h > 0
-            and l > 0
-            and c > 0
-            and h >= max(o, c)
-            and l <= min(o, c)
-            and h > l
-            and v > 0
+    integrity_ok = bool(
+        data_quality.get(
+            "integrity_ok",
+            False,
         )
-    except (KeyError, TypeError, ValueError):
-        integrity_ok = False
+    )
 
     provider_source = {
         "CRYPTO": "BINANCE",
@@ -612,6 +646,7 @@ def update_state(
         "candle_time": freshness["candle_time"],
         "candle_close_time": freshness["candle_close_time"],
         "freshness": freshness["freshness"],
+        "data_quality": data_quality,
     }
 
     return state
