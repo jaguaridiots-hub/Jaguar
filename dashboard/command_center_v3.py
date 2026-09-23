@@ -1876,7 +1876,7 @@ document.getElementById("gateConditions").innerHTML =
   gateConditions.length
     ? `<ul class="gate-list">${gateConditions.map(
         x => `<li class="gate-condition">${
-          escapeHtml(String(x))
+          esc(String(x))
         }</li>`
       ).join("")}</ul>`
     : "No additional condition identified.";
@@ -1884,10 +1884,10 @@ document.getElementById("gateConditions").innerHTML =
 document.getElementById("mtfSufficiency").innerHTML = `
   <div class="mtf-suff-tile">
     <div class="gate-label">STATUS</div>
-    <div class="mtf-suff-value">${escapeHtml(
+    <div class="mtf-suff-value">${esc(
       String(mtfSuff.status || "UNKNOWN")
     )}</div>
-    <div class="mtf-suff-note">${escapeHtml(
+    <div class="mtf-suff-note">${esc(
       String(mtfSuff.impact || "—")
     )}</div>
   </div>
@@ -1902,7 +1902,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
 
   <div class="mtf-suff-tile">
     <div class="gate-label">AVAILABLE</div>
-    <div class="mtf-suff-value">${escapeHtml(
+    <div class="mtf-suff-value">${esc(
       (mtfSuff.available || []).join(", ") || "NONE"
     )}</div>
     <div class="mtf-suff-note">usable MTF context</div>
@@ -1910,7 +1910,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
 
   <div class="mtf-suff-tile">
     <div class="gate-label">UNAVAILABLE</div>
-    <div class="mtf-suff-value">${escapeHtml(
+    <div class="mtf-suff-value">${esc(
       (mtfSuff.unavailable || []).join(", ") || "NONE"
     )}</div>
     <div class="mtf-suff-note">missing MTF context</div>
@@ -1958,7 +1958,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
     values.length
       ? `<ul class="gate-list">${values.map(
           x => `<li class="gate-condition">${
-            escapeHtml(String(x))
+            esc(String(x))
           }</li>`
         ).join("")}</ul>`
       : "None recorded.";
@@ -2049,7 +2049,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
     requiredConditions.length
       ? `<ul class="gate-list">${requiredConditions.map(
           x => `<li class="gate-condition">${
-            escapeHtml(String(x))
+            esc(String(x))
           }</li>`
         ).join("")}</ul>`
       : "No additional transition condition recorded.";
@@ -2058,7 +2058,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
     decisionReasons.length
       ? `<ul class="gate-list">${decisionReasons.map(
           x => `<li class="gate-condition">${
-            escapeHtml(String(x))
+            esc(String(x))
           }</li>`
         ).join("")}</ul>`
       : "None recorded.";
@@ -2067,7 +2067,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
     confirmationReasons.length
       ? `<ul class="gate-list">${confirmationReasons.map(
           x => `<li class="gate-condition">${
-            escapeHtml(String(x))
+            esc(String(x))
           }</li>`
         ).join("")}</ul>`
       : "None recorded.";
@@ -2076,7 +2076,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
     conflicts.length
       ? `<ul class="gate-list">${conflicts.map(
           x => `<li class="gate-condition">${
-            escapeHtml(String(x))
+            esc(String(x))
           }</li>`
         ).join("")}</ul>`
       : "None recorded.";
