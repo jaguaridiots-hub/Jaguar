@@ -148,21 +148,49 @@ async def dashboard_state(
         ui = build_ui_state(canonical_state, report=report)
 
         # Dashboard-only MTF presentation enrichment.
-        # Uses the existing canonical MarketProvider/LiveLoader routing and
-        # IndicatorEngine. It does not alter IDM, risk, execution, or LIVE
-        # authorization state.
+        # Reuse the canonical MTF candle snapshot already fetched by
+        # JaguarAnalysisEngine. Preserve the historical dashboard contract
+        # by calculating presentation indicators from the latest 300 candles.
+        # This avoids four duplicate provider requests per dashboard-state
+        # call and does not alter IDM, risk, execution, or authorization state.
         from indicators.indicator_engine import IndicatorEngine
-        from market.live_loader import load_market
 
         mtf = {}
 
+        canonical_mtf_market = getattr(
+            canonical_state,
+            "_dashboard_mtf_market",
+            None,
+        )
+
+        if not isinstance(canonical_mtf_market, dict):
+            canonical_mtf_market = {}
+
         for frame in ("15m", "1h", "4h", "1d"):
             try:
-                frame_candles = load_market(
-                    symbol,
+                frame_data = canonical_mtf_market.get(
                     frame,
-                    300,
+                    {},
                 )
+
+                if not isinstance(frame_data, dict):
+                    raise RuntimeError(
+                        f"Canonical MTF snapshot for {frame} is invalid"
+                    )
+
+                frame_candles = frame_data.get(
+                    "candles",
+                    [],
+                )
+
+                if not isinstance(frame_candles, list) or not frame_candles:
+                    raise RuntimeError(
+                        f"Canonical MTF snapshot for {frame} has no candles"
+                    )
+
+                # Preserve the existing dashboard 300-candle semantics.
+                frame_candles = frame_candles[-300:]
+
                 indicators = IndicatorEngine.calculate(
                     frame_candles,
                 )

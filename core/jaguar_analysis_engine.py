@@ -94,6 +94,20 @@ class JaguarAnalysisEngine:
                     f"[MTF] {timeframe} unavailable: {exc}"
                 )
 
+        # Preserve the canonical MTF candle snapshot for dashboard
+        # presentation after the analytical market context is restored.
+        # This is read-only presentation data; it does not alter IDM,
+        # risk, execution, or authorization state.
+        state._dashboard_mtf_market = {
+            timeframe: {
+                "symbol": data.get("symbol"),
+                "interval": data.get("interval"),
+                "candles": data.get("candles", []),
+            }
+            for timeframe, data in mtf_market.items()
+            if isinstance(data, dict)
+        }
+
         state.market = mtf_market
         state.timeframes = {
             timeframe: {
