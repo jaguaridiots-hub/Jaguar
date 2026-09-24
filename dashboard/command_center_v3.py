@@ -1164,6 +1164,202 @@ details[open]>summary::after{
 }
 
 
+
+/* R19_SCANNER_UI_START */
+.scanner-card{
+  overflow:hidden;
+}
+
+.scanner-toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.scanner-symbol{
+  min-width:180px;
+  padding:8px 10px;
+  border:1px solid var(--line, #26303b);
+  border-radius:8px;
+  background:rgba(255,255,255,.02);
+  color:inherit;
+  font:inherit;
+}
+
+.scanner-action{
+  padding:8px 12px;
+  border:1px solid var(--line, #26303b);
+  border-radius:8px;
+  background:rgba(255,255,255,.03);
+  color:inherit;
+  cursor:pointer;
+  font:inherit;
+}
+
+.scanner-action:hover{
+  background:rgba(255,255,255,.07);
+}
+
+.scanner-action:disabled{
+  opacity:.55;
+  cursor:wait;
+}
+
+.scanner-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+
+.scanner-pill{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+
+.scanner-pill.current{
+  border-color:rgba(60,218,160,.28);
+}
+
+.scanner-pill.degraded{
+  border-color:rgba(245,202,88,.28);
+}
+
+.scanner-pill.unavailable{
+  border-color:rgba(255,104,121,.3);
+}
+
+.scanner-note{
+  margin:4px 0 12px;
+  font-size:10px;
+  opacity:.6;
+}
+
+.scanner-error{
+  margin:6px 0 10px;
+  font-size:11px;
+  line-height:1.5;
+  opacity:.75;
+}
+
+.scanner-list{
+  display:grid;
+  gap:8px;
+}
+
+.scanner-item{
+  padding:12px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:9px;
+  background:rgba(255,255,255,.015);
+}
+
+.scanner-item-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:10px;
+}
+
+.scanner-item-symbol{
+  font-size:13px;
+  font-weight:800;
+}
+
+.scanner-item-direction{
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.05em;
+}
+
+.scanner-metrics{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+
+.scanner-metric{
+  min-width:0;
+  padding:8px;
+  border:1px solid rgba(255,255,255,.05);
+  border-radius:7px;
+}
+
+.scanner-metric-label{
+  font-size:9px;
+  opacity:.55;
+  letter-spacing:.06em;
+}
+
+.scanner-metric-value{
+  margin-top:3px;
+  font-size:12px;
+  font-weight:800;
+}
+
+.scanner-evidence{
+  display:flex;
+  flex-wrap:wrap;
+  gap:6px;
+  margin-top:10px;
+}
+
+.scanner-evidence-chip{
+  padding:4px 7px;
+  border-radius:6px;
+  border:1px solid rgba(255,255,255,.08);
+  font-size:9px;
+  opacity:.8;
+}
+
+.scanner-candidate-only{
+  margin-top:10px;
+  font-size:9px;
+  font-weight:800;
+  letter-spacing:.08em;
+  opacity:.55;
+}
+
+.scanner-empty{
+  padding:20px 12px;
+  border:1px dashed rgba(255,255,255,.10);
+  border-radius:9px;
+  text-align:center;
+  font-size:12px;
+  opacity:.7;
+}
+
+@media(max-width:700px){
+  .scanner-symbol{
+    min-width:0;
+    flex:1 1 160px;
+  }
+
+  .scanner-action{
+    flex:1 1 140px;
+  }
+
+  .scanner-metrics{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .scanner-item-head{
+    flex-direction:column;
+  }
+}
+/* R19_SCANNER_UI_END */
+
+
 /* R18_NEWS_UI_START */
 .news-card{
   overflow:hidden;
@@ -1309,6 +1505,68 @@ details[open]>summary::after{
   }
 }
 /* R18_NEWS_UI_END */
+
+
+<!-- R19_SCANNER_UI_START -->
+<details class="card scanner-card">
+  <summary>
+    <span>JAGUAR SCANNER</span>
+    <span class="meta">CANDIDATE DISCOVERY · READ-ONLY</span>
+  </summary>
+
+  <div class="content">
+    <div class="scanner-toolbar">
+      <select
+        class="scanner-symbol"
+        id="scannerSymbol"
+        aria-label="Scanner symbol"
+      >
+        <option value="">CURRENT SYMBOL</option>
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+        <option value="XRPUSDT">XRPUSDT</option>
+        <option value="DOGEUSDT">DOGEUSDT</option>
+        <option value="ADAUSDT">ADAUSDT</option>
+        <option value="LINKUSDT">LINKUSDT</option>
+        <option value="AVAXUSDT">AVAXUSDT</option>
+        <option value="XAUUSD">XAUUSD</option>
+      </select>
+
+      <button
+        class="scanner-action"
+        id="scannerScanSymbol"
+        type="button"
+      >
+        SCAN SYMBOL
+      </button>
+
+      <button
+        class="scanner-action"
+        id="scannerScanWatchlist"
+        type="button"
+      >
+        SCAN WATCHLIST
+      </button>
+    </div>
+
+    <div class="scanner-status" id="scannerStatus"></div>
+
+    <div class="scanner-note">
+      Scanner discovers candidates only. IDM remains the canonical decision authority.
+    </div>
+
+    <div class="scanner-error" id="scannerError"></div>
+
+    <div class="scanner-list" id="scannerList">
+      <div class="scanner-empty">
+        Scanner idle. Run a scan to discover candidates.
+      </div>
+    </div>
+  </div>
+</details>
+<!-- R19_SCANNER_UI_END -->
 
 </style>
 </head>
@@ -1530,6 +1788,392 @@ details[open]>summary::after{
 </section>
 
 
+
+/* R19_SCANNER_UI_START */
+function scannerStatusClass(status){
+  const normalized=String(
+    status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  if(normalized==="CURRENT"){
+    return "current";
+  }
+
+  if(normalized==="DEGRADED"){
+    return "degraded";
+  }
+
+  return "unavailable";
+}
+
+function scannerDirectionClass(direction){
+  const value=String(
+    direction||"NEUTRAL"
+  ).toUpperCase();
+
+  if(value==="LONG"){
+    return "long";
+  }
+
+  if(value==="SHORT"){
+    return "short";
+  }
+
+  return "neutral";
+}
+
+function renderScanner(){
+  const snapshot=state.scanner||{};
+
+  const status=String(
+    snapshot.status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  const candidates=Array.isArray(
+    snapshot.candidates
+  )
+    ? snapshot.candidates
+    : [];
+
+  const statusEl=document.getElementById(
+    "scannerStatus"
+  );
+
+  const errorEl=document.getElementById(
+    "scannerError"
+  );
+
+  const listEl=document.getElementById(
+    "scannerList"
+  );
+
+  if(!statusEl || !errorEl || !listEl){
+    return;
+  }
+
+  const scanned=Number(
+    snapshot.scanned_symbols||0
+  );
+
+  const count=Number(
+    snapshot.candidate_count||0
+  );
+
+  statusEl.innerHTML=
+    `<span class="scanner-pill ${scannerStatusClass(status)}">`+
+    `STATUS · ${esc(status)}`+
+    `</span>`+
+    `<span class="scanner-pill">`+
+    `SCANNED · ${fmt(scanned,0)}`+
+    `</span>`+
+    `<span class="scanner-pill">`+
+    `CANDIDATES · ${fmt(count,0)}`+
+    `</span>`;
+
+  errorEl.textContent=
+    Array.isArray(snapshot.errors) &&
+    snapshot.errors.length
+      ? snapshot.errors.map(
+          error=>String(
+            error.error||"Scanner provider error"
+          )
+        ).join(" · ")
+      : "";
+
+  if(!candidates.length){
+    listEl.innerHTML=
+      `<div class="scanner-empty">`+
+      (
+        status==="UNAVAILABLE"
+          ? "Scanner unavailable or no valid market data is available."
+          : "No scanner candidates meet the current discovery gates."
+      )+
+      `</div>`;
+
+    return;
+  }
+
+  listEl.innerHTML=candidates.map(candidate=>{
+    const symbol=esc(
+      String(candidate.symbol||"—")
+    );
+
+    const direction=esc(
+      String(candidate.direction||"NEUTRAL")
+    );
+
+    const score=fmt(
+      candidate.score,
+      0
+    );
+
+    const confidence=fmt(
+      candidate.confidence,
+      0
+    )+"%";
+
+    const structure=candidate.structure||{};
+    const quality=candidate.data_quality||{};
+
+    const structureTrend=esc(
+      String(structure.trend||"NEUTRAL")
+    );
+
+    const bos=esc(
+      String(structure.bos||"NEUTRAL")
+    );
+
+    const mtf=quality.mtf||{};
+    const mtfValues=Object.values(mtf);
+
+    const primaryTrend=
+      mtf.primary
+        ? String(mtf.primary)
+        : "";
+
+    const aligned=primaryTrend
+      ? mtfValues.filter(
+          value=>String(value)===primaryTrend
+        ).length
+      : 0;
+
+    const dataQuality=fmt(
+      quality.quality,
+      0
+    )+"%";
+
+    const evidence=Array.isArray(
+      candidate.evidence
+    )
+      ? candidate.evidence
+      : [];
+
+    const chips=evidence.slice(0,8).map(item=>{
+      const name=esc(
+        String(item.name||"—")
+      );
+
+      const signal=esc(
+        String(item.signal||"NEUTRAL")
+      );
+
+      return `
+        <span class="scanner-evidence-chip">
+          ${name} · ${signal}
+        </span>
+      `;
+    }).join("");
+
+    return `
+      <article class="scanner-item">
+        <div class="scanner-item-head">
+          <div>
+            <div class="scanner-item-symbol">
+              ${symbol}
+            </div>
+
+            <div class="meta">
+              ${esc(String(candidate.timeframe||"15m"))}
+              ·
+              ${structureTrend}
+            </div>
+          </div>
+
+          <span class="scanner-pill scanner-item-direction ${scannerDirectionClass(direction)}">
+            ${direction}
+          </span>
+        </div>
+
+        <div class="scanner-metrics">
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              SCORE
+            </div>
+            <div class="scanner-metric-value">
+              ${score}
+            </div>
+          </div>
+
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              CONFIDENCE
+            </div>
+            <div class="scanner-metric-value">
+              ${confidence}
+            </div>
+          </div>
+
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              DATA QUALITY
+            </div>
+            <div class="scanner-metric-value">
+              ${dataQuality}
+            </div>
+          </div>
+
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              MTF ALIGNMENT
+            </div>
+            <div class="scanner-metric-value">
+              ${fmt(aligned,0)}/${fmt(mtfValues.length,0)}
+            </div>
+          </div>
+        </div>
+
+        <div class="scanner-evidence">
+          <span class="scanner-evidence-chip">
+            STRUCTURE · ${structureTrend}
+          </span>
+
+          <span class="scanner-evidence-chip">
+            BOS · ${bos}
+          </span>
+
+          ${chips}
+        </div>
+
+        <div class="scanner-candidate-only">
+          SCANNER CANDIDATE ONLY · NOT EXECUTION AUTHORIZATION
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadScanner(symbol=null){
+  const symbolEl=document.getElementById(
+    "scannerSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerScanWatchlist"
+  );
+
+  let activeSymbol=symbol;
+
+  if(activeSymbol===null){
+    activeSymbol=
+      symbolEl && symbolEl.value
+        ? String(symbolEl.value).trim()
+        : String(state.symbol||"").trim();
+  }
+
+  const buttons=[
+    scanSymbolEl,
+    scanWatchlistEl
+  ].filter(Boolean);
+
+  buttons.forEach(button=>{
+    button.disabled=true;
+  });
+
+  if(scanSymbolEl){
+    scanSymbolEl.textContent="SCANNING…";
+  }
+
+  if(scanWatchlistEl){
+    scanWatchlistEl.textContent="SCANNING…";
+  }
+
+  try{
+    const url=
+      activeSymbol
+        ? `/scanner?symbol=${encodeURIComponent(activeSymbol)}`
+        : "/scanner";
+
+    const response=await fetch(
+      url,
+      {cache:"no-store"}
+    );
+
+    const data=await response.json();
+
+    if(!response.ok){
+      throw new Error(
+        data.detail||("HTTP "+response.status)
+      );
+    }
+
+    state.scanner=data;
+    renderScanner();
+
+  }catch(error){
+    state.scanner={
+      status:"UNAVAILABLE",
+      generated_at:Date.now(),
+      scanned_symbols:0,
+      candidate_count:0,
+      candidates:[],
+      errors:[
+        {
+          symbol:activeSymbol||"",
+          timeframe:"",
+          error:String(error)
+        }
+      ]
+    };
+
+    renderScanner();
+
+  }finally{
+    buttons.forEach(button=>{
+      button.disabled=false;
+    });
+
+    if(scanSymbolEl){
+      scanSymbolEl.textContent="SCAN SYMBOL";
+    }
+
+    if(scanWatchlistEl){
+      scanWatchlistEl.textContent="SCAN WATCHLIST";
+    }
+  }
+}
+
+function initScannerControls(){
+  const symbolEl=document.getElementById(
+    "scannerSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerScanWatchlist"
+  );
+
+  if(scanSymbolEl){
+    scanSymbolEl.onclick=()=>{
+      const symbol=
+        symbolEl && symbolEl.value
+          ? String(symbolEl.value).trim()
+          : String(state.symbol||"").trim();
+
+      loadScanner(symbol);
+    };
+  }
+
+  if(scanWatchlistEl){
+    scanWatchlistEl.onclick=()=>{
+      if(symbolEl){
+        symbolEl.value="";
+      }
+
+      loadScanner("");
+    };
+  }
+
+  renderScanner();
+}
+/* R19_SCANNER_UI_END */
+
 <!-- R18_NEWS_UI_START -->
 <section class="card news-card">
   <div class="section-head">
@@ -1673,6 +2317,7 @@ const state={
   ui:null,
   candles:[],
   news:null,
+  scanner:null,
   chartIndicators:{
     EMA20:true,
     EMA50:true,
@@ -3442,6 +4087,7 @@ window.addEventListener("resize",()=>{
 renderWatch();
 initIndicatorControls();
 initNewsControls();
+initScannerControls();
 load();
 setInterval(load,10000);
 </script>
