@@ -1163,6 +1163,153 @@ details[open]>summary::after{
   }
 }
 
+
+/* R18_NEWS_UI_START */
+.news-card{
+  overflow:hidden;
+}
+
+.news-toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.news-filter{
+  min-width:150px;
+  padding:8px 10px;
+  border:1px solid var(--line, #26303b);
+  border-radius:8px;
+  background:rgba(255,255,255,.02);
+  color:inherit;
+  font:inherit;
+}
+
+.news-refresh{
+  margin-left:auto;
+  padding:8px 12px;
+  border:1px solid var(--line, #26303b);
+  border-radius:8px;
+  background:rgba(255,255,255,.03);
+  color:inherit;
+  cursor:pointer;
+}
+
+.news-refresh:hover{
+  background:rgba(255,255,255,.07);
+}
+
+.news-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:12px;
+}
+
+.news-status-pill{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.04em;
+}
+
+.news-status-pill.current{
+  border-color:rgba(60,218,160,.28);
+}
+
+.news-status-pill.cached{
+  border-color:rgba(245,202,88,.25);
+}
+
+.news-status-pill.unavailable{
+  border-color:rgba(255,104,121,.3);
+}
+
+.news-error{
+  margin:6px 0 10px;
+  font-size:11px;
+  line-height:1.5;
+  opacity:.75;
+}
+
+.news-list{
+  display:grid;
+  gap:8px;
+}
+
+.news-item{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto;
+  gap:10px;
+  padding:11px 12px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:9px;
+  background:rgba(255,255,255,.015);
+}
+
+.news-item-main{
+  min-width:0;
+}
+
+.news-title{
+  font-size:13px;
+  line-height:1.45;
+  font-weight:700;
+}
+
+.news-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:5px;
+  font-size:10px;
+  opacity:.65;
+}
+
+.news-link{
+  align-self:center;
+  white-space:nowrap;
+  font-size:11px;
+  text-decoration:none;
+}
+
+.news-empty{
+  padding:20px 12px;
+  border:1px dashed rgba(255,255,255,.10);
+  border-radius:9px;
+  text-align:center;
+  font-size:12px;
+  opacity:.7;
+}
+
+@media (max-width:700px){
+  .news-filter{
+    min-width:0;
+    flex:1 1 130px;
+  }
+
+  .news-refresh{
+    margin-left:0;
+    width:100%;
+  }
+
+  .news-item{
+    grid-template-columns:1fr;
+  }
+
+  .news-link{
+    align-self:start;
+  }
+}
+/* R18_NEWS_UI_END */
+
 </style>
 </head>
 
@@ -1382,6 +1529,57 @@ details[open]>summary::after{
   <div class="confidence-method" id="confidenceMethod"></div>
 </section>
 
+
+<!-- R18_NEWS_UI_START -->
+<section class="card news-card">
+  <div class="section-head">
+    <span>JAGUAR NEWS</span>
+    <span class="meta" id="newsMeta">READ-ONLY MARKET CONTEXT</span>
+  </div>
+
+  <div class="news-toolbar">
+    <select class="news-filter" id="newsSymbolFilter" aria-label="News symbol">
+      <option value="">All symbols</option>
+      <option value="BTCUSDT">BTCUSDT</option>
+      <option value="ETHUSDT">ETHUSDT</option>
+      <option value="SOLUSDT">SOLUSDT</option>
+      <option value="BNBUSDT">BNBUSDT</option>
+      <option value="XRPUSDT">XRPUSDT</option>
+      <option value="RELIANCE.NS">RELIANCE.NS</option>
+      <option value="TCS.NS">TCS.NS</option>
+      <option value="HDFCBANK.NS">HDFCBANK.NS</option>
+      <option value="^NSEI">^NSEI</option>
+      <option value="GOLD">GOLD</option>
+      <option value="SILVER">SILVER</option>
+      <option value="AAPL">AAPL</option>
+      <option value="MSFT">MSFT</option>
+      <option value="NVDA">NVDA</option>
+      <option value="SPY">SPY</option>
+      <option value="QQQ">QQQ</option>
+    </select>
+
+    <select class="news-filter" id="newsCategoryFilter" aria-label="News category">
+      <option value="MARKET">Market</option>
+      <option value="MACRO">Macro</option>
+      <option value="CRYPTO">Crypto</option>
+      <option value="NSE">NSE</option>
+      <option value="MCX">MCX</option>
+      <option value="US">US Markets</option>
+    </select>
+
+    <button class="news-refresh" id="newsRefresh" type="button">
+      REFRESH NEWS
+    </button>
+  </div>
+
+  <div class="news-status" id="newsStatus"></div>
+  <div class="news-error" id="newsError"></div>
+  <div class="news-list" id="newsList">
+    <div class="news-empty">Loading news…</div>
+  </div>
+</section>
+<!-- R18_NEWS_UI_END -->
+
 <div class="grid2">
 
 <details class="card" open>
@@ -1474,6 +1672,7 @@ const state={
   mode:"SWING",
   ui:null,
   candles:[],
+  news:null,
   chartIndicators:{
     EMA20:true,
     EMA50:true,
@@ -2959,6 +3158,207 @@ function initIndicatorControls(){
   });
 }
 
+
+/* R18_NEWS_UI_START */
+function newsTimestamp(value){
+  if(!value){
+    return "—";
+  }
+
+  const date=new Date(value);
+
+  if(Number.isNaN(date.getTime())){
+    return String(value);
+  }
+
+  return date.toLocaleString();
+}
+
+function renderNews(){
+  const snapshot=state.news||{};
+  const status=String(snapshot.status||"UNAVAILABLE").toUpperCase();
+  const provider=String(snapshot.provider||"NONE");
+  const cached=Boolean(snapshot.cached);
+  const items=Array.isArray(snapshot.items)?snapshot.items:[];
+
+  const statusEl=document.getElementById("newsStatus");
+  const errorEl=document.getElementById("newsError");
+  const listEl=document.getElementById("newsList");
+  const metaEl=document.getElementById("newsMeta");
+
+  if(!statusEl || !errorEl || !listEl || !metaEl){
+    return;
+  }
+
+  let statusClass="unavailable";
+
+  if(status==="CURRENT"){
+    statusClass="current";
+  }else if(status==="CACHED"){
+    statusClass="cached";
+  }
+
+  statusEl.innerHTML=
+    `<span class="news-status-pill ${statusClass}">STATUS · ${esc(status)}</span>`+
+    `<span class="news-status-pill">SOURCE · ${esc(provider)}</span>`+
+    `<span class="news-status-pill">${cached?"CACHED":"CURRENT"}</span>`;
+
+  metaEl.textContent=
+    `${provider} · ${items.length} item${items.length===1?"":"s"}`;
+
+  errorEl.textContent=
+    snapshot.error
+      ? String(snapshot.error)
+      : "";
+
+  if(!items.length){
+    listEl.innerHTML=
+      `<div class="news-empty">${
+        status==="UNAVAILABLE"
+          ? "News providers unavailable and no cached news is available."
+          : "No news items available for this filter."
+      }</div>`;
+    return;
+  }
+
+  listEl.innerHTML=items.map(item=>{
+    const publisher=esc(String(item.publisher||item.source||"—"));
+    const title=esc(String(item.title||"Untitled"));
+    const category=esc(String(item.category||"MARKET"));
+    const published=esc(newsTimestamp(item.published_at));
+    const source=esc(String(item.source||publisher));
+    const url=String(item.url||"");
+
+    return `
+      <article class="news-item">
+        <div class="news-item-main">
+          <div class="news-title">${title}</div>
+          <div class="news-meta">
+            <span>${publisher}</span>
+            <span>${source}</span>
+            <span>${category}</span>
+            <span>${published}</span>
+          </div>
+        </div>
+        ${
+          /^https?:\/\//i.test(url)
+            ? `<a class="news-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer">OPEN ↗</a>`
+            : ""
+        }
+      </article>
+    `;
+  }).join("");
+}
+
+async function loadNews(refresh=false){
+  const symbolEl=document.getElementById("newsSymbolFilter");
+  const categoryEl=document.getElementById("newsCategoryFilter");
+  const refreshEl=document.getElementById("newsRefresh");
+
+  const symbol=
+    symbolEl
+      ? String(symbolEl.value||"").trim()
+      : "";
+
+  const category=
+    categoryEl
+      ? String(categoryEl.value||"MARKET").trim()
+      : "MARKET";
+
+  if(symbolEl && !symbolEl.value && state.symbol){
+    const option=[...symbolEl.options].find(
+      option=>option.value===state.symbol
+    );
+
+    if(option){
+      symbolEl.value=state.symbol;
+    }
+  }
+
+  const activeSymbol=
+    symbolEl
+      ? String(symbolEl.value||"").trim()
+      : "";
+
+  if(refreshEl){
+    refreshEl.disabled=true;
+    refreshEl.textContent="REFRESHING…";
+  }
+
+  try{
+    const params=new URLSearchParams();
+
+    if(activeSymbol){
+      params.set("symbol",activeSymbol);
+    }
+
+    params.set("category",category);
+    params.set("limit","20");
+    params.set("refresh",refresh ? "true" : "false");
+
+    const response=await fetch(
+      `/news?${params.toString()}`,
+      {cache:"no-store"}
+    );
+
+    const data=await response.json();
+
+    if(!response.ok){
+      throw new Error(
+        data.detail || ("HTTP "+response.status)
+      );
+    }
+
+    state.news=data;
+    renderNews();
+
+  }catch(error){
+    state.news={
+      status:"UNAVAILABLE",
+      provider:"NONE",
+      cached:false,
+      items:[],
+      error:String(error)
+    };
+
+    renderNews();
+
+  }finally{
+    if(refreshEl){
+      refreshEl.disabled=false;
+      refreshEl.textContent="REFRESH NEWS";
+    }
+  }
+}
+
+function initNewsControls(){
+  const symbolEl=document.getElementById("newsSymbolFilter");
+  const categoryEl=document.getElementById("newsCategoryFilter");
+  const refreshEl=document.getElementById("newsRefresh");
+
+  if(symbolEl){
+    symbolEl.onchange=()=>{
+      loadNews(true);
+    };
+  }
+
+  if(categoryEl){
+    categoryEl.onchange=()=>{
+      loadNews(true);
+    };
+  }
+
+  if(refreshEl){
+    refreshEl.onclick=()=>{
+      loadNews(true);
+    };
+  }
+
+  loadNews(false);
+}
+/* R18_NEWS_UI_END */
+
+
 async function load(){
   try{
     const url=
@@ -3041,6 +3441,7 @@ window.addEventListener("resize",()=>{
 
 renderWatch();
 initIndicatorControls();
+initNewsControls();
 load();
 setInterval(load,10000);
 </script>
