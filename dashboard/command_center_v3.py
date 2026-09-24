@@ -1359,6 +1359,62 @@ details[open]>summary::after{
 }
 /* R19_SCANNER_UI_END */
 
+
+
+/* R23_SCANNER_ALERT_CONTEXT_UI_START */
+.scanner-alert-context-card{
+  margin-top:16px;
+}
+.scanner-alert-context-toolbar{
+  display:grid;
+  grid-template-columns:minmax(150px,1fr) auto auto;
+  gap:10px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.scanner-alert-context-action{
+  min-height:38px;
+}
+.scanner-alert-context-status{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  align-items:center;
+  margin-bottom:12px;
+}
+.scanner-alert-context-list{
+  display:grid;
+  gap:12px;
+}
+.scanner-alert-context-item{
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:12px;
+  padding:14px;
+}
+.scanner-alert-context-news{
+  display:grid;
+  gap:8px;
+  margin-top:12px;
+}
+.scanner-alert-context-news-item{
+  padding:10px;
+  border-radius:10px;
+  background:rgba(255,255,255,.025);
+}
+.scanner-alert-context-boundary{
+  letter-spacing:.08em;
+  font-size:.72rem;
+  text-transform:uppercase;
+}
+@media (max-width:760px){
+  .scanner-alert-context-toolbar{
+    grid-template-columns:1fr;
+  }
+  .scanner-alert-context-action{
+    width:100%;
+  }
+}
+/* R23_SCANNER_ALERT_CONTEXT_UI_END */
 /* R21_SCANNER_ALERT_UI_START */
 .scanner-alert-card{
   overflow:hidden;
@@ -1556,6 +1612,8 @@ details[open]>summary::after{
   </div>
 </details>
 <!-- R21_SCANNER_ALERT_UI_END -->
+
+
 
 
 /* R21_SCANNER_ALERT_UI_START */
@@ -2640,6 +2698,68 @@ function initScannerControls(){
 }
 /* R19_SCANNER_UI_END */
 
+
+
+<!-- R23_SCANNER_ALERT_CONTEXT_UI_START -->
+<details class="card scanner-alert-context-card">
+  <summary>
+    <span>JAGUAR ALERT CONTEXT</span>
+    <span class="meta">CONTEXT ONLY · READ-ONLY</span>
+  </summary>
+
+  <div class="content">
+    <div class="scanner-alert-context-toolbar">
+      <select
+        class="scanner-alert-context-symbol"
+        id="scannerAlertContextSymbol"
+        aria-label="Scanner alert context symbol"
+      >
+        <option value="">CURRENT SYMBOL</option>
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+        <option value="XRPUSDT">XRPUSDT</option>
+        <option value="DOGEUSDT">DOGEUSDT</option>
+        <option value="ADAUSDT">ADAUSDT</option>
+        <option value="LINKUSDT">LINKUSDT</option>
+        <option value="AVAXUSDT">AVAXUSDT</option>
+        <option value="XAUUSD">XAUUSD</option>
+      </select>
+
+      <button
+        class="scanner-alert-context-action"
+        id="scannerAlertContextScanSymbol"
+        type="button"
+      >
+        LOAD CONTEXT
+      </button>
+
+      <button
+        class="scanner-alert-context-action"
+        id="scannerAlertContextScanWatchlist"
+        type="button"
+      >
+        LOAD WATCHLIST CONTEXT
+      </button>
+    </div>
+
+    <div
+      class="scanner-alert-context-status"
+      id="scannerAlertContextStatus"
+    ></div>
+
+    <div
+      class="scanner-alert-context-list"
+      id="scannerAlertContextList"
+    >
+      <div class="scanner-alert-empty">
+        Alert context idle. Load context to inspect related news.
+      </div>
+    </div>
+  </div>
+</details>
+<!-- R23_SCANNER_ALERT_CONTEXT_UI_END -->
 <!-- R18_NEWS_UI_START -->
 <section class="card news-card">
   <div class="section-head">
@@ -4270,6 +4390,321 @@ function initIndicatorControls(){
 }
 
 
+/* R23_SCANNER_ALERT_CONTEXT_UI_START */
+let r23ScannerAlertContexts = null;
+
+function renderScannerAlertContext(){
+  const statusEl=document.getElementById(
+    "scannerAlertContextStatus"
+  );
+
+  const listEl=document.getElementById(
+    "scannerAlertContextList"
+  );
+
+  if(!statusEl || !listEl){
+    return;
+  }
+
+  const result=r23ScannerAlertContexts;
+
+  if(!result){
+    statusEl.innerHTML="";
+    listEl.innerHTML=
+      '<div class="scanner-alert-empty">'+
+      'Alert context idle. Load context to inspect related news.'+
+      '</div>';
+    return;
+  }
+
+  const status=String(
+    result.status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  const authority=String(
+    result.authority||
+    "SCANNER_ALERT_CONTEXT_ONLY"
+  );
+
+  statusEl.innerHTML=
+    '<span class="scanner-alert-status-pill">'+
+    status+
+    '</span>'+
+    '<span class="meta">CONTEXTS '+
+    Number(result.context_count||0)+
+    ' · ALERTS '+
+    Number(result.alert_count||0)+
+    '</span>'+
+    '<span class="meta scanner-alert-context-boundary">'+
+    authority+
+    '</span>';
+
+  const contexts=
+    Array.isArray(result.contexts)
+      ? result.contexts
+      : [];
+
+  if(!contexts.length){
+    listEl.innerHTML=
+      '<div class="scanner-alert-empty">'+
+      'No alert context available.'+
+      '</div>';
+    return;
+  }
+
+  listEl.innerHTML=contexts.map(
+    context=>{
+      const alert=context.alert||{};
+
+      const related=
+        Array.isArray(context.related_items)
+          ? context.related_items
+          : [];
+
+      const newsHtml=related.length
+        ? related.map(
+            item=>`
+              <article class="scanner-alert-context-news-item">
+                <div>
+                  <strong>
+                    ${item.publisher||"Unknown publisher"}
+                  </strong>
+                </div>
+                <div>${item.title||"Untitled"}</div>
+                <div class="meta">
+                  ${item.published_at||"n/a"}
+                  · ${item.relevance||"n/a"}
+                  · ${item.match_reason||"n/a"}
+                </div>
+              </article>
+            `
+          ).join("")
+        : '<div class="scanner-alert-empty">No related news.</div>';
+
+      return `
+        <article class="scanner-alert-context-item">
+          <div class="scanner-alert-head">
+            <div class="scanner-alert-title">
+              ${alert.symbol||"UNKNOWN"}
+              · ${alert.direction||"NEUTRAL"}
+              · ${alert.setup||"CONFLUENCE"}
+            </div>
+
+            <span class="scanner-alert-badge">
+              ${alert.priority||"MEDIUM"}
+            </span>
+          </div>
+
+          <div class="scanner-alert-meta">
+            <span>
+              TF ${alert.timeframe||"n/a"}
+            </span>
+            <span>
+              STATE ${alert.state||"n/a"}
+            </span>
+            <span>
+              CONF ${Number(alert.confidence||0)}
+            </span>
+            <span>
+              CONFLUENCE ${
+                Number(alert.confluence_score||0)
+              }
+            </span>
+          </div>
+
+          <div class="scanner-alert-explanation">
+            ${alert.explanation||
+              "No explanation available."}
+          </div>
+
+          <div class="scanner-alert-context-news">
+            <div class="meta">
+              NEWS ${context.news_status||"UNKNOWN"}
+              · ${context.news_provider||"NONE"}
+              · ${
+                context.news_cached
+                  ? "CACHED"
+                  : "CURRENT"
+              }
+            </div>
+
+            <div>
+              ${
+                context.context_summary||
+                "No context summary available."
+              }
+            </div>
+
+            ${newsHtml}
+          </div>
+        </article>
+      `;
+    }
+  ).join("");
+}
+
+async function loadScannerAlertContext(
+  symbol=null,
+  refresh=false
+){
+  const symbolEl=document.getElementById(
+    "scannerAlertContextSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerAlertContextScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerAlertContextScanWatchlist"
+  );
+
+  let activeSymbol=symbol;
+
+  if(activeSymbol===null){
+    activeSymbol=
+      symbolEl && symbolEl.value
+        ? String(symbolEl.value).trim()
+        : String(state.symbol||"").trim();
+  }
+
+  const buttons=[
+    scanSymbolEl,
+    scanWatchlistEl
+  ].filter(Boolean);
+
+  buttons.forEach(button=>{
+    button.disabled=true;
+  });
+
+  if(scanSymbolEl){
+    scanSymbolEl.textContent="LOADING…";
+  }
+
+  if(scanWatchlistEl){
+    scanWatchlistEl.textContent="LOADING…";
+  }
+
+  try{
+    const params=new URLSearchParams();
+
+    if(activeSymbol){
+      params.set(
+        "symbol",
+        activeSymbol
+      );
+    }
+
+    params.set(
+      "limit",
+      "5"
+    );
+
+    params.set(
+      "refresh",
+      refresh ? "true" : "false"
+    );
+
+    const response=await fetch(
+      `/scanner/alert-context?${params.toString()}`,
+      {cache:"no-store"}
+    );
+
+    if(!response.ok){
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    r23ScannerAlertContexts=
+      await response.json();
+
+    renderScannerAlertContext();
+
+  }catch(error){
+    r23ScannerAlertContexts={
+      status:"UNAVAILABLE",
+      generated_at:0,
+      scanned_symbols:0,
+      candidate_count:0,
+      alert_count:0,
+      context_count:0,
+      contexts:[],
+      errors:[
+        {
+          error:String(
+            error && error.message
+              ? error.message
+              : error
+          )
+        }
+      ],
+      authority:
+        "SCANNER_ALERT_CONTEXT_ONLY"
+    };
+
+    renderScannerAlertContext();
+
+  }finally{
+    buttons.forEach(button=>{
+      button.disabled=false;
+    });
+
+    if(scanSymbolEl){
+      scanSymbolEl.textContent=
+        "LOAD CONTEXT";
+    }
+
+    if(scanWatchlistEl){
+      scanWatchlistEl.textContent=
+        "LOAD WATCHLIST CONTEXT";
+    }
+  }
+}
+
+function initScannerAlertContextControls(){
+  const symbolEl=document.getElementById(
+    "scannerAlertContextSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerAlertContextScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerAlertContextScanWatchlist"
+  );
+
+  if(scanSymbolEl){
+    scanSymbolEl.onclick=()=>{
+      const symbol=
+        symbolEl && symbolEl.value
+          ? String(symbolEl.value).trim()
+          : String(state.symbol||"").trim();
+
+      loadScannerAlertContext(
+        symbol,
+        false
+      );
+    };
+  }
+
+  if(scanWatchlistEl){
+    scanWatchlistEl.onclick=()=>{
+      if(symbolEl){
+        symbolEl.value="";
+      }
+
+      loadScannerAlertContext(
+        "",
+        false
+      );
+    };
+  }
+
+  renderScannerAlertContext();
+}
+/* R23_SCANNER_ALERT_CONTEXT_UI_END */
 /* R18_NEWS_UI_START */
 function newsTimestamp(value){
   if(!value){
@@ -4554,6 +4989,7 @@ renderWatch();
 initIndicatorControls();
 initNewsControls();
 initScannerAlertControls();
+    initScannerAlertContextControls();
 initScannerControls();
 load();
 setInterval(load,10000);

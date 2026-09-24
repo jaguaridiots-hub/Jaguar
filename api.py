@@ -14,6 +14,7 @@ from assistant.service import AssistantService, AssistantServiceError
 from news.service import JaguarNewsService
 from scanner.service import ScannerService
 from scanner.alerts import ScannerAlertService
+from scanner.alert_context import ScannerAlertContextService
 
 app = FastAPI(title="Jaguar Quant X API", version="2.0")
 
@@ -93,6 +94,10 @@ assistant_service = AssistantService()
 news_service = JaguarNewsService()
 scanner_service = ScannerService()
 scanner_alert_service = ScannerAlertService(scanner=scanner_service)
+scanner_alert_context_service = ScannerAlertContextService(
+    alerts=scanner_alert_service,
+    news=news_service,
+)
 
 
 @app.post("/assistant/chat")
@@ -202,6 +207,60 @@ async def scanner_alerts(
         raise HTTPException(
             status_code=500,
             detail="Scanner alerts request failed",
+        )
+
+
+
+@app.get("/scanner/alert-context", include_in_schema=False)
+async def scanner_alert_context(
+    symbol: str | None = None,
+    limit: int = 5,
+    refresh: bool = False,
+):
+    if limit < 1 or limit > 20:
+        raise HTTPException(
+            status_code=400,
+            detail="limit must be between 1 and 20",
+        )
+
+    if symbol is not None:
+        normalized_symbol = (
+            str(symbol)
+            .strip()
+            .upper()
+        )
+
+        if not normalized_symbol:
+            raise HTTPException(
+                status_code=400,
+                detail="symbol must not be empty",
+            )
+
+        symbols = (normalized_symbol,)
+    else:
+        symbols = None
+
+    try:
+        snapshot = (
+            scanner_alert_context_service
+            .scan_watchlist(
+                symbols=symbols,
+                refresh_news=refresh,
+            )
+        )
+
+        return snapshot.to_dict()
+
+    except HTTPException:
+        raise
+
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "Scanner alert context "
+                "request failed"
+            ),
         )
 
 @app.get("/dashboard/assets/jaguar_quant_x_logo.png", include_in_schema=False)
