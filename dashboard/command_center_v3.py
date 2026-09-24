@@ -1359,6 +1359,472 @@ details[open]>summary::after{
 }
 /* R19_SCANNER_UI_END */
 
+/* R21_SCANNER_ALERT_UI_START */
+.scanner-alert-card{
+  overflow:hidden;
+}
+
+.scanner-alert-toolbar{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.scanner-alert-symbol{
+  min-width:180px;
+  padding:8px 10px;
+  border:1px solid var(--line, #26303b);
+  border-radius:8px;
+  background:rgba(255,255,255,.02);
+  color:inherit;
+  font:inherit;
+}
+
+.scanner-alert-action{
+  padding:8px 12px;
+  border:1px solid var(--line, #26303b);
+  border-radius:8px;
+  background:rgba(255,255,255,.03);
+  color:inherit;
+  cursor:pointer;
+}
+
+.scanner-alert-action:disabled{
+  opacity:.55;
+  cursor:wait;
+}
+
+.scanner-alert-status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+
+.scanner-alert-status-pill{
+  display:inline-flex;
+  align-items:center;
+  padding:4px 8px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  font-size:11px;
+  font-weight:800;
+}
+
+.scanner-alert-status-pill.current{
+  border-color:rgba(60,218,160,.28);
+}
+
+.scanner-alert-status-pill.degraded{
+  border-color:rgba(245,202,88,.25);
+}
+
+.scanner-alert-status-pill.unavailable{
+  border-color:rgba(255,104,121,.3);
+}
+
+.scanner-alert-list{
+  display:grid;
+  gap:8px;
+}
+
+.scanner-alert-item{
+  padding:12px;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:9px;
+  background:rgba(255,255,255,.015);
+}
+
+.scanner-alert-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.scanner-alert-title{
+  font-size:13px;
+  font-weight:800;
+}
+
+.scanner-alert-meta{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  margin-top:6px;
+  font-size:10px;
+  opacity:.7;
+}
+
+.scanner-alert-explanation{
+  margin-top:8px;
+  font-size:11px;
+  line-height:1.5;
+  opacity:.82;
+}
+
+.scanner-alert-badge{
+  display:inline-flex;
+  align-items:center;
+  padding:3px 7px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.12);
+  font-size:10px;
+  font-weight:800;
+}
+
+.scanner-alert-empty{
+  padding:20px 12px;
+  border:1px dashed rgba(255,255,255,.10);
+  border-radius:9px;
+  text-align:center;
+  font-size:12px;
+  opacity:.7;
+}
+
+@media (max-width:700px){
+  .scanner-alert-symbol{
+    min-width:0;
+    flex:1 1 130px;
+  }
+
+  .scanner-alert-action{
+    width:100%;
+  }
+}
+/* R21_SCANNER_ALERT_UI_END */
+
+
+<!-- R21_SCANNER_ALERT_UI_START -->
+<details class="card scanner-alert-card">
+  <summary>
+    <span>JAGUAR SCANNER ALERTS</span>
+    <span class="meta">CONTEXTUAL ALERTS · READ-ONLY</span>
+  </summary>
+
+  <div class="content">
+    <div class="scanner-alert-toolbar">
+      <select
+        class="scanner-alert-symbol"
+        id="scannerAlertSymbol"
+        aria-label="Scanner alert symbol"
+      >
+        <option value="">CURRENT SYMBOL</option>
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+        <option value="XRPUSDT">XRPUSDT</option>
+        <option value="DOGEUSDT">DOGEUSDT</option>
+        <option value="ADAUSDT">ADAUSDT</option>
+        <option value="LINKUSDT">LINKUSDT</option>
+        <option value="AVAXUSDT">AVAXUSDT</option>
+        <option value="XAUUSD">XAUUSD</option>
+      </select>
+
+      <button
+        class="scanner-alert-action"
+        id="scannerAlertScanSymbol"
+        type="button"
+      >
+        SCAN ALERTS
+      </button>
+
+      <button
+        class="scanner-alert-action"
+        id="scannerAlertScanWatchlist"
+        type="button"
+      >
+        SCAN WATCHLIST ALERTS
+      </button>
+    </div>
+
+    <div
+      class="scanner-alert-status"
+      id="scannerAlertStatus"
+    ></div>
+
+    <div class="scanner-alert-list" id="scannerAlertList">
+      <div class="scanner-alert-empty">
+        Alert scanner idle. Run an alert scan to discover contextual alerts.
+      </div>
+    </div>
+  </div>
+</details>
+<!-- R21_SCANNER_ALERT_UI_END -->
+
+
+/* R21_SCANNER_ALERT_UI_START */
+let r21ScannerAlerts = null;
+
+function scannerAlertStatusClass(status){
+  const normalized=String(
+    status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  if(normalized==="CURRENT"){
+    return "current";
+  }
+
+  if(normalized==="DEGRADED"){
+    return "degraded";
+  }
+
+  return "unavailable";
+}
+
+function renderScannerAlerts(){
+  const statusEl=document.getElementById(
+    "scannerAlertStatus"
+  );
+
+  const listEl=document.getElementById(
+    "scannerAlertList"
+  );
+
+  if(!statusEl || !listEl){
+    return;
+  }
+
+  const result=r21ScannerAlerts;
+
+  if(!result){
+    statusEl.innerHTML="";
+    listEl.innerHTML=
+      '<div class="scanner-alert-empty">'+
+      'Alert scanner idle. Run an alert scan to discover contextual alerts.'+
+      '</div>';
+    return;
+  }
+
+  const status=String(
+    result.status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  statusEl.innerHTML=
+    '<span class="scanner-alert-status-pill '+
+    scannerAlertStatusClass(status)+
+    '">'+
+    status+
+    '</span>'+
+    '<span class="meta">'+
+    'SCANNED '+
+    Number(result.scanned_symbols||0)+
+    ' · ALERTS '+
+    Number(result.alert_count||0)+
+    '</span>';
+
+  if(
+    Array.isArray(result.errors) &&
+    result.errors.length
+  ){
+    statusEl.innerHTML+=
+      '<span class="meta">'+
+      'ERRORS '+
+      result.errors.length+
+      '</span>';
+  }
+
+  const alerts=Array.isArray(result.alerts)
+    ? result.alerts
+    : [];
+
+  if(!alerts.length){
+    listEl.innerHTML=
+      '<div class="scanner-alert-empty">'+
+      'No contextual scanner alerts found.'+
+      '</div>';
+    return;
+  }
+
+  listEl.innerHTML=alerts.map(
+    alert=>{
+      const priority=String(
+        alert.priority||"MEDIUM"
+      ).toUpperCase();
+
+      const direction=String(
+        alert.direction||"NEUTRAL"
+      ).toUpperCase();
+
+      const factors=Array.isArray(
+        alert.dominant_factors
+      )
+        ? alert.dominant_factors.join(", ")
+        : "n/a";
+
+      return `
+        <article class="scanner-alert-item">
+          <div class="scanner-alert-head">
+            <div class="scanner-alert-title">
+              ${alert.symbol||"UNKNOWN"}
+              · ${direction}
+              · ${alert.setup||"CONFLUENCE"}
+            </div>
+
+            <span class="scanner-alert-badge">
+              ${priority}
+            </span>
+          </div>
+
+          <div class="scanner-alert-meta">
+            <span>TF ${alert.timeframe||"n/a"}</span>
+            <span>STATE ${alert.state||"n/a"}</span>
+            <span>CONF ${Number(alert.confidence||0)}</span>
+            <span>CONFLUENCE ${Number(alert.confluence_score||0)}</span>
+            <span>CONFLICTS ${Number(alert.conflict_count||0)}</span>
+          </div>
+
+          <div class="scanner-alert-meta">
+            <span>FACTORS ${factors}</span>
+          </div>
+
+          <div class="scanner-alert-explanation">
+            ${alert.explanation||"No explanation available."}
+          </div>
+        </article>
+      `;
+    }
+  ).join("");
+}
+
+async function loadScannerAlerts(symbol=null){
+  const symbolEl=document.getElementById(
+    "scannerAlertSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerAlertScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerAlertScanWatchlist"
+  );
+
+  let activeSymbol=symbol;
+
+  if(activeSymbol===null){
+    activeSymbol=
+      symbolEl && symbolEl.value
+        ? String(symbolEl.value).trim()
+        : String(state.symbol||"").trim();
+  }
+
+  const buttons=[
+    scanSymbolEl,
+    scanWatchlistEl
+  ].filter(Boolean);
+
+  buttons.forEach(button=>{
+    button.disabled=true;
+  });
+
+  if(scanSymbolEl){
+    scanSymbolEl.textContent="SCANNING…";
+  }
+
+  if(scanWatchlistEl){
+    scanWatchlistEl.textContent="SCANNING…";
+  }
+
+  try{
+    const url=
+      activeSymbol
+        ? `/scanner/alerts?symbol=${encodeURIComponent(activeSymbol)}`
+        : "/scanner/alerts";
+
+    const response=await fetch(
+      url,
+      {cache:"no-store"}
+    );
+
+    if(!response.ok){
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    r21ScannerAlerts=await response.json();
+
+    renderScannerAlerts();
+  }catch(error){
+    r21ScannerAlerts={
+      status:"UNAVAILABLE",
+      scanned_symbols:0,
+      alert_count:0,
+      alerts:[],
+      errors:[
+        {
+          error:String(
+            error &&
+            error.message
+              ? error.message
+              : error
+          )
+        }
+      ]
+    };
+
+    renderScannerAlerts();
+  }finally{
+    buttons.forEach(button=>{
+      button.disabled=false;
+    });
+
+    if(scanSymbolEl){
+      scanSymbolEl.textContent="SCAN ALERTS";
+    }
+
+    if(scanWatchlistEl){
+      scanWatchlistEl.textContent=
+        "SCAN WATCHLIST ALERTS";
+    }
+  }
+}
+
+function initScannerAlertControls(){
+  const symbolEl=document.getElementById(
+    "scannerAlertSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerAlertScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerAlertScanWatchlist"
+  );
+
+  if(scanSymbolEl){
+    scanSymbolEl.onclick=()=>{
+      const symbol=
+        symbolEl && symbolEl.value
+          ? String(symbolEl.value).trim()
+          : String(state.symbol||"").trim();
+
+      loadScannerAlerts(symbol);
+    };
+  }
+
+  if(scanWatchlistEl){
+    scanWatchlistEl.onclick=()=>{
+      if(symbolEl){
+        symbolEl.value="";
+      }
+
+      loadScannerAlerts("");
+    };
+  }
+
+  renderScannerAlerts();
+}
+/* R21_SCANNER_ALERT_UI_END */
+
+
 
 /* R18_NEWS_UI_START */
 .news-card{
@@ -4087,6 +4553,7 @@ window.addEventListener("resize",()=>{
 renderWatch();
 initIndicatorControls();
 initNewsControls();
+initScannerAlertControls();
 initScannerControls();
 load();
 setInterval(load,10000);

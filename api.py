@@ -13,6 +13,7 @@ from core.state import JaguarState
 from assistant.service import AssistantService, AssistantServiceError
 from news.service import JaguarNewsService
 from scanner.service import ScannerService
+from scanner.alerts import ScannerAlertService
 
 app = FastAPI(title="Jaguar Quant X API", version="2.0")
 
@@ -91,6 +92,7 @@ async def analyze(req: AnalyzeRequest):
 assistant_service = AssistantService()
 news_service = JaguarNewsService()
 scanner_service = ScannerService()
+scanner_alert_service = ScannerAlertService(scanner=scanner_service)
 
 
 @app.post("/assistant/chat")
@@ -172,6 +174,35 @@ async def scanner(
             detail="Scanner request failed",
         )
 
+
+
+@app.get("/scanner/alerts", include_in_schema=False)
+async def scanner_alerts(
+    symbol: str | None = None,
+):
+    if symbol is not None:
+        normalized_symbol = str(symbol).strip().upper()
+
+        if not normalized_symbol:
+            raise HTTPException(
+                status_code=400,
+                detail="symbol must not be empty",
+            )
+
+        symbols = (normalized_symbol,)
+    else:
+        symbols = None
+
+    try:
+        snapshot = scanner_alert_service.scan_watchlist(
+            symbols=symbols,
+        )
+        return snapshot.to_dict()
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="Scanner alerts request failed",
+        )
 
 @app.get("/dashboard/assets/jaguar_quant_x_logo.png", include_in_schema=False)
 async def dashboard_logo():
