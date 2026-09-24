@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from assistant.context import build_assistant_context
-from assistant.llm_adapter import GroqLLMAdapter, LLMAdapterError
+from assistant.llm_adapter import (
+    LLMProviderRouter,
+)
 from core.jaguar_analysis_engine import JaguarAnalysisEngine
 from core.kernel import JaguarKernel
 
@@ -17,7 +19,6 @@ class AssistantServiceError(RuntimeError):
 def _default_analysis(symbol: str, interval: str, mode: str):
     kernel = JaguarKernel()
     kernel.initialize(symbol, interval)
-
     state = kernel.get_state()
     state.mode = mode
 
@@ -38,7 +39,7 @@ class AssistantService:
         llm: Any = None,
     ):
         self._analysis_fn = analysis_fn or _default_analysis
-        self._llm = llm or GroqLLMAdapter()
+        self._llm = llm or LLMProviderRouter()
 
     def answer(
         self,
@@ -73,11 +74,8 @@ class AssistantService:
                 question=question,
                 context=context,
             )
-        except LLMAdapterError as exc:
-            raise AssistantServiceError(
-                "Assistant LLM unavailable"
-            ) from exc
         except Exception as exc:
+            # No provider exception crosses the service/API boundary.
             raise AssistantServiceError(
                 "Assistant LLM unavailable"
             ) from exc
