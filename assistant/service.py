@@ -61,19 +61,23 @@ class AssistantService:
                 result["state"],
                 result["report"],
             )
+        except AssistantServiceError:
+            raise
+        except Exception as exc:
+            raise AssistantServiceError(
+                "Canonical assistant context unavailable"
+            ) from exc
 
+        try:
             return self._llm.generate(
                 question=question,
                 context=context,
             )
-
-        except AssistantServiceError:
-            raise
         except LLMAdapterError as exc:
             raise AssistantServiceError(
                 "Assistant LLM unavailable"
             ) from exc
         except Exception as exc:
             raise AssistantServiceError(
-                "Canonical assistant context unavailable"
+                "Assistant LLM unavailable"
             ) from exc
