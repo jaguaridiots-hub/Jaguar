@@ -11,6 +11,7 @@ from dashboard.command_center_v2 import render_command_center_v2
 from dashboard.command_center_v3 import render_command_center_v3
 from core.state import JaguarState
 from assistant.service import AssistantService, AssistantServiceError
+from news.service import JaguarNewsService
 
 app = FastAPI(title="Jaguar Quant X API", version="2.0")
 
@@ -87,6 +88,7 @@ async def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 assistant_service = AssistantService()
+news_service = JaguarNewsService()
 
 
 @app.post("/assistant/chat")
@@ -110,6 +112,30 @@ async def assistant_chat(req: AssistantChatRequest):
             detail="Assistant request failed",
         )
 
+
+
+
+@app.get("/news", include_in_schema=False)
+async def news(
+    symbol: str | None = None,
+    category: str = "MARKET",
+    limit: int = 20,
+    refresh: bool = False,
+):
+    if limit < 1 or limit > 50:
+        raise HTTPException(
+            status_code=400,
+            detail="limit must be between 1 and 50",
+        )
+
+    snapshot = news_service.get_news(
+        symbol=symbol,
+        category=category,
+        limit=limit,
+        refresh=refresh,
+    )
+
+    return snapshot.to_dict()
 
 
 @app.get("/dashboard/assets/jaguar_quant_x_logo.png", include_in_schema=False)
