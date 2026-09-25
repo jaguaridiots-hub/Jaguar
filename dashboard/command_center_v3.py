@@ -1939,7 +1939,7 @@ function initScannerAlertControls(){
       );
 
       const symbol=
-        selected || String(state.symbol||"").trim();
+        selected || getActiveSymbol();
 
       loadScannerAlerts(symbol);
     };
@@ -2837,7 +2837,7 @@ function initScannerControls(){
       );
 
       const symbol=
-        selected || String(state.symbol||"").trim();
+        selected || getActiveSymbol();
 
       loadScanner(symbol);
     };
@@ -3170,6 +3170,17 @@ function resolveNewsSymbol(){
   return getDashboardFilter("newsSymbol");
 }
 /* R31_DASHBOARD_CONTEXT_RESOLUTION_END */
+/* R32_DASHBOARD_CONTEXT_ACCESS_START */
+/*
+ * R32 rule:
+ * Dashboard presentation/control consumers read active context only
+ * through the R31 centralized accessors.
+ *
+ * This boundary contains no mutable state, persistence, network access,
+ * or execution authority.
+ */
+/* R32_DASHBOARD_CONTEXT_ACCESS_END */
+
 
 const marketGroups=[
   {
@@ -3331,7 +3342,7 @@ function prettyTime(v){
 function renderWatch(){
   const box=document.getElementById("watchbar");
   box.innerHTML=watchlist.map(s=>`
-    <button class="asset ${s===state.symbol?"active":""}" data-symbol="${esc(s)}">
+    <button class="asset ${s===getActiveSymbol()?"active":""}" data-symbol="${esc(s)}">
       <div class="asset-symbol">${esc(s)}</div>
       <div class="asset-meta">15m · SWING</div>
     </button>
@@ -3580,11 +3591,11 @@ const confidence=u.confidence_breakdown||{};
     `Gaps ${dataQuality.gap_count ?? 0}`+
     (qualityReason ? ` · ${qualityReason}` : "");
 
-  document.getElementById("symbol").textContent=market.symbol||state.symbol;
+  document.getElementById("symbol").textContent=market.symbol||getActiveSymbol();
   document.getElementById("price").textContent=fmt(market.price,2);
 
   document.getElementById("marketLine").textContent=
-    `${market.status||"UNKNOWN"} · ${market.timeframe||state.interval} · ${state.mode}`;
+    `${market.status||"UNKNOWN"} · ${market.timeframe||getActiveInterval()} · ${getActiveMode()}`;
 
   document.getElementById("freshLine").textContent=
     `Snapshot ${freshness} · ${fresh.generated_at||"—"}`;
@@ -3616,7 +3627,7 @@ const confidence=u.confidence_breakdown||{};
   setPipeline("pipeExec",exe.mode||"UNKNOWN");
 
   document.getElementById("chartMeta").textContent=
-    `${state.candles.length} candles · ${market.timeframe||state.interval}`;
+    `${state.candles.length} candles · ${market.timeframe||getActiveInterval()}`;
 
   const idmMissing=Array.isArray(idm.missing)
     ? idm.missing.join(", ")
@@ -5035,7 +5046,7 @@ function initScannerAlertContextControls(){
       );
 
       const symbol=
-        selected || String(state.symbol||"").trim();
+        selected || getActiveSymbol();
 
       loadScannerAlertContext(
         symbol,
@@ -5427,13 +5438,13 @@ function initNewsControls(){
   const refreshEl=document.getElementById("newsRefresh");
 
   if(symbolEl){
-    if(!symbolEl.value && state.symbol){
+    if(!symbolEl.value && getActiveSymbol()){
       const option=[...symbolEl.options].find(
-        option=>option.value===state.symbol
+        option=>option.value===getActiveSymbol()
       );
 
       if(option){
-        symbolEl.value=state.symbol;
+        symbolEl.value=getActiveSymbol();
       }
     }
 
