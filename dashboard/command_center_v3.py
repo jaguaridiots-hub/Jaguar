@@ -3297,6 +3297,15 @@ function setDashboardFocus(element){
 }
 /* R44_DASHBOARD_FOCUS_STATE_END */
 
+/* R45_DASHBOARD_CANVAS_SIZE_STATE_START */
+function setDashboardCanvasSize(canvas,width,height){
+  if(!canvas||!("width" in canvas)||!("height" in canvas))return;
+  canvas.width=width;
+  canvas.height=height;
+}
+/* R45_DASHBOARD_CANVAS_SIZE_STATE_END */
+
+
 
 
 
@@ -4394,8 +4403,7 @@ function renderChart(){
   const width=Math.max(1,Math.floor(rect.width*dpr));
   const height=Math.max(240,Math.floor(320*dpr));
 
-  canvas.width=width;
-  canvas.height=height;
+  setDashboardCanvasSize(canvas,width,height);
 
   const ctx=canvas.getContext("2d");
   if(!ctx){
