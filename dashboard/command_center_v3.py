@@ -3248,6 +3248,12 @@ function setDashboardEventHandler(element,eventName,handler){
   element[eventName]=handler;
 }
 /* R40_DASHBOARD_EVENT_BINDING_END */
+/* R41_DASHBOARD_DATASET_STATE_START */
+function setDashboardDatasetValue(element,name,value){
+  if(!element||!element.dataset||typeof name!=="string")return;
+  element.dataset[name]=String(value??"");
+}
+/* R41_DASHBOARD_DATASET_STATE_END */
 
 
 
@@ -5264,7 +5270,7 @@ function initR24DashboardTabs(){
       document.querySelectorAll(selector).forEach(el=>{
         if(assigned.has(el))return;
         assigned.add(el);
-        el.dataset.r24Route=group.name;
+        setDashboardDatasetValue(el,"r24Route",group.name);
         setDashboardClassState(el,"r24-routed-content",true);
       });
     });

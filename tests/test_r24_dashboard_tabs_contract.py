@@ -113,7 +113,10 @@ def test_r24_has_single_active_tab_contract():
 
 
 def test_r24_routed_content_uses_dedicated_route_attribute():
-    assert 'el.dataset.r24Route=group.name' in SOURCE
+    assert (
+        'el.dataset.r24Route=group.name' in SOURCE
+        or 'setDashboardDatasetValue(el,"r24Route",group.name);' in SOURCE
+    )
     assert 'querySelectorAll(".r24-routed-content")' in SOURCE
     assert 'el.dataset.r24Route!==name' in SOURCE
 
