@@ -3236,6 +3236,12 @@ function setDashboardClassName(element,value){
   element.className=String(value??"");
 }
 /* R38_DASHBOARD_CLASSNAME_STATE_END */
+/* R39_DASHBOARD_SCROLL_STATE_START */
+function setDashboardScrollTop(element,value){
+  if(!element||!("scrollTop" in element))return;
+  element.scrollTop=value;
+}
+/* R39_DASHBOARD_SCROLL_STATE_END */
 
 
 
@@ -5649,7 +5655,7 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
     );
   }
 
-  log.scrollTop=log.scrollHeight;
+  setDashboardScrollTop(log,log.scrollHeight);
 });
 
 window.addEventListener("resize",()=>{
