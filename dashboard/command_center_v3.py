@@ -3116,6 +3116,53 @@ const watchlist=[
   "TCS.NS"
 ];
 
+/* R27_WATCHLIST_STATE_START */
+const R27_WATCH_STORAGE_KEY="jaguarQuantXActiveWatchSymbol";
+
+const R27_VALID_WATCH_SYMBOLS=new Set([
+  "BTCUSDT",
+  "ETHUSDT",
+  "SOLUSDT",
+  "BNBUSDT",
+  "RELIANCE.NS",
+  "TCS.NS"
+]);
+
+function readR27ActiveWatchSymbol(){
+  try{
+    const stored=sessionStorage.getItem(
+      R27_WATCH_STORAGE_KEY
+    );
+
+    if(
+      stored &&
+      R27_VALID_WATCH_SYMBOLS.has(stored)
+    ){
+      return stored;
+    }
+  }catch(_error){
+    // Browser storage may be unavailable.
+  }
+
+  return "BTCUSDT";
+}
+
+function persistR27ActiveWatchSymbol(symbol){
+  if(!R27_VALID_WATCH_SYMBOLS.has(symbol)){
+    return;
+  }
+
+  try{
+    sessionStorage.setItem(
+      R27_WATCH_STORAGE_KEY,
+      symbol
+    );
+  }catch(_error){
+    // Browser storage may be unavailable.
+  }
+}
+/* R27_WATCHLIST_STATE_END */
+
 function esc(v){
   return String(v??"").replace(/[&<>"']/g,m=>({
     "&":"&amp;",
@@ -3167,6 +3214,8 @@ function renderWatch(){
   box.querySelectorAll(".asset").forEach(b=>{
     b.onclick=()=>{
       state.symbol=b.dataset.symbol;
+      persistR27ActiveWatchSymbol(state.symbol);
+      renderWatch();
       load();
     };
   });
@@ -5351,6 +5400,8 @@ window.addEventListener("resize",()=>{
   if(state.ui)renderChart();
 });
 
+const initialSymbol=readR27ActiveWatchSymbol();
+state.symbol=initialSymbol;
 renderWatch();
 initR24DashboardTabs();
 initIndicatorControls();
