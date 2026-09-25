@@ -1165,6 +1165,21 @@ details[open]>summary::after{
 
 
 
+/* R25_DASHBOARD_TABS_HARDENING_START */
+.r24-tab:focus-visible{
+  outline:2px solid var(--cyan);
+  outline-offset:2px;
+}
+
+.r24-tab[aria-selected="false"]{
+  opacity:.78;
+}
+
+.r24-tab[aria-selected="true"]{
+  opacity:1;
+}
+/* R25_DASHBOARD_TABS_HARDENING_END */
+
 /* R24_DASHBOARD_TABS_UI_START */
 .r24-tabs{
   margin-top:10px;
@@ -2185,62 +2200,79 @@ function initScannerAlertControls(){
 <div class="watchbar" id="watchbar"></div>
 
 <!-- R24_DASHBOARD_TABS_UI_START -->
-<nav class="r24-tabs" id="r24DashboardTabs" aria-label="Command Center sections">
+<!-- R25_DASHBOARD_TABS_HARDENING_START -->
+<nav
+  class="r24-tabs"
+  id="r24DashboardTabs"
+  role="tablist"
+  aria-label="Command Center sections"
+>
   <button
     type="button"
+    role="tab"
     class="r24-tab r24-active"
     id="r24-tab-overview"
     data-r24-tab="overview"
     aria-selected="true"
     aria-controls="r24-panel-overview"
+    tabindex="0"
   >OVERVIEW</button>
 
   <button
     type="button"
+    role="tab"
     class="r24-tab"
     id="r24-tab-market"
     data-r24-tab="market"
     aria-selected="false"
     aria-controls="r24-panel-market"
+    tabindex="-1"
   >MARKET</button>
 
   <button
     type="button"
+    role="tab"
     class="r24-tab"
     id="r24-tab-scanner"
     data-r24-tab="scanner"
     aria-selected="false"
     aria-controls="r24-panel-scanner"
+    tabindex="-1"
   >SCANNER</button>
 
   <button
     type="button"
+    role="tab"
     class="r24-tab"
     id="r24-tab-news"
     data-r24-tab="news"
     aria-selected="false"
     aria-controls="r24-panel-news"
+    tabindex="-1"
   >NEWS</button>
 
   <button
     type="button"
+    role="tab"
     class="r24-tab"
     id="r24-tab-system"
     data-r24-tab="system"
     aria-selected="false"
     aria-controls="r24-panel-system"
+    tabindex="-1"
   >SYSTEM</button>
 </nav>
+<!-- R25_DASHBOARD_TABS_HARDENING_END -->
 
-<div class="r24-tab-panel" id="r24-panel-overview" data-r24-panel="overview">
+<div class="r24-tab-panel" id="r24-panel-overview" data-r24-panel="overview" role="tabpanel" aria-labelledby="r24-tab-overview" tabindex="0">
 </div>
-<div class="r24-tab-panel" id="r24-panel-market" data-r24-panel="market">
+<div class="r24-tab-panel" id="r24-panel-market" data-r24-panel="market" role="tabpanel" aria-labelledby="r24-tab-market" tabindex="0">
 </div>
-<div class="r24-tab-panel" id="r24-panel-scanner" data-r24-panel="scanner">
+<div class="r24-tab-panel" id="r24-panel-scanner" data-r24-panel="scanner" role="tabpanel" aria-labelledby="r24-tab-scanner" tabindex="0">
 </div>
-<div class="r24-tab-panel" id="r24-panel-news" data-r24-panel="news">
+<div class="r24-tab-panel" id="r24-panel-news" data-r24-panel="news" role="tabpanel" aria-labelledby="r24-tab-news" tabindex="0">
 </div>
-<div class="r24-tab-panel" id="r24-panel-system" data-r24-panel="system">
+<div class="r24-tab-panel" id="r24-panel-system" data-r24-panel="system" role="tabpanel" aria-labelledby="r24-tab-system" tabindex="0">
 </div>
 <!-- R24_DASHBOARD_TABS_UI_END -->
 
@@ -4834,6 +4866,7 @@ function initScannerAlertContextControls(){
 }
 /* R23_SCANNER_ALERT_CONTEXT_UI_END */
 /* R24_DASHBOARD_TABS_UI_START */
+/* R25_DASHBOARD_TABS_HARDENING_START */
 function initR24DashboardTabs(){
   const tabRoot=document.getElementById("r24DashboardTabs");
   if(!tabRoot)return;
@@ -4896,8 +4929,9 @@ function initR24DashboardTabs(){
   });
 
   const routed=[...document.querySelectorAll(".r24-routed-content")];
+  const buttons=[...tabRoot.querySelectorAll(".r24-tab")];
 
-  function activate(name){
+  function activate(name, focusButton=false){
     tabs.forEach(group=>{
       const button=tabRoot.querySelector(
         `[data-r24-tab="${group.name}"]`
@@ -4905,11 +4939,25 @@ function initR24DashboardTabs(){
 
       if(button){
         const active=group.name===name;
-        button.classList.toggle("r24-active",active);
+
+        button.classList.toggle(
+          "r24-active",
+          active
+        );
+
         button.setAttribute(
           "aria-selected",
           active ? "true" : "false"
         );
+
+        button.setAttribute(
+          "tabindex",
+          active ? "0" : "-1"
+        );
+
+        if(active && focusButton){
+          button.focus();
+        }
       }
     });
 
@@ -4926,15 +4974,52 @@ function initR24DashboardTabs(){
     });
   }
 
-  tabRoot.querySelectorAll(".r24-tab").forEach(button=>{
+  buttons.forEach((button,index)=>{
     button.onclick=()=>{
-      activate(button.dataset.r24Tab||"overview");
+      activate(
+        button.dataset.r24Tab||"overview"
+      );
+    };
+
+    button.onkeydown=event=>{
+      let nextIndex=index;
+
+      if(event.key==="ArrowRight"){
+        nextIndex=(index+1)%buttons.length;
+      }else if(event.key==="ArrowLeft"){
+        nextIndex=(index-1+buttons.length)%buttons.length;
+      }else if(event.key==="Home"){
+        nextIndex=0;
+      }else if(event.key==="End"){
+        nextIndex=buttons.length-1;
+      }else if(event.key==="Enter"||event.key===" "){
+        event.preventDefault();
+        activate(
+          button.dataset.r24Tab||"overview",
+          true
+        );
+        return;
+      }else{
+        return;
+      }
+
+      event.preventDefault();
+
+      const nextButton=buttons[nextIndex];
+      if(!nextButton)return;
+
+      activate(
+        nextButton.dataset.r24Tab||"overview",
+        true
+      );
     };
   });
 
   activate("overview");
 }
+
 /* R24_DASHBOARD_TABS_UI_END */
+/* R25_DASHBOARD_TABS_HARDENING_END */
 /* R18_NEWS_UI_START */
 function newsTimestamp(value){
   if(!value){
