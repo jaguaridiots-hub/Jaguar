@@ -3305,6 +3305,33 @@ function setDashboardCanvasSize(canvas,width,height){
 }
 /* R45_DASHBOARD_CANVAS_SIZE_STATE_END */
 
+/* R46_DASHBOARD_CANVAS_CONTEXT_STATE_START */
+function setDashboardCanvasContextState(ctx,name,value){
+  if(!ctx||typeof name!=="string")return;
+
+  switch(name){
+    case "fillStyle":
+      ctx.fillStyle=value;
+      break;
+    case "font":
+      ctx.font=value;
+      break;
+    case "strokeStyle":
+      ctx.strokeStyle=value;
+      break;
+    case "lineWidth":
+      ctx.lineWidth=value;
+      break;
+    case "textAlign":
+      ctx.textAlign=value;
+      break;
+    default:
+      return;
+  }
+}
+/* R46_DASHBOARD_CANVAS_CONTEXT_STATE_END */
+
+
 
 
 
@@ -4415,8 +4442,8 @@ function renderChart(){
   const candles=Array.isArray(state.candles)?state.candles:[];
 
   if(!candles.length){
-    ctx.fillStyle="#8193a7";
-    ctx.font=`${12*dpr}px system-ui`;
+    setDashboardCanvasContextState(ctx,"fillStyle","#8193a7");
+    setDashboardCanvasContextState(ctx,"font",`${12*dpr}px system-ui`);
     ctx.fillText("No canonical candle data available",14*dpr,24*dpr);
     return;
   }
@@ -4512,8 +4539,8 @@ function renderChart(){
   };
 
   // Grid
-  ctx.strokeStyle="rgba(122,151,171,.12)";
-  ctx.lineWidth=1*dpr;
+  setDashboardCanvasContextState(ctx,"strokeStyle","rgba(122,151,171,.12)");
+  setDashboardCanvasContextState(ctx,"lineWidth",1*dpr);
 
   for(let i=0;i<=5;i++){
     const y=top+(plotH/5)*i;
@@ -4545,15 +4572,23 @@ function renderChart(){
 
     const rising=cl>=o;
 
-    ctx.strokeStyle=rising
-      ? "rgba(83,227,155,.95)"
-      : "rgba(255,104,121,.95)";
+    setDashboardCanvasContextState(
+      ctx,
+      "strokeStyle",
+      rising
+        ? "rgba(83,227,155,.95)"
+        : "rgba(255,104,121,.95)"
+    );
 
-    ctx.fillStyle=rising
-      ? "rgba(83,227,155,.90)"
-      : "rgba(255,104,121,.90)";
+    setDashboardCanvasContextState(
+      ctx,
+      "fillStyle",
+      rising
+        ? "rgba(83,227,155,.90)"
+        : "rgba(255,104,121,.90)"
+    );
 
-    ctx.lineWidth=Math.max(1,dpr);
+    setDashboardCanvasContextState(ctx,"lineWidth",Math.max(1,dpr));
 
     ctx.beginPath();
     ctx.moveTo(x,yh);
@@ -4602,15 +4637,15 @@ function renderChart(){
       continue;
     }
 
-    ctx.strokeStyle=indicatorColors[name];
-    ctx.lineWidth=1.5*dpr;
+    setDashboardCanvasContextState(ctx,"strokeStyle",indicatorColors[name]);
+    setDashboardCanvasContextState(ctx,"lineWidth",1.5*dpr);
     linePath(ctx,pointsFor(name));
   }
 
   const drawFibLevels=(levels,style,dash)=>{
     ctx.save();
-    ctx.strokeStyle=style;
-    ctx.lineWidth=Math.max(1,dpr);
+    setDashboardCanvasContextState(ctx,"strokeStyle",style);
+    setDashboardCanvasContextState(ctx,"lineWidth",Math.max(1,dpr));
     ctx.setLineDash(dash);
 
     for(const value of Object.values(levels)){
@@ -4644,9 +4679,9 @@ function renderChart(){
   }
 
   // Right-side price marker.
-  ctx.fillStyle="#9fb1c1";
-  ctx.font=`${8*dpr}px system-ui`;
-  ctx.textAlign="right";
+  setDashboardCanvasContextState(ctx,"fillStyle","#9fb1c1");
+  setDashboardCanvasContextState(ctx,"font",`${8*dpr}px system-ui`);
+  setDashboardCanvasContextState(ctx,"textAlign","right");
   ctx.fillText(
     fmt(max,2),
     width-right,
@@ -4658,7 +4693,7 @@ function renderChart(){
     height-bottom
   );
 
-  ctx.textAlign="left";
+  setDashboardCanvasContextState(ctx,"textAlign","left");
 
   // Legend.
   setDashboardInnerHTML(document.getElementById("chartLegend"),[
