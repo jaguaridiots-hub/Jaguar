@@ -3338,6 +3338,17 @@ function setDashboardCanvasLineDash(ctx,dash){
 }
 /* R47_DASHBOARD_CANVAS_DASH_STATE_END */
 
+/* R48_DASHBOARD_STATE_SNAPSHOT_START */
+function setDashboardStateSnapshot(d){
+  if(!d||typeof d!=="object")return;
+  if(!d.ui)return;
+
+  state.ui=d.ui;
+  state.candles=Array.isArray(d.candles)?d.candles:[];
+}
+/* R48_DASHBOARD_STATE_SNAPSHOT_END */
+
+
 
 
 
@@ -5689,8 +5700,8 @@ async function load(){
     if(!d||!d.ui) throw new Error("Invalid dashboard state");
 
 
-    state.ui=d.ui;
-    state.candles=Array.isArray(d.candles)?d.candles:[];
+    setDashboardStateSnapshot(d);
+
 
     render();
   }catch(e){
