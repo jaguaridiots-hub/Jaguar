@@ -3290,6 +3290,14 @@ function setDashboardEventListener(element,eventName,handler){
 }
 /* R43_DASHBOARD_EVENT_LISTENER_BINDING_END */
 
+/* R44_DASHBOARD_FOCUS_STATE_START */
+function setDashboardFocus(element){
+  if(!element||typeof element.focus!=="function")return;
+  element.focus();
+}
+/* R44_DASHBOARD_FOCUS_STATE_END */
+
+
 
 
 
@@ -5338,7 +5346,7 @@ function initR24DashboardTabs(){
         );
 
         if(active && focusButton){
-          button.focus();
+          setDashboardFocus(button);
         }
       }
     });

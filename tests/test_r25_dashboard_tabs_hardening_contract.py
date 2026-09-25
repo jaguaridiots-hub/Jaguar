@@ -120,9 +120,13 @@ def test_r25_keyboard_navigation():
         "ArrowLeft",
         "Home",
         "End",
-        ".focus()",
     ):
         assert key in js
+
+    assert (
+        ".focus()" in js
+        or "setDashboardFocus(" in js
+    )
 
 
 def test_r25_keyboard_navigation_is_local():
