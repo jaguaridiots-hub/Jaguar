@@ -1928,10 +1928,7 @@ function initScannerAlertControls(){
 
   if(scanSymbolEl){
     scanSymbolEl.onclick=()=>{
-      const selected=
-        symbolEl && symbolEl.value
-          ? String(symbolEl.value).trim()
-          : "";
+      const selected=getDashboardControlValue(symbolEl);
 
       setDashboardFilter(
         "scannerAlertSymbol",
@@ -1948,7 +1945,7 @@ function initScannerAlertControls(){
   if(scanWatchlistEl){
     scanWatchlistEl.onclick=()=>{
       if(symbolEl){
-        symbolEl.value="";
+        setDashboardControlValue(symbolEl,"");
       }
 
       setDashboardFilter(
@@ -2826,10 +2823,7 @@ function initScannerControls(){
 
   if(scanSymbolEl){
     scanSymbolEl.onclick=()=>{
-      const selected=
-        symbolEl && symbolEl.value
-          ? String(symbolEl.value).trim()
-          : "";
+      const selected=getDashboardControlValue(symbolEl);
 
       setDashboardFilter(
         "scannerSymbol",
@@ -2846,7 +2840,7 @@ function initScannerControls(){
   if(scanWatchlistEl){
     scanWatchlistEl.onclick=()=>{
       if(symbolEl){
-        symbolEl.value="";
+        setDashboardControlValue(symbolEl,"");
       }
 
       setDashboardFilter(
@@ -3180,6 +3174,24 @@ function resolveNewsSymbol(){
  * or execution authority.
  */
 /* R32_DASHBOARD_CONTEXT_ACCESS_END */
+/* R33_DASHBOARD_CONTROL_INPUT_ACCESS_START */
+function getDashboardControlValue(element){
+  if(!element || !("value" in element)){
+    return "";
+  }
+
+  return String(element.value??"").trim();
+}
+
+function setDashboardControlValue(element,value){
+  if(!element || !("value" in element)){
+    return;
+  }
+
+  element.value=String(value??"");
+}
+/* R33_DASHBOARD_CONTROL_INPUT_ACCESS_END */
+
 
 
 const marketGroups=[
@@ -5035,10 +5047,7 @@ function initScannerAlertContextControls(){
 
   if(scanSymbolEl){
     scanSymbolEl.onclick=()=>{
-      const selected=
-        symbolEl && symbolEl.value
-          ? String(symbolEl.value).trim()
-          : "";
+      const selected=getDashboardControlValue(symbolEl);
 
       setDashboardFilter(
         "scannerAlertContextSymbol",
@@ -5058,7 +5067,7 @@ function initScannerAlertContextControls(){
   if(scanWatchlistEl){
     scanWatchlistEl.onclick=()=>{
       if(symbolEl){
-        symbolEl.value="";
+        setDashboardControlValue(symbolEl,"");
       }
 
       setDashboardFilter(
@@ -5438,25 +5447,25 @@ function initNewsControls(){
   const refreshEl=document.getElementById("newsRefresh");
 
   if(symbolEl){
-    if(!symbolEl.value && getActiveSymbol()){
+    if(!getDashboardControlValue(symbolEl) && getActiveSymbol()){
       const option=[...symbolEl.options].find(
-        option=>option.value===getActiveSymbol()
+        option=>getDashboardControlValue(option)===getActiveSymbol()
       );
 
       if(option){
-        symbolEl.value=getActiveSymbol();
+        setDashboardControlValue(symbolEl,getActiveSymbol());
       }
     }
 
     setDashboardFilter(
       "newsSymbol",
-      symbolEl.value
+      getDashboardControlValue(symbolEl)
     );
 
     symbolEl.onchange=()=>{
       setDashboardFilter(
         "newsSymbol",
-        symbolEl.value
+        getDashboardControlValue(symbolEl)
       );
 
       loadNews(true);
@@ -5466,13 +5475,13 @@ function initNewsControls(){
   if(categoryEl){
     setDashboardFilter(
       "newsCategory",
-      categoryEl.value || "MARKET"
+      getDashboardControlValue(categoryEl) || "MARKET"
     );
 
     categoryEl.onchange=()=>{
       setDashboardFilter(
         "newsCategory",
-        categoryEl.value || "MARKET"
+        getDashboardControlValue(categoryEl) || "MARKET"
       );
 
       loadNews(true);
@@ -5523,7 +5532,7 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
   e.preventDefault();
 
   const input=document.getElementById("aiInput");
-  const q=input.value.trim();
+  const q=getDashboardControlValue(input);
 
   if(!q)return;
 
@@ -5534,7 +5543,7 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
     `<div class="msg user">You: ${esc(q)}</div>`
   );
 
-  input.value="";
+  setDashboardControlValue(input,"");
 
   try{
     const r=await fetch("/assistant/chat",{
