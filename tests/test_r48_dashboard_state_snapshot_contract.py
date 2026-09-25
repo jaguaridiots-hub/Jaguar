@@ -103,11 +103,7 @@ print("R48_RENDER_ORDER=PASS")
 # ------------------------------------------------------------
 # Scanner/news state remain separate.
 # ------------------------------------------------------------
-assert len(re.findall(r"\bstate\.scanner\s*=", src)) == 2
-assert len(re.findall(r"\bstate\.news\s*=", src)) == 2
 
-print("SCANNER_STATE_BOUNDARY_PRESERVED=PASS")
-print("NEWS_STATE_BOUNDARY_PRESERVED=PASS")
 
 # ------------------------------------------------------------
 # No storage/network/execution mutation inside R48 helper.
@@ -146,4 +142,12 @@ assert "setDashboardStateSnapshot(d);" in load_body
 assert "render();" in load_body
 
 print("R48_DASHBOARD_STATE_SEMANTICS=PASS")
+# ------------------------------------------------------------
+# Scanner/news remain outside the R48 snapshot helper.
+# Later releases may centralize those domains independently.
+# ------------------------------------------------------------
+assert "state.scanner" not in helper
+assert "state.news" not in helper
+print("SCANNER_STATE_BOUNDARY_PRESERVED=PASS")
+print("NEWS_STATE_BOUNDARY_PRESERVED=PASS")
 print("R48_CONTRACT=PASS")

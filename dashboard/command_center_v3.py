@@ -2772,11 +2772,11 @@ async function loadScanner(symbol=null){
       );
     }
 
-    state.scanner=data;
+    setDashboardScannerState(data);
     renderScanner();
 
   }catch(error){
-    state.scanner={
+    setDashboardScannerState({
       status:"UNAVAILABLE",
       generated_at:Date.now(),
       scanned_symbols:0,
@@ -2789,7 +2789,7 @@ async function loadScanner(symbol=null){
           error:String(error)
         }
       ]
-    };
+    });
 
     renderScanner();
 
@@ -3347,6 +3347,22 @@ function setDashboardStateSnapshot(d){
   state.candles=Array.isArray(d.candles)?d.candles:[];
 }
 /* R48_DASHBOARD_STATE_SNAPSHOT_END */
+
+/* R49_DASHBOARD_SCANNER_STATE_START */
+function setDashboardScannerState(data){
+  if(!data||typeof data!=="object")return;
+  state.scanner=data;
+}
+/* R49_DASHBOARD_SCANNER_STATE_END */
+
+
+/* R49_DASHBOARD_NEWS_STATE_START */
+function setDashboardNewsState(data){
+  if(!data||typeof data!=="object")return;
+  state.news=data;
+}
+/* R49_DASHBOARD_NEWS_STATE_END */
+
 
 
 
@@ -5606,17 +5622,17 @@ async function loadNews(refresh=false){
       );
     }
 
-    state.news=data;
+    setDashboardNewsState(data);
     renderNews();
 
   }catch(error){
-    state.news={
+    setDashboardNewsState({
       status:"UNAVAILABLE",
       provider:"NONE",
       cached:false,
       items:[],
       error:String(error)
-    };
+    });
 
     renderNews();
 
