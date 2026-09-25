@@ -181,7 +181,10 @@ def test_r25_visibility_router_remains_local():
 
     assert "r24-tab-hidden" in js
     assert "r24-routed-content" in js
-    assert "classList.toggle" in js
+    assert (
+        "classList.toggle" in js
+        or "setDashboardClassState(" in js
+    )
 
 
 def test_r25_preserves_r24_contract():

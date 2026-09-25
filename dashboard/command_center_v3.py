@@ -3200,6 +3200,19 @@ function setDashboardControlDisabled(element,disabled){
   element.disabled=Boolean(disabled);
 }
 /* R34_DASHBOARD_CONTROL_DISABLED_STATE_END */
+/* R35_DASHBOARD_CLASS_STATE_START */
+function setDashboardClassState(element,className,enabled){
+  if(!element || !element.classList){
+    return;
+  }
+
+  element.classList.toggle(
+    className,
+    Boolean(enabled)
+  );
+}
+/* R35_DASHBOARD_CLASS_STATE_END */
+
 
 
 
@@ -4770,7 +4783,8 @@ function initIndicatorControls(){
 
       toggleChartIndicator(name);
 
-      btn.classList.toggle(
+      setDashboardClassState(
+        btn,
         "active",
         !!state.chartIndicators[name]
       );
@@ -5199,7 +5213,7 @@ function initR24DashboardTabs(){
         if(assigned.has(el))return;
         assigned.add(el);
         el.dataset.r24Route=group.name;
-        el.classList.add("r24-routed-content");
+        setDashboardClassState(el,"r24-routed-content",true);
       });
     });
   });
@@ -5216,7 +5230,8 @@ function initR24DashboardTabs(){
       if(button){
         const active=group.name===name;
 
-        button.classList.toggle(
+        setDashboardClassState(
+          button,
           "r24-active",
           active
         );
@@ -5238,7 +5253,8 @@ function initR24DashboardTabs(){
     });
 
     routed.forEach(el=>{
-      el.classList.toggle(
+      setDashboardClassState(
+        el,
         "r24-tab-hidden",
         el.dataset.r24Route!==name
       );
