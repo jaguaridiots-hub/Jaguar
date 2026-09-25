@@ -1847,7 +1847,7 @@ async function loadScannerAlerts(symbol=null){
   ].filter(Boolean);
 
   buttons.forEach(button=>{
-    button.disabled=true;
+    setDashboardControlDisabled(button,true);
   });
 
   if(scanSymbolEl){
@@ -1899,7 +1899,7 @@ async function loadScannerAlerts(symbol=null){
     renderScannerAlerts();
   }finally{
     buttons.forEach(button=>{
-      button.disabled=false;
+      setDashboardControlDisabled(button,false);
     });
 
     if(scanSymbolEl){
@@ -2742,7 +2742,7 @@ async function loadScanner(symbol=null){
   ].filter(Boolean);
 
   buttons.forEach(button=>{
-    button.disabled=true;
+    setDashboardControlDisabled(button,true);
   });
 
   if(scanSymbolEl){
@@ -2795,7 +2795,7 @@ async function loadScanner(symbol=null){
 
   }finally{
     buttons.forEach(button=>{
-      button.disabled=false;
+      setDashboardControlDisabled(button,false);
     });
 
     if(scanSymbolEl){
@@ -3191,6 +3191,16 @@ function setDashboardControlValue(element,value){
   element.value=String(value??"");
 }
 /* R33_DASHBOARD_CONTROL_INPUT_ACCESS_END */
+/* R34_DASHBOARD_CONTROL_DISABLED_STATE_START */
+function setDashboardControlDisabled(element,disabled){
+  if(!element || !("disabled" in element)){
+    return;
+  }
+
+  element.disabled=Boolean(disabled);
+}
+/* R34_DASHBOARD_CONTROL_DISABLED_STATE_END */
+
 
 
 
@@ -4944,7 +4954,7 @@ async function loadScannerAlertContext(
   ].filter(Boolean);
 
   buttons.forEach(button=>{
-    button.disabled=true;
+    setDashboardControlDisabled(button,true);
   });
 
   if(scanSymbolEl){
@@ -5017,7 +5027,7 @@ async function loadScannerAlertContext(
 
   }finally{
     buttons.forEach(button=>{
-      button.disabled=false;
+      setDashboardControlDisabled(button,false);
     });
 
     if(scanSymbolEl){
@@ -5391,7 +5401,7 @@ async function loadNews(refresh=false){
     getDashboardFilter("newsCategory") || "MARKET";
 
   if(refreshEl){
-    refreshEl.disabled=true;
+    setDashboardControlDisabled(refreshEl,true);
     refreshEl.textContent="REFRESHING…";
   }
 
@@ -5435,7 +5445,7 @@ async function loadNews(refresh=false){
 
   }finally{
     if(refreshEl){
-      refreshEl.disabled=false;
+      setDashboardControlDisabled(refreshEl,false);
       refreshEl.textContent="REFRESH NEWS";
     }
   }
