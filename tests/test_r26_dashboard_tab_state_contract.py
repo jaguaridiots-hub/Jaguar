@@ -55,7 +55,10 @@ def test_r26_invalid_state_falls_back_to_overview():
 
 
 def test_r26_state_is_written_only_after_local_activation():
-    assert "button.onclick" in SOURCE
+    assert (
+        "button.onclick" in SOURCE
+        or 'setDashboardEventHandler(button,"onclick",' in SOURCE
+    )
     assert "persistR26ActiveTab(name)" in SOURCE
     assert "if(persist)" in SOURCE
     assert "sessionStorage.setItem" in _js_block()
