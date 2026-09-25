@@ -3278,6 +3278,19 @@ function appendDashboardHTML(element,position,value){
 }
 /* R42_DASHBOARD_HTML_APPEND_STATE_END */
 
+/* R43_DASHBOARD_EVENT_LISTENER_BINDING_START */
+function setDashboardEventListener(element,eventName,handler){
+  if(!element||typeof eventName!=="string")return;
+  if(typeof handler!=="function")return;
+  if(typeof element.addEventListener!=="function")return;
+  element.addEventListener(
+    eventName,
+    handler
+  );
+}
+/* R43_DASHBOARD_EVENT_LISTENER_BINDING_END */
+
+
 
 
 
@@ -5641,7 +5654,7 @@ async function load(){
   }
 }
 
-document.getElementById("aiForm").addEventListener("submit",async e=>{
+setDashboardEventListener(document.getElementById("aiForm"),"submit",async e=>{
   e.preventDefault();
 
   const input=document.getElementById("aiInput");
@@ -5688,7 +5701,7 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
   setDashboardScrollTop(log,log.scrollHeight);
 });
 
-window.addEventListener("resize",()=>{
+setDashboardEventListener(window,"resize",()=>{
   if(state.ui)renderChart();
 });
 
