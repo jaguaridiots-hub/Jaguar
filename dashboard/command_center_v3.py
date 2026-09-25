@@ -3212,6 +3212,19 @@ function setDashboardClassState(element,className,enabled){
   );
 }
 /* R35_DASHBOARD_CLASS_STATE_END */
+/* R36_DASHBOARD_CONTROL_ATTRIBUTE_STATE_START */
+function setDashboardControlAttribute(element,name,value){
+  if(!element || typeof element.setAttribute!=="function"){
+    return;
+  }
+
+  element.setAttribute(
+    name,
+    String(value??"")
+  );
+}
+/* R36_DASHBOARD_CONTROL_ATTRIBUTE_STATE_END */
+
 
 
 
@@ -5236,12 +5249,14 @@ function initR24DashboardTabs(){
           active
         );
 
-        button.setAttribute(
+        setDashboardControlAttribute(
+          button,
           "aria-selected",
           active ? "true" : "false"
         );
 
-        button.setAttribute(
+        setDashboardControlAttribute(
+          button,
           "tabindex",
           active ? "0" : "-1"
         );
