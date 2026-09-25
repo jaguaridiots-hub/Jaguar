@@ -4865,6 +4865,52 @@ function initScannerAlertContextControls(){
   renderScannerAlertContext();
 }
 /* R23_SCANNER_ALERT_CONTEXT_UI_END */
+/* R26_DASHBOARD_TAB_STATE_START */
+const R26_TAB_STORAGE_KEY="jaguarQuantXActiveDashboardTab";
+
+const R26_VALID_TABS=new Set([
+  "overview",
+  "market",
+  "scanner",
+  "news",
+  "system"
+]);
+
+function readR26ActiveTab(){
+  try{
+    const stored=sessionStorage.getItem(
+      R26_TAB_STORAGE_KEY
+    );
+
+    if(
+      stored &&
+      R26_VALID_TABS.has(stored)
+    ){
+      return stored;
+    }
+  }catch(_error){
+    // Browser storage may be unavailable.
+  }
+
+  return "overview";
+}
+
+function persistR26ActiveTab(name){
+  if(!R26_VALID_TABS.has(name)){
+    return;
+  }
+
+  try{
+    sessionStorage.setItem(
+      R26_TAB_STORAGE_KEY,
+      name
+    );
+  }catch(_error){
+    // Browser storage may be unavailable.
+  }
+}
+/* R26_DASHBOARD_TAB_STATE_END */
+
 /* R24_DASHBOARD_TABS_UI_START */
 /* R25_DASHBOARD_TABS_HARDENING_START */
 function initR24DashboardTabs(){
@@ -4931,7 +4977,7 @@ function initR24DashboardTabs(){
   const routed=[...document.querySelectorAll(".r24-routed-content")];
   const buttons=[...tabRoot.querySelectorAll(".r24-tab")];
 
-  function activate(name, focusButton=false){
+  function activate(name, focusButton=false, persist=true){
     tabs.forEach(group=>{
       const button=tabRoot.querySelector(
         `[data-r24-tab="${group.name}"]`
@@ -4972,6 +5018,10 @@ function initR24DashboardTabs(){
       const active=panel.dataset.r24Panel===name;
       panel.hidden=!active;
     });
+
+    if(persist){
+      persistR26ActiveTab(name);
+    }
   }
 
   buttons.forEach((button,index)=>{
@@ -5015,7 +5065,8 @@ function initR24DashboardTabs(){
     };
   });
 
-  activate("overview");
+  const initialTab=readR26ActiveTab();
+  activate(initialTab,false,false);
 }
 
 /* R24_DASHBOARD_TABS_UI_END */
