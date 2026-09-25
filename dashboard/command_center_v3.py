@@ -1731,8 +1731,8 @@ function renderScannerAlerts(){
   const result=r21ScannerAlerts;
 
   if(!result){
-    statusEl.innerHTML="";
-    listEl.innerHTML=
+    setDashboardInnerHTML(statusEl,"";
+    setDashboardInnerHTML(listEl,
       '<div class="scanner-alert-empty">'+
       'Alert scanner idle. Run an alert scan to discover contextual alerts.'+
       '</div>';
@@ -1743,7 +1743,7 @@ function renderScannerAlerts(){
     result.status||"UNAVAILABLE"
   ).toUpperCase();
 
-  statusEl.innerHTML=
+  setDashboardInnerHTML(statusEl,
     '<span class="scanner-alert-status-pill '+
     scannerAlertStatusClass(status)+
     '">'+
@@ -1772,14 +1772,14 @@ function renderScannerAlerts(){
     : [];
 
   if(!alerts.length){
-    listEl.innerHTML=
+    setDashboardInnerHTML(listEl,
       '<div class="scanner-alert-empty">'+
       'No contextual scanner alerts found.'+
       '</div>';
     return;
   }
 
-  listEl.innerHTML=alerts.map(
+  setDashboardInnerHTML(listEl,alerts.map(
     alert=>{
       const priority=String(
         alert.priority||"MEDIUM"
@@ -1851,11 +1851,11 @@ async function loadScannerAlerts(symbol=null){
   });
 
   if(scanSymbolEl){
-    scanSymbolEl.textContent="SCANNING…";
+    setDashboardTextContent(scanSymbolEl,"SCANNING…";
   }
 
   if(scanWatchlistEl){
-    scanWatchlistEl.textContent="SCANNING…";
+    setDashboardTextContent(scanWatchlistEl,"SCANNING…";
   }
 
   try{
@@ -1903,11 +1903,11 @@ async function loadScannerAlerts(symbol=null){
     });
 
     if(scanSymbolEl){
-      scanSymbolEl.textContent="SCAN ALERTS";
+      setDashboardTextContent(scanSymbolEl,"SCAN ALERTS";
     }
 
     if(scanWatchlistEl){
-      scanWatchlistEl.textContent=
+      setDashboardTextContent(scanWatchlistEl,
         "SCAN WATCHLIST ALERTS";
     }
   }
@@ -2542,7 +2542,7 @@ function renderScanner(){
     snapshot.candidate_count||0
   );
 
-  statusEl.innerHTML=
+  setDashboardInnerHTML(statusEl,
     `<span class="scanner-pill ${scannerStatusClass(status)}">`+
     `STATUS · ${esc(status)}`+
     `</span>`+
@@ -2553,7 +2553,7 @@ function renderScanner(){
     `CANDIDATES · ${fmt(count,0)}`+
     `</span>`;
 
-  errorEl.textContent=
+  setDashboardTextContent(errorEl,
     Array.isArray(snapshot.errors) &&
     snapshot.errors.length
       ? snapshot.errors.map(
@@ -2564,7 +2564,7 @@ function renderScanner(){
       : "";
 
   if(!candidates.length){
-    listEl.innerHTML=
+    setDashboardInnerHTML(listEl,
       `<div class="scanner-empty">`+
       (
         status==="UNAVAILABLE"
@@ -2576,7 +2576,7 @@ function renderScanner(){
     return;
   }
 
-  listEl.innerHTML=candidates.map(candidate=>{
+  setDashboardInnerHTML(listEl,candidates.map(candidate=>{
     const symbol=esc(
       String(candidate.symbol||"—")
     );
@@ -2746,11 +2746,11 @@ async function loadScanner(symbol=null){
   });
 
   if(scanSymbolEl){
-    scanSymbolEl.textContent="SCANNING…";
+    setDashboardTextContent(scanSymbolEl,"SCANNING…";
   }
 
   if(scanWatchlistEl){
-    scanWatchlistEl.textContent="SCANNING…";
+    setDashboardTextContent(scanWatchlistEl,"SCANNING…";
   }
 
   try{
@@ -2799,11 +2799,11 @@ async function loadScanner(symbol=null){
     });
 
     if(scanSymbolEl){
-      scanSymbolEl.textContent="SCAN SYMBOL";
+      setDashboardTextContent(scanSymbolEl,"SCAN SYMBOL";
     }
 
     if(scanWatchlistEl){
-      scanWatchlistEl.textContent="SCAN WATCHLIST";
+      setDashboardTextContent(scanWatchlistEl,"SCAN WATCHLIST";
     }
   }
 }
@@ -3255,6 +3255,30 @@ function setDashboardDatasetValue(element,name,value){
 }
 /* R41_DASHBOARD_DATASET_STATE_END */
 
+/* R42_DASHBOARD_TEXT_CONTENT_STATE_START */
+function setDashboardTextContent(element,value){
+  if(!element||!("textContent" in element))return;
+  element.textContent=String(value??"");
+}
+/* R42_DASHBOARD_TEXT_CONTENT_STATE_END */
+/* R42_DASHBOARD_INNERHTML_STATE_START */
+function setDashboardInnerHTML(element,value){
+  if(!element||!("innerHTML" in element))return;
+  element.innerHTML=String(value??"");
+}
+/* R42_DASHBOARD_INNERHTML_STATE_END */
+/* R42_DASHBOARD_HTML_APPEND_STATE_START */
+function appendDashboardHTML(element,position,value){
+  if(!element||typeof position!=="string")return;
+  if(typeof element.insertAdjacentHTML!=="function")return;
+  element.insertAdjacentHTML(
+    position,
+    String(value??"")
+  );
+}
+/* R42_DASHBOARD_HTML_APPEND_STATE_END */
+
+
 
 
 
@@ -3419,7 +3443,7 @@ function prettyTime(v){
 
 function renderWatch(){
   const box=document.getElementById("watchbar");
-  box.innerHTML=watchlist.map(s=>`
+  setDashboardInnerHTML(box,watchlist.map(s=>`
     <button class="asset ${s===getActiveSymbol()?"active":""}" data-symbol="${esc(s)}">
       <div class="asset-symbol">${esc(s)}</div>
       <div class="asset-meta">15m · SWING</div>
@@ -3449,7 +3473,7 @@ function freshnessLabel(f){
 }
 
 function setPipeline(id,value){
-  document.getElementById(id).textContent=value||"—";
+  setDashboardTextContent(document.getElementById(id),value||"—");
 }
 
 
@@ -3624,19 +3648,19 @@ const confidence=u.confidence_breakdown||{};
 
   const mode=String(sys.mode||"UNKNOWN").toUpperCase();
 
-  document.getElementById("modeBadge").textContent="EXECUTION · "+mode;
+  setDashboardTextContent(document.getElementById("modeBadge"),"EXECUTION · "+mode;
   setDashboardClassName(
     document.getElementById("modeBadge"),
     "badge "+(mode==="PAPER"?"paper":"bad")
   );
 
-  document.getElementById("healthBadge").textContent="SYSTEM · "+(sys.health||"UNKNOWN");
+  setDashboardTextContent(document.getElementById("healthBadge"),"SYSTEM · "+(sys.health||"UNKNOWN");
   setDashboardClassName(
     document.getElementById("healthBadge"),
     "badge "+(sys.health==="HEALTHY"?"ok":"bad")
   );
 
-  document.getElementById("freshBadge").textContent="FRESHNESS · "+freshness;
+  setDashboardTextContent(document.getElementById("freshBadge"),"FRESHNESS · "+freshness;
   setDashboardClassName(
     document.getElementById("freshBadge"),
     "badge "+
@@ -3655,9 +3679,7 @@ const confidence=u.confidence_breakdown||{};
     dataQuality.reason||""
   ).trim();
 
-  document.getElementById(
-    "dataQualityBadge"
-  ).textContent="DATA · "+qualityStatus;
+  setDashboardTextContent(document.getElementById("dataQualityBadge"),"DATA · "+qualityStatus;
 
   setDashboardClassName(
     document.getElementById("dataQualityBadge"),
@@ -3671,26 +3693,24 @@ const confidence=u.confidence_breakdown||{};
       )
   );
 
-  document.getElementById(
-    "dataQualityLine"
-  ).textContent =
+  setDashboardTextContent(document.getElementById("dataQualityLine"),
     `Data Quality ${qualityStatus} · `+
     `Candles ${dataQuality.candle_count ?? "—"} · `+
     `Gaps ${dataQuality.gap_count ?? 0}`+
     (qualityReason ? ` · ${qualityReason}` : "");
 
-  document.getElementById("symbol").textContent=market.symbol||getActiveSymbol();
-  document.getElementById("price").textContent=fmt(market.price,2);
+  setDashboardTextContent(document.getElementById("symbol"),market.symbol||getActiveSymbol();
+  setDashboardTextContent(document.getElementById("price"),fmt(market.price,2);
 
-  document.getElementById("marketLine").textContent=
+  setDashboardTextContent(document.getElementById("marketLine"),
     `${market.status||"UNKNOWN"} · ${market.timeframe||getActiveInterval()} · ${getActiveMode()}`;
 
-  document.getElementById("freshLine").textContent=
+  setDashboardTextContent(document.getElementById("freshLine"),
     `Snapshot ${freshness} · ${fresh.generated_at||"—"}`;
 
   const decision=String(idm.decision||"WAIT").toUpperCase();
   const decisionEl=document.getElementById("decision");
-  decisionEl.textContent=decision;
+  setDashboardTextContent(decisionEl,decision;
   setDashboardClassName(
     decisionEl,
     "decision "+cls(decision)
@@ -3698,7 +3718,7 @@ const confidence=u.confidence_breakdown||{};
 
   const headlineDirection=idm.direction||"NEUTRAL";
   const decisionContext=document.getElementById("decisionContext");
-  decisionContext.innerHTML=
+  setDashboardInnerHTML(decisionContext,
     directionIcon(headlineDirection)+" "+
     esc(headlineDirection)+" · Priority "+esc(idm.priority||"—");
   setDashboardClassName(
@@ -3706,46 +3726,46 @@ const confidence=u.confidence_breakdown||{};
     "decision-context "+directionClass(headlineDirection)
   );
 
-  document.getElementById("zoneContext").textContent=
+  setDashboardTextContent(document.getElementById("zoneContext"),
     `${idm.zone||"NONE"} · ${idm.zone_lifecycle||"UNKNOWN"} · ${idm.location||"UNKNOWN"}`;
 
-  document.getElementById("score").textContent=fmt(idm.score);
-  document.getElementById("confidence").textContent=fmt(idm.confidence)+"%";
-  document.getElementById("grade").textContent=idm.grade||"—";
-  document.getElementById("readiness").textContent=idm.readiness||"—";
+  setDashboardTextContent(document.getElementById("score"),fmt(idm.score);
+  setDashboardTextContent(document.getElementById("confidence"),fmt(idm.confidence)+"%";
+  setDashboardTextContent(document.getElementById("grade"),idm.grade||"—";
+  setDashboardTextContent(document.getElementById("readiness"),idm.readiness||"—";
 
   setPipeline("pipeMarket",market.status||"UNKNOWN");
   setPipeline("pipeIdm",idm.decision||"WAIT");
   setPipeline("pipeRisk",risk.status||"UNKNOWN");
   setPipeline("pipeExec",exe.mode||"UNKNOWN");
 
-  document.getElementById("chartMeta").textContent=
+  setDashboardTextContent(document.getElementById("chartMeta"),
     `${state.candles.length} candles · ${market.timeframe||getActiveInterval()}`;
 
   const idmMissing=Array.isArray(idm.missing)
     ? idm.missing.join(", ")
     : (idm.missing||"—");
 
-  document.getElementById("gateDecision").textContent =
+  setDashboardTextContent(document.getElementById("gateDecision"),
   decisionGate.decision || idm.decision || "WAIT";
 
-document.getElementById("gateAuthorization").textContent =
+setDashboardTextContent(document.getElementById("gateAuthorization"),
   decisionGate.authorization ||
   (idm.approved ? "AUTHORIZED" : "BLOCKED");
 
-document.getElementById("gateBlocker").textContent =
+setDashboardTextContent(document.getElementById("gateBlocker"),
   decisionGate.blocker || "NONE";
 
-document.getElementById("gateBlockerStatus").textContent =
+setDashboardTextContent(document.getElementById("gateBlockerStatus"),
   decisionGate.blocker_status || "CLEAR";
 
-document.getElementById("gateReason").textContent =
+setDashboardTextContent(document.getElementById("gateReason"),
   decisionGate.reason || "—";
 
 const gateConditions =
   decisionGate.next_conditions || [];
 
-document.getElementById("gateConditions").innerHTML =
+setDashboardInnerHTML(document.getElementById("gateConditions"),
   gateConditions.length
     ? `<ul class="gate-list">${gateConditions.map(
         x => `<li class="gate-condition">${
@@ -3754,7 +3774,7 @@ document.getElementById("gateConditions").innerHTML =
       ).join("")}</ul>`
     : "No additional condition identified.";
 
-document.getElementById("mtfSufficiency").innerHTML = `
+setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
   <div class="mtf-suff-tile">
     <div class="gate-label">STATUS</div>
     <div class="mtf-suff-value">${esc(
@@ -3836,9 +3856,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
         ).join("")}</ul>`
       : "None recorded.";
 
-  document.getElementById(
-    "thesisInvalidation"
-  ).innerHTML = `
+  setDashboardInnerHTML(document.getElementById("thesisInvalidation"), `
     <div class="rows">
       ${row(
         "Direction",
@@ -3954,7 +3972,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
         ).join("")}</ul>`
       : "None recorded.";
 
-  document.getElementById("whatWouldChange").innerHTML = `
+  setDashboardInnerHTML(document.getElementById("whatWouldChange"), `
     <div class="rows">
       ${row(
         "Current Decision",
@@ -4025,7 +4043,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
   const tradeSetup =
     u.trade_setup || {};
 
-  document.getElementById("tradeSetup").innerHTML = `
+  setDashboardInnerHTML(document.getElementById("tradeSetup"), `
     <div class="rows">
       ${row(
         "Status",
@@ -4102,7 +4120,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
   const confidenceMtf =
     confidence.mtf || {};
 
-  document.getElementById("confidenceSummary").innerHTML = `
+  setDashboardInnerHTML(document.getElementById("confidenceSummary"), `
     <div class="rows">
       ${row(
         "IDM Confidence",
@@ -4215,17 +4233,17 @@ document.getElementById("mtfSufficiency").innerHTML = `
       })
       .join("");
 
-  document.getElementById("confidenceEngines").innerHTML =
+  setDashboardInnerHTML(document.getElementById("confidenceEngines"),
     confidenceEngineRows ||
     `<div class="banner">No canonical engine confidence evidence available.</div>`;
 
-  document.getElementById("confidenceMethod").innerHTML =
+  setDashboardInnerHTML(document.getElementById("confidenceMethod"),
     `<div class="banner">${esc(
       confidence.method ||
       "Canonical evidence only; no derived composite confidence."
     )}</div>`;
 
-document.getElementById("idmRows").innerHTML=[
+setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Decision",idm.decision),
     row("Approved",idm.approved?"YES":"NO"),
     rowMarkup("Direction",directionMarkup(idm.direction)),
@@ -4240,7 +4258,7 @@ document.getElementById("idmRows").innerHTML=[
     row("Missing",idmMissing)
   ].join("");
 
-  document.getElementById("structureRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("structureRows"),[
     row("Trend",st.trend),
     row("BOS",st.bos||"NEUTRAL"),
     row("BOS Score",fmt(st.bos_score)),
@@ -4259,7 +4277,7 @@ document.getElementById("idmRows").innerHTML=[
     row("Lifecycle",st.zone_lifecycle)
   ].join("");
 
-  document.getElementById("riskRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("riskRows"),[
     row("Approved",risk.approved?"YES":"NO"),
     row("Status",risk.status),
     row("Position",fmt(risk.position_size,4)),
@@ -4269,7 +4287,7 @@ document.getElementById("idmRows").innerHTML=[
     row("Reason",risk.reason||"—")
   ].join("");
 
-  document.getElementById("executionRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("executionRows"),[
     row("Mode",exe.mode),
     row("Ready",exe.ready?"YES":"NO"),
     row("Approved",exe.approved?"YES":"NO"),
@@ -4279,17 +4297,17 @@ document.getElementById("idmRows").innerHTML=[
     row("Authorization",exe.authorization_id??"NONE")
   ].join("");
 
-  document.getElementById("executionReason").textContent=
+  setDashboardTextContent(document.getElementById("executionReason"),
     exe.reason||"No execution reason recorded.";
 
   const reasons=Array.isArray(idm.decision_reasons)?idm.decision_reasons:[];
 
-  document.getElementById("reasons").innerHTML=
+  setDashboardInnerHTML(document.getElementById("reasons"),
     reasons.length
       ? reasons.map(x=>`<div class="reason">• ${esc(x)}</div>`).join("")
       : `<div class="reason">No IDM decision reason recorded.</div>`;
 
-  document.getElementById("mtf").innerHTML=["15m","1h","4h","1d"].map(tf=>{
+  setDashboardInnerHTML(document.getElementById("mtf"),["15m","1h","4h","1d"].map(tf=>{
     const a=mtf[tf]||{};
     return `
       <div class="mtf-card">
@@ -4305,14 +4323,14 @@ document.getElementById("idmRows").innerHTML=[
     `;
   }).join("");
 
-  document.getElementById("systemRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("systemRows"),[
     row("Health",sys.health),
     row("Execution Mode",sys.mode),
     row("Authority","READ-ONLY"),
     row("Live Authority","NONE")
   ].join("");
 
-  document.getElementById("marketRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("marketRows"),[
     row("Symbol",market.symbol),
     row("Timeframe",market.timeframe),
     row("Price",fmt(market.price)),
@@ -4325,7 +4343,7 @@ document.getElementById("idmRows").innerHTML=[
   const account=portfolio.account||{};
   const rec=portfolio.reconciliation||{};
 
-  document.getElementById("portfolioRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("portfolioRows"),[
     row("Portfolio",portfolio.status),
     row("Equity",portfolio.equity??"—"),
     row("Cash",portfolio.available_cash??"—"),
@@ -4334,7 +4352,7 @@ document.getElementById("idmRows").innerHTML=[
     row("Reconciliation",rec.status||"—")
   ].join("");
 
-  document.getElementById("auditRows").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("auditRows"),[
     row("Run ID",audit.run_id??"NONE"),
     row("Decision ID",audit.decision_id??"NONE"),
     row("Timestamp",audit.timestamp||"—")
@@ -4614,7 +4632,7 @@ function renderChart(){
   ctx.textAlign="left";
 
   // Legend.
-  document.getElementById("chartLegend").innerHTML=[
+  setDashboardInnerHTML(document.getElementById("chartLegend"),[
     ["EMA20","#ffd35a"],
     ["EMA50","#38d7ff"],
     ["EMA100","#a78bfa"],
@@ -4664,7 +4682,7 @@ function renderFibonacci(){
   const fib=state.ui?.fibonacci;
 
   if(!fib){
-    box.innerHTML='<div class="banner">Canonical Fibonacci data unavailable.</div>';
+    setDashboardInnerHTML(box,'<div class="banner">Canonical Fibonacci data unavailable.</div>';
     return;
   }
 
@@ -4688,7 +4706,7 @@ function renderFibonacci(){
     `).join("");
   };
 
-  box.innerHTML=`
+  setDashboardInnerHTML(box,`
     <div class="fib-summary">
       <div class="fib-summary-tile">
         <div class="fib-summary-label">STATUS</div>
@@ -4749,7 +4767,7 @@ function renderSession(){
       ? "coverage-status unavailable"
       : "coverage-status analysis";
 
-  box.innerHTML=`
+  setDashboardInnerHTML(box,`
     <div class="session-tile">
       <div class="session-label">SESSION</div>
       <div class="session-value">${esc(name)}</div>
@@ -4778,7 +4796,7 @@ function renderMarkets(){
     return;
   }
 
-  box.innerHTML=marketGroups.map(group=>`
+  setDashboardInnerHTML(box,marketGroups.map(group=>`
     <div class="coverage-group">
       <div class="coverage-head">
         <div>
@@ -4872,8 +4890,8 @@ function renderScannerAlertContext(){
   const result=r23ScannerAlertContexts;
 
   if(!result){
-    statusEl.innerHTML="";
-    listEl.innerHTML=
+    setDashboardInnerHTML(statusEl,"";
+    setDashboardInnerHTML(listEl,
       '<div class="scanner-alert-empty">'+
       'Alert context idle. Load context to inspect related news.'+
       '</div>';
@@ -4889,7 +4907,7 @@ function renderScannerAlertContext(){
     "SCANNER_ALERT_CONTEXT_ONLY"
   );
 
-  statusEl.innerHTML=
+  setDashboardInnerHTML(statusEl,
     '<span class="scanner-alert-status-pill">'+
     status+
     '</span>'+
@@ -4908,14 +4926,14 @@ function renderScannerAlertContext(){
       : [];
 
   if(!contexts.length){
-    listEl.innerHTML=
+    setDashboardInnerHTML(listEl,
       '<div class="scanner-alert-empty">'+
       'No alert context available.'+
       '</div>';
     return;
   }
 
-  listEl.innerHTML=contexts.map(
+  setDashboardInnerHTML(listEl,contexts.map(
     context=>{
       const alert=context.alert||{};
 
@@ -5030,11 +5048,11 @@ async function loadScannerAlertContext(
   });
 
   if(scanSymbolEl){
-    scanSymbolEl.textContent="LOADING…";
+    setDashboardTextContent(scanSymbolEl,"LOADING…";
   }
 
   if(scanWatchlistEl){
-    scanWatchlistEl.textContent="LOADING…";
+    setDashboardTextContent(scanWatchlistEl,"LOADING…";
   }
 
   try{
@@ -5103,12 +5121,12 @@ async function loadScannerAlertContext(
     });
 
     if(scanSymbolEl){
-      scanSymbolEl.textContent=
+      setDashboardTextContent(scanSymbolEl,
         "LOAD CONTEXT";
     }
 
     if(scanWatchlistEl){
-      scanWatchlistEl.textContent=
+      setDashboardTextContent(scanWatchlistEl,
         "LOAD WATCHLIST CONTEXT";
     }
   }
@@ -5416,21 +5434,21 @@ function renderNews(){
     statusClass="cached";
   }
 
-  statusEl.innerHTML=
+  setDashboardInnerHTML(statusEl,
     `<span class="news-status-pill ${statusClass}">STATUS · ${esc(status)}</span>`+
     `<span class="news-status-pill">SOURCE · ${esc(provider)}</span>`+
     `<span class="news-status-pill">${cached?"CACHED":"CURRENT"}</span>`;
 
-  metaEl.textContent=
+  setDashboardTextContent(metaEl,
     `${provider} · ${items.length} item${items.length===1?"":"s"}`;
 
-  errorEl.textContent=
+  setDashboardTextContent(errorEl,
     snapshot.error
       ? String(snapshot.error)
       : "";
 
   if(!items.length){
-    listEl.innerHTML=
+    setDashboardInnerHTML(listEl,
       `<div class="news-empty">${
         status==="UNAVAILABLE"
           ? "News providers unavailable and no cached news is available."
@@ -5439,7 +5457,7 @@ function renderNews(){
     return;
   }
 
-  listEl.innerHTML=items.map(item=>{
+  setDashboardInnerHTML(listEl,items.map(item=>{
     const publisher=esc(String(item.publisher||item.source||"—"));
     const title=esc(String(item.title||"Untitled"));
     const category=esc(String(item.category||"MARKET"));
@@ -5478,7 +5496,7 @@ async function loadNews(refresh=false){
 
   if(refreshEl){
     setDashboardControlDisabled(refreshEl,true);
-    refreshEl.textContent="REFRESHING…";
+    setDashboardTextContent(refreshEl,"REFRESHING…";
   }
 
   try{
@@ -5522,7 +5540,7 @@ async function loadNews(refresh=false){
   }finally{
     if(refreshEl){
       setDashboardControlDisabled(refreshEl,false);
-      refreshEl.textContent="REFRESH NEWS";
+      setDashboardTextContent(refreshEl,"REFRESH NEWS";
     }
   }
 }
@@ -5604,17 +5622,17 @@ async function load(){
 
     render();
   }catch(e){
-    document.getElementById("healthBadge").textContent="SYSTEM · ERROR";
+    setDashboardTextContent(document.getElementById("healthBadge"),"SYSTEM · ERROR";
     setDashboardClassName(
       document.getElementById("healthBadge"),
       "badge bad"
     );
-    document.getElementById("freshBadge").textContent="FRESHNESS · ERROR";
+    setDashboardTextContent(document.getElementById("freshBadge"),"FRESHNESS · ERROR";
     setDashboardClassName(
       document.getElementById("freshBadge"),
       "badge bad"
     );
-    document.getElementById("dataQualityBadge").textContent="DATA · ERROR";
+    setDashboardTextContent(document.getElementById("dataQualityBadge"),"DATA · ERROR";
     setDashboardClassName(
       document.getElementById("dataQualityBadge"),
       "badge bad"
@@ -5633,7 +5651,7 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
 
   const log=document.getElementById("aiLog");
 
-  log.insertAdjacentHTML(
+  appendDashboardHTML(log,
     "beforeend",
     `<div class="msg user">You: ${esc(q)}</div>`
   );
@@ -5656,12 +5674,12 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
 
     if(!r.ok)throw new Error(d.detail||("HTTP "+r.status));
 
-    log.insertAdjacentHTML(
+    appendDashboardHTML(log,
       "beforeend",
       `<div class="msg bot">Jaguar: ${esc(d.reply||"No response.")}</div>`
     );
   }catch(err){
-    log.insertAdjacentHTML(
+    appendDashboardHTML(log,
       "beforeend",
       `<div class="msg bot">Assistant unavailable: ${esc(err.message)}</div>`
     );
