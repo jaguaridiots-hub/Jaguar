@@ -3230,6 +3230,12 @@ function setDashboardHiddenState(element,hidden){
   element.hidden=Boolean(hidden);
 }
 /* R37_DASHBOARD_VISIBILITY_STATE_END */
+/* R38_DASHBOARD_CLASSNAME_STATE_START */
+function setDashboardClassName(element,value){
+  if(!element||!("className" in element))return;
+  element.className=String(value??"");
+}
+/* R38_DASHBOARD_CLASSNAME_STATE_END */
 
 
 
@@ -3601,14 +3607,23 @@ const confidence=u.confidence_breakdown||{};
   const mode=String(sys.mode||"UNKNOWN").toUpperCase();
 
   document.getElementById("modeBadge").textContent="EXECUTION · "+mode;
-  document.getElementById("modeBadge").className="badge "+(mode==="PAPER"?"paper":"bad");
+  setDashboardClassName(
+    document.getElementById("modeBadge"),
+    "badge "+(mode==="PAPER"?"paper":"bad")
+  );
 
   document.getElementById("healthBadge").textContent="SYSTEM · "+(sys.health||"UNKNOWN");
-  document.getElementById("healthBadge").className="badge "+(sys.health==="HEALTHY"?"ok":"bad");
+  setDashboardClassName(
+    document.getElementById("healthBadge"),
+    "badge "+(sys.health==="HEALTHY"?"ok":"bad")
+  );
 
   document.getElementById("freshBadge").textContent="FRESHNESS · "+freshness;
-  document.getElementById("freshBadge").className="badge "+
-    (freshness==="CURRENT"?"ok":freshness.startsWith("AGING")?"warn":"bad");
+  setDashboardClassName(
+    document.getElementById("freshBadge"),
+    "badge "+
+      (freshness==="CURRENT"?"ok":freshness.startsWith("AGING")?"warn":"bad")
+  );
 
   const qualityStatus=String(
     dataQuality.status||"UNKNOWN"
@@ -3626,16 +3641,17 @@ const confidence=u.confidence_breakdown||{};
     "dataQualityBadge"
   ).textContent="DATA · "+qualityStatus;
 
-  document.getElementById(
-    "dataQualityBadge"
-  ).className="badge "+
-    (
-      qualityOk
-        ? "ok"
-        : qualityStatus==="UNKNOWN"
-          ? "warn"
-          : "bad"
-    );
+  setDashboardClassName(
+    document.getElementById("dataQualityBadge"),
+    "badge "+
+      (
+        qualityOk
+          ? "ok"
+          : qualityStatus==="UNKNOWN"
+            ? "warn"
+            : "bad"
+      )
+  );
 
   document.getElementById(
     "dataQualityLine"
@@ -3657,15 +3673,20 @@ const confidence=u.confidence_breakdown||{};
   const decision=String(idm.decision||"WAIT").toUpperCase();
   const decisionEl=document.getElementById("decision");
   decisionEl.textContent=decision;
-  decisionEl.className="decision "+cls(decision);
+  setDashboardClassName(
+    decisionEl,
+    "decision "+cls(decision)
+  );
 
   const headlineDirection=idm.direction||"NEUTRAL";
   const decisionContext=document.getElementById("decisionContext");
   decisionContext.innerHTML=
     directionIcon(headlineDirection)+" "+
     esc(headlineDirection)+" · Priority "+esc(idm.priority||"—");
-  decisionContext.className=
-    "decision-context "+directionClass(headlineDirection);
+  setDashboardClassName(
+    decisionContext,
+    "decision-context "+directionClass(headlineDirection)
+  );
 
   document.getElementById("zoneContext").textContent=
     `${idm.zone||"NONE"} · ${idm.zone_lifecycle||"UNKNOWN"} · ${idm.location||"UNKNOWN"}`;
@@ -5566,11 +5587,20 @@ async function load(){
     render();
   }catch(e){
     document.getElementById("healthBadge").textContent="SYSTEM · ERROR";
-    document.getElementById("healthBadge").className="badge bad";
+    setDashboardClassName(
+      document.getElementById("healthBadge"),
+      "badge bad"
+    );
     document.getElementById("freshBadge").textContent="FRESHNESS · ERROR";
-    document.getElementById("freshBadge").className="badge bad";
+    setDashboardClassName(
+      document.getElementById("freshBadge"),
+      "badge bad"
+    );
     document.getElementById("dataQualityBadge").textContent="DATA · ERROR";
-    document.getElementById("dataQualityBadge").className="badge bad";
+    setDashboardClassName(
+      document.getElementById("dataQualityBadge"),
+      "badge bad"
+    );
     console.error(e);
   }
 }
