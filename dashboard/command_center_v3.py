@@ -4610,6 +4610,26 @@ function renderMarkets(){
   });
 }
 
+/* R29_CHART_INDICATOR_STATE_START */
+const R29_VALID_CHART_INDICATORS=new Set([
+  "EMA20",
+  "EMA50",
+  "EMA100",
+  "EMA200",
+  "VWAP",
+  "FIB_RETR",
+  "FIB_EXT"
+]);
+
+function toggleChartIndicator(name){
+  if(!R29_VALID_CHART_INDICATORS.has(name)){
+    return;
+  }
+
+  state.chartIndicators[name]=!state.chartIndicators[name];
+}
+/* R29_CHART_INDICATOR_STATE_END */
+
 function initIndicatorControls(){
   const toolbar=document.getElementById("indicatorToolbar");
   if(!toolbar){
@@ -4620,7 +4640,7 @@ function initIndicatorControls(){
     btn.onclick=()=>{
       const name=btn.dataset.indicator;
 
-      state.chartIndicators[name]=!state.chartIndicators[name];
+      toggleChartIndicator(name);
 
       btn.classList.toggle(
         "active",
