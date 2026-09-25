@@ -3163,6 +3163,37 @@ function persistR27ActiveWatchSymbol(symbol){
 }
 /* R27_WATCHLIST_STATE_END */
 
+/* R28_DASHBOARD_STATE_MUTATION_START */
+function setActiveSymbol(
+  symbol,
+  {
+    persistWatchlist=false,
+    renderWatchlist=false,
+    refresh=true
+  }={}
+){
+  const value=String(symbol||"").trim();
+
+  if(!value){
+    return;
+  }
+
+  state.symbol=value;
+
+  if(persistWatchlist){
+    persistR27ActiveWatchSymbol(value);
+  }
+
+  if(renderWatchlist){
+    renderWatch();
+  }
+
+  if(refresh){
+    load();
+  }
+}
+/* R28_DASHBOARD_STATE_MUTATION_END */
+
 function esc(v){
   return String(v??"").replace(/[&<>"']/g,m=>({
     "&":"&amp;",
@@ -3213,10 +3244,14 @@ function renderWatch(){
 
   box.querySelectorAll(".asset").forEach(b=>{
     b.onclick=()=>{
-      state.symbol=b.dataset.symbol;
-      persistR27ActiveWatchSymbol(state.symbol);
-      renderWatch();
-      load();
+      setActiveSymbol(
+        b.dataset.symbol,
+        {
+          persistWatchlist:true,
+          renderWatchlist:true,
+          refresh:true
+        }
+      );
     };
   });
 }
@@ -4570,8 +4605,7 @@ function renderMarkets(){
 
   box.querySelectorAll(".coverage-asset").forEach(btn=>{
     btn.onclick=()=>{
-      state.symbol=btn.dataset.symbol;
-      load();
+      setActiveSymbol(btn.dataset.symbol);
     };
   });
 }
@@ -5401,8 +5435,13 @@ window.addEventListener("resize",()=>{
 });
 
 const initialSymbol=readR27ActiveWatchSymbol();
-state.symbol=initialSymbol;
-renderWatch();
+setActiveSymbol(
+  initialSymbol,
+  {
+    renderWatchlist:true,
+    refresh:false
+  }
+);
 initR24DashboardTabs();
 initIndicatorControls();
 initNewsControls();

@@ -48,12 +48,25 @@ def test_r27_invalid_symbol_falls_back_to_default():
 
 def test_r27_reads_symbol_before_watch_render():
     assert "const initialSymbol=readR27ActiveWatchSymbol();" in SOURCE
-    assert "state.symbol=initialSymbol;" in SOURCE
+
+    startup_start = SOURCE.index("const initialSymbol=readR27ActiveWatchSymbol();")
+    startup_end = SOURCE.index("initR24DashboardTabs();", startup_start)
+    startup = SOURCE[startup_start:startup_end]
+
+    assert "setActiveSymbol(" in startup
+    assert "initialSymbol" in startup
+    assert "renderWatchlist:true" in startup
+    assert "refresh:false" in startup
 
 
 def test_r27_watch_click_persists_symbol():
-    assert "state.symbol=b.dataset.symbol;" in SOURCE
-    assert "persistR27ActiveWatchSymbol(state.symbol);" in SOURCE
+    block_start = SOURCE.index("function renderWatch(){")
+    block_end = SOURCE.index("function freshnessLabel", block_start)
+    block = SOURCE[block_start:block_end]
+
+    assert "setActiveSymbol(" in block
+    assert "b.dataset.symbol" in block
+    assert "persistWatchlist:true" in block
 
 
 def test_r27_watch_click_rerenders_watchbar():
@@ -61,8 +74,8 @@ def test_r27_watch_click_rerenders_watchbar():
     block_end = SOURCE.index("function freshnessLabel", block_start)
     block = SOURCE[block_start:block_end]
 
-    assert "renderWatch();" in block
-    assert "state.symbol=b.dataset.symbol;" in block
+    assert "setActiveSymbol(" in block
+    assert "renderWatchlist:true" in block
 
 
 def test_r27_watch_click_preserves_existing_load():
@@ -70,7 +83,8 @@ def test_r27_watch_click_preserves_existing_load():
     block_end = SOURCE.index("function freshnessLabel", block_start)
     block = SOURCE[block_start:block_end]
 
-    assert "load();" in block
+    assert "setActiveSymbol(" in block
+    assert "refresh:true" in block
 
 
 def test_r27_state_layer_is_local_only():
