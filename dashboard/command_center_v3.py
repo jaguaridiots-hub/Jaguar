@@ -3224,6 +3224,12 @@ function setDashboardControlAttribute(element,name,value){
   );
 }
 /* R36_DASHBOARD_CONTROL_ATTRIBUTE_STATE_END */
+/* R37_DASHBOARD_VISIBILITY_STATE_START */
+function setDashboardHiddenState(element,hidden){
+  if(!element||!("hidden" in element))return;
+  element.hidden=Boolean(hidden);
+}
+/* R37_DASHBOARD_VISIBILITY_STATE_END */
 
 
 
@@ -5277,7 +5283,7 @@ function initR24DashboardTabs(){
 
     document.querySelectorAll("[data-r24-panel]").forEach(panel=>{
       const active=panel.dataset.r24Panel===name;
-      panel.hidden=!active;
+      setDashboardHiddenState(panel,!active);
     });
 
     if(persist){
