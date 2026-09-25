@@ -1831,10 +1831,6 @@ function renderScannerAlerts(){
 }
 
 async function loadScannerAlerts(symbol=null){
-  const symbolEl=document.getElementById(
-    "scannerAlertSymbol"
-  );
-
   const scanSymbolEl=document.getElementById(
     "scannerAlertScanSymbol"
   );
@@ -1846,10 +1842,13 @@ async function loadScannerAlerts(symbol=null){
   let activeSymbol=symbol;
 
   if(activeSymbol===null){
-    activeSymbol=
-      symbolEl && symbolEl.value
-        ? String(symbolEl.value).trim()
-        : String(state.symbol||"").trim();
+    activeSymbol=getDashboardFilter(
+      "scannerAlertSymbol"
+    );
+
+    if(!activeSymbol){
+      activeSymbol=String(state.symbol||"").trim();
+    }
   }
 
   const buttons=[
@@ -1939,10 +1938,18 @@ function initScannerAlertControls(){
 
   if(scanSymbolEl){
     scanSymbolEl.onclick=()=>{
-      const symbol=
+      const selected=
         symbolEl && symbolEl.value
           ? String(symbolEl.value).trim()
-          : String(state.symbol||"").trim();
+          : "";
+
+      setDashboardFilter(
+        "scannerAlertSymbol",
+        selected
+      );
+
+      const symbol=
+        selected || String(state.symbol||"").trim();
 
       loadScannerAlerts(symbol);
     };
@@ -1953,6 +1960,11 @@ function initScannerAlertControls(){
       if(symbolEl){
         symbolEl.value="";
       }
+
+      setDashboardFilter(
+        "scannerAlertSymbol",
+        ""
+      );
 
       loadScannerAlerts("");
     };
@@ -2727,10 +2739,6 @@ function renderScanner(){
 }
 
 async function loadScanner(symbol=null){
-  const symbolEl=document.getElementById(
-    "scannerSymbol"
-  );
-
   const scanSymbolEl=document.getElementById(
     "scannerScanSymbol"
   );
@@ -2742,10 +2750,13 @@ async function loadScanner(symbol=null){
   let activeSymbol=symbol;
 
   if(activeSymbol===null){
-    activeSymbol=
-      symbolEl && symbolEl.value
-        ? String(symbolEl.value).trim()
-        : String(state.symbol||"").trim();
+    activeSymbol=getDashboardFilter(
+      "scannerSymbol"
+    );
+
+    if(!activeSymbol){
+      activeSymbol=String(state.symbol||"").trim();
+    }
   }
 
   const buttons=[
@@ -2835,10 +2846,18 @@ function initScannerControls(){
 
   if(scanSymbolEl){
     scanSymbolEl.onclick=()=>{
-      const symbol=
+      const selected=
         symbolEl && symbolEl.value
           ? String(symbolEl.value).trim()
-          : String(state.symbol||"").trim();
+          : "";
+
+      setDashboardFilter(
+        "scannerSymbol",
+        selected
+      );
+
+      const symbol=
+        selected || String(state.symbol||"").trim();
 
       loadScanner(symbol);
     };
@@ -2849,6 +2868,11 @@ function initScannerControls(){
       if(symbolEl){
         symbolEl.value="";
       }
+
+      setDashboardFilter(
+        "scannerSymbol",
+        ""
+      );
 
       loadScanner("");
     };
@@ -3075,6 +3099,40 @@ const state={
   }
 };
 
+
+/* R30_DASHBOARD_FILTER_STATE_START */
+const R30_VALID_FILTERS=new Set([
+  "newsSymbol",
+  "newsCategory",
+  "scannerSymbol",
+  "scannerAlertSymbol",
+  "scannerAlertContextSymbol"
+]);
+
+const dashboardFilters={
+  newsSymbol:"",
+  newsCategory:"MARKET",
+  scannerSymbol:"",
+  scannerAlertSymbol:"",
+  scannerAlertContextSymbol:""
+};
+
+function setDashboardFilter(name,value){
+  if(!R30_VALID_FILTERS.has(name)){
+    return;
+  }
+
+  dashboardFilters[name]=String(value??"").trim();
+}
+
+function getDashboardFilter(name){
+  if(!R30_VALID_FILTERS.has(name)){
+    return "";
+  }
+
+  return dashboardFilters[name];
+}
+/* R30_DASHBOARD_FILTER_STATE_END */
 
 const marketGroups=[
   {
@@ -4810,10 +4868,6 @@ async function loadScannerAlertContext(
   symbol=null,
   refresh=false
 ){
-  const symbolEl=document.getElementById(
-    "scannerAlertContextSymbol"
-  );
-
   const scanSymbolEl=document.getElementById(
     "scannerAlertContextScanSymbol"
   );
@@ -4825,10 +4879,13 @@ async function loadScannerAlertContext(
   let activeSymbol=symbol;
 
   if(activeSymbol===null){
-    activeSymbol=
-      symbolEl && symbolEl.value
-        ? String(symbolEl.value).trim()
-        : String(state.symbol||"").trim();
+    activeSymbol=getDashboardFilter(
+      "scannerAlertContextSymbol"
+    );
+
+    if(!activeSymbol){
+      activeSymbol=String(state.symbol||"").trim();
+    }
   }
 
   const buttons=[
@@ -4940,10 +4997,18 @@ function initScannerAlertContextControls(){
 
   if(scanSymbolEl){
     scanSymbolEl.onclick=()=>{
-      const symbol=
+      const selected=
         symbolEl && symbolEl.value
           ? String(symbolEl.value).trim()
-          : String(state.symbol||"").trim();
+          : "";
+
+      setDashboardFilter(
+        "scannerAlertContextSymbol",
+        selected
+      );
+
+      const symbol=
+        selected || String(state.symbol||"").trim();
 
       loadScannerAlertContext(
         symbol,
@@ -4957,6 +5022,11 @@ function initScannerAlertContextControls(){
       if(symbolEl){
         symbolEl.value="";
       }
+
+      setDashboardFilter(
+        "scannerAlertContextSymbol",
+        ""
+      );
 
       loadScannerAlertContext(
         "",
@@ -5266,34 +5336,14 @@ function renderNews(){
 }
 
 async function loadNews(refresh=false){
-  const symbolEl=document.getElementById("newsSymbolFilter");
-  const categoryEl=document.getElementById("newsCategoryFilter");
   const refreshEl=document.getElementById("newsRefresh");
 
-  const symbol=
-    symbolEl
-      ? String(symbolEl.value||"").trim()
-      : "";
+  const activeSymbol=getDashboardFilter(
+    "newsSymbol"
+  );
 
   const category=
-    categoryEl
-      ? String(categoryEl.value||"MARKET").trim()
-      : "MARKET";
-
-  if(symbolEl && !symbolEl.value && state.symbol){
-    const option=[...symbolEl.options].find(
-      option=>option.value===state.symbol
-    );
-
-    if(option){
-      symbolEl.value=state.symbol;
-    }
-  }
-
-  const activeSymbol=
-    symbolEl
-      ? String(symbolEl.value||"").trim()
-      : "";
+    getDashboardFilter("newsCategory") || "MARKET";
 
   if(refreshEl){
     refreshEl.disabled=true;
@@ -5352,13 +5402,43 @@ function initNewsControls(){
   const refreshEl=document.getElementById("newsRefresh");
 
   if(symbolEl){
+    if(!symbolEl.value && state.symbol){
+      const option=[...symbolEl.options].find(
+        option=>option.value===state.symbol
+      );
+
+      if(option){
+        symbolEl.value=state.symbol;
+      }
+    }
+
+    setDashboardFilter(
+      "newsSymbol",
+      symbolEl.value
+    );
+
     symbolEl.onchange=()=>{
+      setDashboardFilter(
+        "newsSymbol",
+        symbolEl.value
+      );
+
       loadNews(true);
     };
   }
 
   if(categoryEl){
+    setDashboardFilter(
+      "newsCategory",
+      categoryEl.value || "MARKET"
+    );
+
     categoryEl.onchange=()=>{
+      setDashboardFilter(
+        "newsCategory",
+        categoryEl.value || "MARKET"
+      );
+
       loadNews(true);
     };
   }
