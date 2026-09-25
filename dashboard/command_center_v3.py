@@ -3331,6 +3331,14 @@ function setDashboardCanvasContextState(ctx,name,value){
 }
 /* R46_DASHBOARD_CANVAS_CONTEXT_STATE_END */
 
+/* R47_DASHBOARD_CANVAS_DASH_STATE_START */
+function setDashboardCanvasLineDash(ctx,dash){
+  if(!ctx||typeof ctx.setLineDash!=="function")return;
+  ctx.setLineDash(dash);
+}
+/* R47_DASHBOARD_CANVAS_DASH_STATE_END */
+
+
 
 
 
@@ -4646,7 +4654,7 @@ function renderChart(){
     ctx.save();
     setDashboardCanvasContextState(ctx,"strokeStyle",style);
     setDashboardCanvasContextState(ctx,"lineWidth",Math.max(1,dpr));
-    ctx.setLineDash(dash);
+    setDashboardCanvasLineDash(ctx,dash);
 
     for(const value of Object.values(levels)){
       const n=Number(value);
