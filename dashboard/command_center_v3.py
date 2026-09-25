@@ -1927,7 +1927,7 @@ function initScannerAlertControls(){
   );
 
   if(scanSymbolEl){
-    scanSymbolEl.onclick=()=>{
+    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
       const selected=getDashboardControlValue(symbolEl);
 
       setDashboardFilter(
@@ -1939,11 +1939,11 @@ function initScannerAlertControls(){
         selected || getActiveSymbol();
 
       loadScannerAlerts(symbol);
-    };
+    });
   }
 
   if(scanWatchlistEl){
-    scanWatchlistEl.onclick=()=>{
+    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
       if(symbolEl){
         setDashboardControlValue(symbolEl,"");
       }
@@ -1954,7 +1954,7 @@ function initScannerAlertControls(){
       );
 
       loadScannerAlerts("");
-    };
+    });
   }
 
   renderScannerAlerts();
@@ -2822,7 +2822,7 @@ function initScannerControls(){
   );
 
   if(scanSymbolEl){
-    scanSymbolEl.onclick=()=>{
+    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
       const selected=getDashboardControlValue(symbolEl);
 
       setDashboardFilter(
@@ -2834,11 +2834,11 @@ function initScannerControls(){
         selected || getActiveSymbol();
 
       loadScanner(symbol);
-    };
+    });
   }
 
   if(scanWatchlistEl){
-    scanWatchlistEl.onclick=()=>{
+    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
       if(symbolEl){
         setDashboardControlValue(symbolEl,"");
       }
@@ -2849,7 +2849,7 @@ function initScannerControls(){
       );
 
       loadScanner("");
-    };
+    });
   }
 
   renderScanner();
@@ -3242,6 +3242,12 @@ function setDashboardScrollTop(element,value){
   element.scrollTop=value;
 }
 /* R39_DASHBOARD_SCROLL_STATE_END */
+/* R40_DASHBOARD_EVENT_BINDING_START */
+function setDashboardEventHandler(element,eventName,handler){
+  if(!element||typeof eventName!=="string")return;
+  element[eventName]=handler;
+}
+/* R40_DASHBOARD_EVENT_BINDING_END */
 
 
 
@@ -3415,7 +3421,7 @@ function renderWatch(){
   `).join("");
 
   box.querySelectorAll(".asset").forEach(b=>{
-    b.onclick=()=>{
+    setDashboardEventHandler(b,"onclick",()=>{
       setActiveSymbol(
         b.dataset.symbol,
         {
@@ -3424,7 +3430,7 @@ function renderWatch(){
           refresh:true
         }
       );
-    };
+    });
   });
 }
 
@@ -4791,9 +4797,9 @@ function renderMarkets(){
   `).join("");
 
   box.querySelectorAll(".coverage-asset").forEach(btn=>{
-    btn.onclick=()=>{
+    setDashboardEventHandler(btn,"onclick",()=>{
       setActiveSymbol(btn.dataset.symbol);
-    };
+    });
   });
 }
 
@@ -4824,7 +4830,7 @@ function initIndicatorControls(){
   }
 
   toolbar.querySelectorAll(".indicator-toggle").forEach(btn=>{
-    btn.onclick=()=>{
+    setDashboardEventHandler(btn,"onclick",()=>{
       const name=btn.dataset.indicator;
 
       toggleChartIndicator(name);
@@ -4836,7 +4842,7 @@ function initIndicatorControls(){
       );
 
       renderChart();
-    };
+    });
   });
 }
 
@@ -5116,7 +5122,7 @@ function initScannerAlertContextControls(){
   );
 
   if(scanSymbolEl){
-    scanSymbolEl.onclick=()=>{
+    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
       const selected=getDashboardControlValue(symbolEl);
 
       setDashboardFilter(
@@ -5131,11 +5137,11 @@ function initScannerAlertContextControls(){
         symbol,
         false
       );
-    };
+    });
   }
 
   if(scanWatchlistEl){
-    scanWatchlistEl.onclick=()=>{
+    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
       if(symbolEl){
         setDashboardControlValue(symbolEl,"");
       }
@@ -5149,7 +5155,7 @@ function initScannerAlertContextControls(){
         "",
         false
       );
-    };
+    });
   }
 
   renderScannerAlertContext();
@@ -5319,13 +5325,13 @@ function initR24DashboardTabs(){
   }
 
   buttons.forEach((button,index)=>{
-    button.onclick=()=>{
+    setDashboardEventHandler(button,"onclick",()=>{
       activate(
         button.dataset.r24Tab||"overview"
       );
-    };
+    });
 
-    button.onkeydown=event=>{
+    setDashboardEventHandler(button,"onkeydown",event=>{
       let nextIndex=index;
 
       if(event.key==="ArrowRight"){
@@ -5356,7 +5362,7 @@ function initR24DashboardTabs(){
         nextButton.dataset.r24Tab||"overview",
         true
       );
-    };
+    });
   });
 
   const initialTab=readR26ActiveTab();
@@ -5536,14 +5542,14 @@ function initNewsControls(){
       getDashboardControlValue(symbolEl)
     );
 
-    symbolEl.onchange=()=>{
+    setDashboardEventHandler(symbolEl,"onchange",()=>{
       setDashboardFilter(
         "newsSymbol",
         getDashboardControlValue(symbolEl)
       );
 
       loadNews(true);
-    };
+    });
   }
 
   if(categoryEl){
@@ -5552,20 +5558,20 @@ function initNewsControls(){
       getDashboardControlValue(categoryEl) || "MARKET"
     );
 
-    categoryEl.onchange=()=>{
+    setDashboardEventHandler(categoryEl,"onchange",()=>{
       setDashboardFilter(
         "newsCategory",
         getDashboardControlValue(categoryEl) || "MARKET"
       );
 
       loadNews(true);
-    };
+    });
   }
 
   if(refreshEl){
-    refreshEl.onclick=()=>{
+    setDashboardEventHandler(refreshEl,"onclick",()=>{
       loadNews(true);
-    };
+    });
   }
 
   loadNews(false);
