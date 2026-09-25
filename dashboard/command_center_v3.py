@@ -1839,17 +1839,7 @@ async function loadScannerAlerts(symbol=null){
     "scannerAlertScanWatchlist"
   );
 
-  let activeSymbol=symbol;
-
-  if(activeSymbol===null){
-    activeSymbol=getDashboardFilter(
-      "scannerAlertSymbol"
-    );
-
-    if(!activeSymbol){
-      activeSymbol=String(state.symbol||"").trim();
-    }
-  }
+  const activeSymbol=resolveScannerAlertSymbol(symbol);
 
   const buttons=[
     scanSymbolEl,
@@ -2747,17 +2737,7 @@ async function loadScanner(symbol=null){
     "scannerScanWatchlist"
   );
 
-  let activeSymbol=symbol;
-
-  if(activeSymbol===null){
-    activeSymbol=getDashboardFilter(
-      "scannerSymbol"
-    );
-
-    if(!activeSymbol){
-      activeSymbol=String(state.symbol||"").trim();
-    }
-  }
+  const activeSymbol=resolveScannerSymbol(symbol);
 
   const buttons=[
     scanSymbolEl,
@@ -3133,6 +3113,63 @@ function getDashboardFilter(name){
   return dashboardFilters[name];
 }
 /* R30_DASHBOARD_FILTER_STATE_END */
+
+/* R31_DASHBOARD_CONTEXT_RESOLUTION_START */
+function getActiveSymbol(){
+  return String(state.symbol||"").trim();
+}
+
+function getActiveInterval(){
+  return String(state.interval||"").trim();
+}
+
+function getActiveMode(){
+  return String(state.mode||"").trim();
+}
+
+function resolveScannerSymbol(symbol=null){
+  if(symbol!==null){
+    return String(symbol??"").trim();
+  }
+
+  return (
+    getDashboardFilter("scannerSymbol") ||
+    getActiveSymbol()
+  );
+}
+
+function resolveScannerAlertSymbol(symbol=null){
+  if(symbol!==null){
+    return String(symbol??"").trim();
+  }
+
+  return (
+    getDashboardFilter("scannerAlertSymbol") ||
+    getActiveSymbol()
+  );
+}
+
+function resolveScannerAlertContextSymbol(symbol=null){
+  if(symbol!==null){
+    return String(symbol??"").trim();
+  }
+
+  return (
+    getDashboardFilter("scannerAlertContextSymbol") ||
+    getActiveSymbol()
+  );
+}
+
+/*
+ * News preserves R30 behavior: an empty news-symbol filter remains
+ * an unfiltered news request. The main symbol is synchronized into
+ * this filter during news-control initialization when a matching
+ * option exists.
+ */
+function resolveNewsSymbol(){
+  return getDashboardFilter("newsSymbol");
+}
+/* R31_DASHBOARD_CONTEXT_RESOLUTION_END */
 
 const marketGroups=[
   {
@@ -4876,17 +4913,7 @@ async function loadScannerAlertContext(
     "scannerAlertContextScanWatchlist"
   );
 
-  let activeSymbol=symbol;
-
-  if(activeSymbol===null){
-    activeSymbol=getDashboardFilter(
-      "scannerAlertContextSymbol"
-    );
-
-    if(!activeSymbol){
-      activeSymbol=String(state.symbol||"").trim();
-    }
-  }
+  const activeSymbol=resolveScannerAlertContextSymbol(symbol);
 
   const buttons=[
     scanSymbolEl,
@@ -5338,9 +5365,7 @@ function renderNews(){
 async function loadNews(refresh=false){
   const refreshEl=document.getElementById("newsRefresh");
 
-  const activeSymbol=getDashboardFilter(
-    "newsSymbol"
-  );
+  const activeSymbol=resolveNewsSymbol();
 
   const category=
     getDashboardFilter("newsCategory") || "MARKET";
@@ -5457,8 +5482,8 @@ function initNewsControls(){
 async function load(){
   try{
     const url=
-      `/dashboard/state?symbol=${encodeURIComponent(state.symbol)}`+
-      `&interval=${encodeURIComponent(state.interval)}`;
+      `/dashboard/state?symbol=${encodeURIComponent(getActiveSymbol())}`+
+      `&interval=${encodeURIComponent(getActiveInterval())}`;
 
     const r=await fetch(url,{cache:"no-store"});
     if(!r.ok) throw new Error("HTTP "+r.status);
@@ -5506,9 +5531,9 @@ document.getElementById("aiForm").addEventListener("submit",async e=>{
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
         question:q,
-        symbol:state.symbol,
-        interval:state.interval,
-        mode:state.mode
+        symbol:getActiveSymbol(),
+        interval:getActiveInterval(),
+        mode:getActiveMode()
       })
     });
 
