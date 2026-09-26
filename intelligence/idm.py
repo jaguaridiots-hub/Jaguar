@@ -33,6 +33,11 @@ Raw specialist engine signals remain supporting evidence.
 """
 
 
+from intelligence.analysis_mode_policy import (
+    analysis_mode_contract,
+)
+
+
 class InstitutionalDecisionMatrix:
 
     name = "Institutional Decision Matrix V3"
@@ -226,6 +231,18 @@ class InstitutionalDecisionMatrix:
     # ==================================================
 
     def process(self, state):
+
+        # ==================================================
+        # R54-A CANONICAL ANALYSIS CONTEXT
+        # ==================================================
+
+        analysis_mode = analysis_mode_contract(
+            getattr(
+                state,
+                "mode",
+                "SWING",
+            )
+        )
 
         # ==================================================
         # ENTERPRISE INPUTS
@@ -2073,6 +2090,10 @@ class InstitutionalDecisionMatrix:
         # ==================================================
 
         state.idm = {
+
+            "analysis_mode": analysis_mode["mode"],
+
+            "analysis_mode_contract": analysis_mode,
 
             "decision": decision,
 
