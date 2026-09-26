@@ -1226,9 +1226,31 @@ details[open]>summary::after{
   min-width:0;
   display:none !important;
 }
-
+.r24-tab-panel:not([hidden]){
+  display:block !important;
+}
+.r24-tab-panel[hidden]{
+  display:none !important;
+}
 .r24-tab-hidden{
   display:none !important;
+}
+.main{
+  grid-column:1 / -1;
+}
+.r52-system-grid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 285px;
+  gap:10px;
+  align-items:start;
+}
+.r52-system-main{
+  min-width:0;
+}
+@media(max-width:720px){
+  .r52-system-grid{
+    grid-template-columns:1fr;
+  }
 }
 
 @media (max-width:720px){
@@ -1635,63 +1657,7 @@ details[open]>summary::after{
 /* R21_SCANNER_ALERT_UI_END */
 
 
-<!-- R21_SCANNER_ALERT_UI_START -->
-<details class="card scanner-alert-card">
-  <summary>
-    <span>JAGUAR SCANNER ALERTS</span>
-    <span class="meta">CONTEXTUAL ALERTS · READ-ONLY</span>
-  </summary>
 
-  <div class="content">
-    <div class="scanner-alert-toolbar">
-      <select
-        class="scanner-alert-symbol"
-        id="scannerAlertSymbol"
-        aria-label="Scanner alert symbol"
-      >
-        <option value="">CURRENT SYMBOL</option>
-        <option value="BTCUSDT">BTCUSDT</option>
-        <option value="ETHUSDT">ETHUSDT</option>
-        <option value="BNBUSDT">BNBUSDT</option>
-        <option value="SOLUSDT">SOLUSDT</option>
-        <option value="XRPUSDT">XRPUSDT</option>
-        <option value="DOGEUSDT">DOGEUSDT</option>
-        <option value="ADAUSDT">ADAUSDT</option>
-        <option value="LINKUSDT">LINKUSDT</option>
-        <option value="AVAXUSDT">AVAXUSDT</option>
-        <option value="XAUUSD">XAUUSD</option>
-      </select>
-
-      <button
-        class="scanner-alert-action"
-        id="scannerAlertScanSymbol"
-        type="button"
-      >
-        SCAN ALERTS
-      </button>
-
-      <button
-        class="scanner-alert-action"
-        id="scannerAlertScanWatchlist"
-        type="button"
-      >
-        SCAN WATCHLIST ALERTS
-      </button>
-    </div>
-
-    <div
-      class="scanner-alert-status"
-      id="scannerAlertStatus"
-    ></div>
-
-    <div class="scanner-alert-list" id="scannerAlertList">
-      <div class="scanner-alert-empty">
-        Alert scanner idle. Run an alert scan to discover contextual alerts.
-      </div>
-    </div>
-  </div>
-</details>
-<!-- R21_SCANNER_ALERT_UI_END -->
 
 
 
@@ -1849,66 +1815,7 @@ details[open]>summary::after{
 /* R18_NEWS_UI_END */
 
 
-<!-- R19_SCANNER_UI_START -->
-<details class="card scanner-card">
-  <summary>
-    <span>JAGUAR SCANNER</span>
-    <span class="meta">CANDIDATE DISCOVERY · READ-ONLY</span>
-  </summary>
 
-  <div class="content">
-    <div class="scanner-toolbar">
-      <select
-        class="scanner-symbol"
-        id="scannerSymbol"
-        aria-label="Scanner symbol"
-      >
-        <option value="">CURRENT SYMBOL</option>
-        <option value="BTCUSDT">BTCUSDT</option>
-        <option value="ETHUSDT">ETHUSDT</option>
-        <option value="BNBUSDT">BNBUSDT</option>
-        <option value="SOLUSDT">SOLUSDT</option>
-        <option value="XRPUSDT">XRPUSDT</option>
-        <option value="DOGEUSDT">DOGEUSDT</option>
-        <option value="ADAUSDT">ADAUSDT</option>
-        <option value="LINKUSDT">LINKUSDT</option>
-        <option value="AVAXUSDT">AVAXUSDT</option>
-        <option value="XAUUSD">XAUUSD</option>
-      </select>
-
-      <button
-        class="scanner-action"
-        id="scannerScanSymbol"
-        type="button"
-      >
-        SCAN SYMBOL
-      </button>
-
-      <button
-        class="scanner-action"
-        id="scannerScanWatchlist"
-        type="button"
-      >
-        SCAN WATCHLIST
-      </button>
-    </div>
-
-    <div class="scanner-status" id="scannerStatus"></div>
-
-    <div class="scanner-note">
-      Scanner discovers candidates only. IDM remains the canonical decision authority.
-    </div>
-
-    <div class="scanner-error" id="scannerError"></div>
-
-    <div class="scanner-list" id="scannerList">
-      <div class="scanner-empty">
-        Scanner idle. Run a scan to discover candidates.
-      </div>
-    </div>
-  </div>
-</details>
-<!-- R19_SCANNER_UI_END -->
 
 </style>
 </head>
@@ -2000,23 +1907,9 @@ details[open]>summary::after{
 </nav>
 <!-- R25_DASHBOARD_TABS_HARDENING_END -->
 
-<div class="r24-tab-panel" id="r24-panel-overview" data-r24-panel="overview" role="tabpanel" aria-labelledby="r24-tab-overview" tabindex="0">
-</div>
-<div class="r24-tab-panel" id="r24-panel-market" data-r24-panel="market" role="tabpanel" aria-labelledby="r24-tab-market" tabindex="0">
-</div>
-<div class="r24-tab-panel" id="r24-panel-scanner" data-r24-panel="scanner" role="tabpanel" aria-labelledby="r24-tab-scanner" tabindex="0">
-</div>
-<div class="r24-tab-panel" id="r24-panel-news" data-r24-panel="news" role="tabpanel" aria-labelledby="r24-tab-news" tabindex="0">
-</div>
-<div class="r24-tab-panel" id="r24-panel-system" data-r24-panel="system" role="tabpanel" aria-labelledby="r24-tab-system" tabindex="0">
-</div>
-<!-- R24_DASHBOARD_TABS_UI_END -->
-
-
 <div class="layout">
-
 <main class="main">
-
+<section class="r24-tab-panel" id="r24-panel-overview" data-r24-panel="overview" role="tabpanel" aria-labelledby="r24-tab-overview" tabindex="0">
 <section class="card hero">
   <div class="hero-top">
     <div>
@@ -2054,7 +1947,6 @@ details[open]>summary::after{
     </div>
   </div>
 </section>
-
 <section class="pipeline">
   <div class="pipeline-card card">
     <div class="pipeline-title">MARKET DATA</div>
@@ -2079,49 +1971,6 @@ details[open]>summary::after{
     <div class="pipeline-value" id="pipeExec">—</div>
   </div>
 </section>
-
-<section class="card chart-card">
-  <div class="section-head">
-    <span>PRICE STRUCTURE</span>
-    <span class="meta" id="chartMeta">—</span>
-  </div>
-  <div class="indicator-toolbar" id="indicatorToolbar">
-    <button class="indicator-toggle active" data-indicator="EMA20">EMA20</button>
-    <button class="indicator-toggle active" data-indicator="EMA50">EMA50</button>
-    <button class="indicator-toggle active" data-indicator="EMA100">EMA100</button>
-    <button class="indicator-toggle active" data-indicator="EMA200">EMA200</button>
-    <button class="indicator-toggle active" data-indicator="VWAP">VWAP</button>
-    <button class="indicator-toggle active" data-indicator="FIB_RETR">FIB RET</button>
-    <button class="indicator-toggle active" data-indicator="FIB_EXT">FIB EXT</button>
-  </div>
-  <div class="indicator-note">
-    EMA/VWAP overlays use canonical candle history. Fibonacci overlays use canonical Fibonacci metadata only.
-  </div>
-  <canvas id="chart"></canvas>
-  <div class="chart-legend" id="chartLegend"></div>
-</section>
-
-<section class="card fibonacci-card">
-  <div class="section-head">
-    <span>FIBONACCI STRUCTURE</span>
-    <span class="meta">CANONICAL ENGINE</span>
-  </div>
-
-  <div class="content" id="fibonacciPanel"></div>
-</section>
-
-
-<section class="card coverage-card">
-  <div class="section-head">
-    <span>SESSION & MARKET COVERAGE</span>
-    <span class="meta">READ-ONLY CAPABILITY MAP</span>
-  </div>
-
-  <div class="session-panel" id="sessionPanel"></div>
-
-  <div class="coverage-grid" id="marketCoverage"></div>
-</section>
-
 <section class="card decision-gate">
   <div class="section-head">
     <span>JAGUAR DECISION GATE</span>
@@ -2160,16 +2009,6 @@ details[open]>summary::after{
     <div id="gateConditions">—</div>
   </div>
 </section>
-
-<section class="card decision-gate">
-  <div class="section-head">
-    <span>MTF DATA SUFFICIENCY</span>
-    <span class="meta">DATA COVERAGE ≠ MARKET DIRECTION</span>
-  </div>
-  <div class="mtf-sufficiency" id="mtfSufficiency"></div>
-</section>
-
-
 <section class="card thesis-invalidation-card">
   <div class="section-head">
     <span>THESIS / INVALIDATION</span>
@@ -2177,7 +2016,6 @@ details[open]>summary::after{
   </div>
   <div class="thesis-invalidation" id="thesisInvalidation"></div>
 </section>
-
 <section class="card what-change-card">
   <div class="section-head">
     <span>WHAT WOULD CHANGE DECISION</span>
@@ -2185,7 +2023,6 @@ details[open]>summary::after{
   </div>
   <div class="what-would-change" id="whatWouldChange"></div>
 </section>
-
 <section class="card trade-setup-card">
   <div class="section-head">
     <span>TRADE SETUP</span>
@@ -2193,7 +2030,6 @@ details[open]>summary::after{
   </div>
   <div class="trade-setup" id="tradeSetup"></div>
 </section>
-
 <section class="card confidence-breakdown">
   <div class="section-head">
     <span>CONFIDENCE BREAKDOWN</span>
@@ -2206,13 +2042,178 @@ details[open]>summary::after{
 
   <div class="confidence-method" id="confidenceMethod"></div>
 </section>
+</section>
+<section class="r24-tab-panel" id="r24-panel-market" data-r24-panel="market" role="tabpanel" aria-labelledby="r24-tab-market" tabindex="0" hidden>
+<section class="card chart-card">
+  <div class="section-head">
+    <span>PRICE STRUCTURE</span>
+    <span class="meta" id="chartMeta">—</span>
+  </div>
+  <div class="indicator-toolbar" id="indicatorToolbar">
+    <button class="indicator-toggle active" data-indicator="EMA20">EMA20</button>
+    <button class="indicator-toggle active" data-indicator="EMA50">EMA50</button>
+    <button class="indicator-toggle active" data-indicator="EMA100">EMA100</button>
+    <button class="indicator-toggle active" data-indicator="EMA200">EMA200</button>
+    <button class="indicator-toggle active" data-indicator="VWAP">VWAP</button>
+    <button class="indicator-toggle active" data-indicator="FIB_RETR">FIB RET</button>
+    <button class="indicator-toggle active" data-indicator="FIB_EXT">FIB EXT</button>
+  </div>
+  <div class="indicator-note">
+    EMA/VWAP overlays use canonical candle history. Fibonacci overlays use canonical Fibonacci metadata only.
+  </div>
+  <canvas id="chart"></canvas>
+  <div class="chart-legend" id="chartLegend"></div>
+</section>
+<section class="card fibonacci-card">
+  <div class="section-head">
+    <span>FIBONACCI STRUCTURE</span>
+    <span class="meta">CANONICAL ENGINE</span>
+  </div>
 
+  <div class="content" id="fibonacciPanel"></div>
+</section>
+<section class="card coverage-card">
+  <div class="section-head">
+    <span>SESSION & MARKET COVERAGE</span>
+    <span class="meta">READ-ONLY CAPABILITY MAP</span>
+  </div>
 
+  <div class="session-panel" id="sessionPanel"></div>
 
+  <div class="coverage-grid" id="marketCoverage"></div>
+</section>
+<section class="card decision-gate">
+  <div class="section-head">
+    <span>MTF DATA SUFFICIENCY</span>
+    <span class="meta">DATA COVERAGE ≠ MARKET DIRECTION</span>
+  </div>
+  <div class="mtf-sufficiency" id="mtfSufficiency"></div>
+</section>
+<details class="card" style="margin-top:8px" open>
+  <summary>MULTI-TIMEFRAME MARKET CONTEXT</summary>
+  <div class="content">
+    <div class="mtf" id="mtf"></div>
+  </div>
+</details>
+</section>
+<section class="r24-tab-panel" id="r24-panel-scanner" data-r24-panel="scanner" role="tabpanel" aria-labelledby="r24-tab-scanner" tabindex="0" hidden>
+<!-- R19_SCANNER_UI_START -->
+<details class="card scanner-card">
+  <summary>
+    <span>JAGUAR SCANNER</span>
+    <span class="meta">CANDIDATE DISCOVERY · READ-ONLY</span>
+  </summary>
 
+  <div class="content">
+    <div class="scanner-toolbar">
+      <select
+        class="scanner-symbol"
+        id="scannerSymbol"
+        aria-label="Scanner symbol"
+      >
+        <option value="">CURRENT SYMBOL</option>
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+        <option value="XRPUSDT">XRPUSDT</option>
+        <option value="DOGEUSDT">DOGEUSDT</option>
+        <option value="ADAUSDT">ADAUSDT</option>
+        <option value="LINKUSDT">LINKUSDT</option>
+        <option value="AVAXUSDT">AVAXUSDT</option>
+        <option value="XAUUSD">XAUUSD</option>
+      </select>
 
+      <button
+        class="scanner-action"
+        id="scannerScanSymbol"
+        type="button"
+      >
+        SCAN SYMBOL
+      </button>
 
+      <button
+        class="scanner-action"
+        id="scannerScanWatchlist"
+        type="button"
+      >
+        SCAN WATCHLIST
+      </button>
+    </div>
 
+    <div class="scanner-status" id="scannerStatus"></div>
+
+    <div class="scanner-note">
+      Scanner discovers candidates only. IDM remains the canonical decision authority.
+    </div>
+
+    <div class="scanner-error" id="scannerError"></div>
+
+    <div class="scanner-list" id="scannerList">
+      <div class="scanner-empty">
+        Scanner idle. Run a scan to discover candidates.
+      </div>
+    </div>
+  </div>
+</details>
+<!-- R19_SCANNER_UI_END -->
+<!-- R21_SCANNER_ALERT_UI_START -->
+<details class="card scanner-alert-card">
+  <summary>
+    <span>JAGUAR SCANNER ALERTS</span>
+    <span class="meta">CONTEXTUAL ALERTS · READ-ONLY</span>
+  </summary>
+
+  <div class="content">
+    <div class="scanner-alert-toolbar">
+      <select
+        class="scanner-alert-symbol"
+        id="scannerAlertSymbol"
+        aria-label="Scanner alert symbol"
+      >
+        <option value="">CURRENT SYMBOL</option>
+        <option value="BTCUSDT">BTCUSDT</option>
+        <option value="ETHUSDT">ETHUSDT</option>
+        <option value="BNBUSDT">BNBUSDT</option>
+        <option value="SOLUSDT">SOLUSDT</option>
+        <option value="XRPUSDT">XRPUSDT</option>
+        <option value="DOGEUSDT">DOGEUSDT</option>
+        <option value="ADAUSDT">ADAUSDT</option>
+        <option value="LINKUSDT">LINKUSDT</option>
+        <option value="AVAXUSDT">AVAXUSDT</option>
+        <option value="XAUUSD">XAUUSD</option>
+      </select>
+
+      <button
+        class="scanner-alert-action"
+        id="scannerAlertScanSymbol"
+        type="button"
+      >
+        SCAN ALERTS
+      </button>
+
+      <button
+        class="scanner-alert-action"
+        id="scannerAlertScanWatchlist"
+        type="button"
+      >
+        SCAN WATCHLIST ALERTS
+      </button>
+    </div>
+
+    <div
+      class="scanner-alert-status"
+      id="scannerAlertStatus"
+    ></div>
+
+    <div class="scanner-alert-list" id="scannerAlertList">
+      <div class="scanner-alert-empty">
+        Alert scanner idle. Run an alert scan to discover contextual alerts.
+      </div>
+    </div>
+  </div>
+</details>
+<!-- R21_SCANNER_ALERT_UI_END -->
 <!-- R23_SCANNER_ALERT_CONTEXT_UI_START -->
 <details class="card scanner-alert-context-card">
   <summary>
@@ -2273,6 +2274,8 @@ details[open]>summary::after{
   </div>
 </details>
 <!-- R23_SCANNER_ALERT_CONTEXT_UI_END -->
+</section>
+<section class="r24-tab-panel" id="r24-panel-news" data-r24-panel="news" role="tabpanel" aria-labelledby="r24-tab-news" tabindex="0" hidden>
 <!-- R18_NEWS_UI_START -->
 <section class="card news-card">
   <div class="section-head">
@@ -2322,7 +2325,10 @@ details[open]>summary::after{
   </div>
 </section>
 <!-- R18_NEWS_UI_END -->
-
+</section>
+<section class="r24-tab-panel" id="r24-panel-system" data-r24-panel="system" role="tabpanel" aria-labelledby="r24-tab-system" tabindex="0" hidden>
+<div class="r52-system-grid">
+  <div class="r52-system-main">
 <div class="grid2">
 
 <details class="card" open>
@@ -2349,21 +2355,11 @@ details[open]>summary::after{
 </details>
 
 </div>
-
-<details class="card" style="margin-top:8px" open>
-  <summary>MULTI-TIMEFRAME MARKET CONTEXT</summary>
-  <div class="content">
-    <div class="mtf" id="mtf"></div>
-  </div>
-</details>
-
 <details class="card" style="margin-top:8px" open>
   <summary>WHY JAGUAR DECIDED THIS</summary>
   <div class="content" id="reasons"></div>
 </details>
-
-</main>
-
+  </div>
 <aside class="side">
 
 <section class="card side-card">
@@ -2399,8 +2395,11 @@ details[open]>summary::after{
 </section>
 
 </aside>
-
 </div>
+</section>
+</main>
+</div>
+<!-- R24_DASHBOARD_TABS_UI_END -->
 
 <div class="footer">
 JAGUAR QUANT X · COMMAND CENTER V3 · READ-ONLY · NO LIVE AUTHORITY
@@ -5345,7 +5344,7 @@ function initR24DashboardTabs(){
       selectors:[
         ".hero",
         ".pipeline",
-        ".decision-gate",
+
         ".thesis-invalidation-card",
         ".what-change-card",
         ".trade-setup-card",
