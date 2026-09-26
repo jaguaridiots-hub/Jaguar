@@ -1696,270 +1696,7 @@ details[open]>summary::after{
 
 
 
-/* R21_SCANNER_ALERT_UI_START */
-let r21ScannerAlerts = null;
 
-function scannerAlertStatusClass(status){
-  const normalized=String(
-    status||"UNAVAILABLE"
-  ).toUpperCase();
-
-  if(normalized==="CURRENT"){
-    return "current";
-  }
-
-  if(normalized==="DEGRADED"){
-    return "degraded";
-  }
-
-  return "unavailable";
-}
-
-function renderScannerAlerts(){
-  const statusEl=document.getElementById(
-    "scannerAlertStatus"
-  );
-
-  const listEl=document.getElementById(
-    "scannerAlertList"
-  );
-
-  if(!statusEl || !listEl){
-    return;
-  }
-
-  const result=r21ScannerAlerts;
-
-  if(!result){
-    setDashboardInnerHTML(statusEl,"";
-    setDashboardInnerHTML(listEl,
-      '<div class="scanner-alert-empty">'+
-      'Alert scanner idle. Run an alert scan to discover contextual alerts.'+
-      '</div>';
-    return;
-  }
-
-  const status=String(
-    result.status||"UNAVAILABLE"
-  ).toUpperCase();
-
-  setDashboardInnerHTML(statusEl,
-    '<span class="scanner-alert-status-pill '+
-    scannerAlertStatusClass(status)+
-    '">'+
-    status+
-    '</span>'+
-    '<span class="meta">'+
-    'SCANNED '+
-    Number(result.scanned_symbols||0)+
-    ' · ALERTS '+
-    Number(result.alert_count||0)+
-    '</span>';
-
-  if(
-    Array.isArray(result.errors) &&
-    result.errors.length
-  ){
-    statusEl.innerHTML+=
-      '<span class="meta">'+
-      'ERRORS '+
-      result.errors.length+
-      '</span>';
-  }
-
-  const alerts=Array.isArray(result.alerts)
-    ? result.alerts
-    : [];
-
-  if(!alerts.length){
-    setDashboardInnerHTML(listEl,
-      '<div class="scanner-alert-empty">'+
-      'No contextual scanner alerts found.'+
-      '</div>';
-    return;
-  }
-
-  setDashboardInnerHTML(listEl,alerts.map(
-    alert=>{
-      const priority=String(
-        alert.priority||"MEDIUM"
-      ).toUpperCase();
-
-      const direction=String(
-        alert.direction||"NEUTRAL"
-      ).toUpperCase();
-
-      const factors=Array.isArray(
-        alert.dominant_factors
-      )
-        ? alert.dominant_factors.join(", ")
-        : "n/a";
-
-      return `
-        <article class="scanner-alert-item">
-          <div class="scanner-alert-head">
-            <div class="scanner-alert-title">
-              ${alert.symbol||"UNKNOWN"}
-              · ${direction}
-              · ${alert.setup||"CONFLUENCE"}
-            </div>
-
-            <span class="scanner-alert-badge">
-              ${priority}
-            </span>
-          </div>
-
-          <div class="scanner-alert-meta">
-            <span>TF ${alert.timeframe||"n/a"}</span>
-            <span>STATE ${alert.state||"n/a"}</span>
-            <span>CONF ${Number(alert.confidence||0)}</span>
-            <span>CONFLUENCE ${Number(alert.confluence_score||0)}</span>
-            <span>CONFLICTS ${Number(alert.conflict_count||0)}</span>
-          </div>
-
-          <div class="scanner-alert-meta">
-            <span>FACTORS ${factors}</span>
-          </div>
-
-          <div class="scanner-alert-explanation">
-            ${alert.explanation||"No explanation available."}
-          </div>
-        </article>
-      `;
-    }
-  ).join("");
-}
-
-async function loadScannerAlerts(symbol=null){
-  const scanSymbolEl=document.getElementById(
-    "scannerAlertScanSymbol"
-  );
-
-  const scanWatchlistEl=document.getElementById(
-    "scannerAlertScanWatchlist"
-  );
-
-  const activeSymbol=resolveScannerAlertSymbol(symbol);
-
-  const buttons=[
-    scanSymbolEl,
-    scanWatchlistEl
-  ].filter(Boolean);
-
-  buttons.forEach(button=>{
-    setDashboardControlDisabled(button,true);
-  });
-
-  if(scanSymbolEl){
-    setDashboardTextContent(scanSymbolEl,"SCANNING…";
-  }
-
-  if(scanWatchlistEl){
-    setDashboardTextContent(scanWatchlistEl,"SCANNING…";
-  }
-
-  try{
-    const url=
-      activeSymbol
-        ? `/scanner/alerts?symbol=${encodeURIComponent(activeSymbol)}`
-        : "/scanner/alerts";
-
-    const response=await fetch(
-      url,
-      {cache:"no-store"}
-    );
-
-    if(!response.ok){
-      throw new Error(
-        `HTTP ${response.status}`
-      );
-    }
-
-    r21ScannerAlerts=await response.json();
-
-    renderScannerAlerts();
-  }catch(error){
-    r21ScannerAlerts={
-      status:"UNAVAILABLE",
-      scanned_symbols:0,
-      alert_count:0,
-      alerts:[],
-      errors:[
-        {
-          error:String(
-            error &&
-            error.message
-              ? error.message
-              : error
-          )
-        }
-      ]
-    };
-
-    renderScannerAlerts();
-  }finally{
-    buttons.forEach(button=>{
-      setDashboardControlDisabled(button,false);
-    });
-
-    if(scanSymbolEl){
-      setDashboardTextContent(scanSymbolEl,"SCAN ALERTS";
-    }
-
-    if(scanWatchlistEl){
-      setDashboardTextContent(scanWatchlistEl,
-        "SCAN WATCHLIST ALERTS";
-    }
-  }
-}
-
-function initScannerAlertControls(){
-  const symbolEl=document.getElementById(
-    "scannerAlertSymbol"
-  );
-
-  const scanSymbolEl=document.getElementById(
-    "scannerAlertScanSymbol"
-  );
-
-  const scanWatchlistEl=document.getElementById(
-    "scannerAlertScanWatchlist"
-  );
-
-  if(scanSymbolEl){
-    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
-      const selected=getDashboardControlValue(symbolEl);
-
-      setDashboardFilter(
-        "scannerAlertSymbol",
-        selected
-      );
-
-      const symbol=
-        selected || getActiveSymbol();
-
-      loadScannerAlerts(symbol);
-    });
-  }
-
-  if(scanWatchlistEl){
-    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
-      if(symbolEl){
-        setDashboardControlValue(symbolEl,"");
-      }
-
-      setDashboardFilter(
-        "scannerAlertSymbol",
-        ""
-      );
-
-      loadScannerAlerts("");
-    });
-  }
-
-  renderScannerAlerts();
-}
-/* R21_SCANNER_ALERT_UI_END */
 
 
 
@@ -2472,389 +2209,7 @@ function initScannerAlertControls(){
 
 
 
-/* R19_SCANNER_UI_START */
-function scannerStatusClass(status){
-  const normalized=String(
-    status||"UNAVAILABLE"
-  ).toUpperCase();
 
-  if(normalized==="CURRENT"){
-    return "current";
-  }
-
-  if(normalized==="DEGRADED"){
-    return "degraded";
-  }
-
-  return "unavailable";
-}
-
-function scannerDirectionClass(direction){
-  const value=String(
-    direction||"NEUTRAL"
-  ).toUpperCase();
-
-  if(value==="LONG"){
-    return "long";
-  }
-
-  if(value==="SHORT"){
-    return "short";
-  }
-
-  return "neutral";
-}
-
-function renderScanner(){
-  const snapshot=state.scanner||{};
-
-  const status=String(
-    snapshot.status||"UNAVAILABLE"
-  ).toUpperCase();
-
-  const candidates=Array.isArray(
-    snapshot.candidates
-  )
-    ? snapshot.candidates
-    : [];
-
-  const statusEl=document.getElementById(
-    "scannerStatus"
-  );
-
-  const errorEl=document.getElementById(
-    "scannerError"
-  );
-
-  const listEl=document.getElementById(
-    "scannerList"
-  );
-
-  if(!statusEl || !errorEl || !listEl){
-    return;
-  }
-
-  const scanned=Number(
-    snapshot.scanned_symbols||0
-  );
-
-  const count=Number(
-    snapshot.candidate_count||0
-  );
-
-  setDashboardInnerHTML(statusEl,
-    `<span class="scanner-pill ${scannerStatusClass(status)}">`+
-    `STATUS · ${esc(status)}`+
-    `</span>`+
-    `<span class="scanner-pill">`+
-    `SCANNED · ${fmt(scanned,0)}`+
-    `</span>`+
-    `<span class="scanner-pill">`+
-    `CANDIDATES · ${fmt(count,0)}`+
-    `</span>`;
-
-  setDashboardTextContent(errorEl,
-    Array.isArray(snapshot.errors) &&
-    snapshot.errors.length
-      ? snapshot.errors.map(
-          error=>String(
-            error.error||"Scanner provider error"
-          )
-        ).join(" · ")
-      : "";
-
-  if(!candidates.length){
-    setDashboardInnerHTML(listEl,
-      `<div class="scanner-empty">`+
-      (
-        status==="UNAVAILABLE"
-          ? "Scanner unavailable or no valid market data is available."
-          : "No scanner candidates meet the current discovery gates."
-      )+
-      `</div>`;
-
-    return;
-  }
-
-  setDashboardInnerHTML(listEl,candidates.map(candidate=>{
-    const symbol=esc(
-      String(candidate.symbol||"—")
-    );
-
-    const direction=esc(
-      String(candidate.direction||"NEUTRAL")
-    );
-
-    const score=fmt(
-      candidate.score,
-      0
-    );
-
-    const confidence=fmt(
-      candidate.confidence,
-      0
-    )+"%";
-
-    const structure=candidate.structure||{};
-    const quality=candidate.data_quality||{};
-
-    const structureTrend=esc(
-      String(structure.trend||"NEUTRAL")
-    );
-
-    const bos=esc(
-      String(structure.bos||"NEUTRAL")
-    );
-
-    const mtf=quality.mtf||{};
-    const mtfValues=Object.values(mtf);
-
-    const primaryTrend=
-      mtf.primary
-        ? String(mtf.primary)
-        : "";
-
-    const aligned=primaryTrend
-      ? mtfValues.filter(
-          value=>String(value)===primaryTrend
-        ).length
-      : 0;
-
-    const dataQuality=fmt(
-      quality.quality,
-      0
-    )+"%";
-
-    const evidence=Array.isArray(
-      candidate.evidence
-    )
-      ? candidate.evidence
-      : [];
-
-    const chips=evidence.slice(0,8).map(item=>{
-      const name=esc(
-        String(item.name||"—")
-      );
-
-      const signal=esc(
-        String(item.signal||"NEUTRAL")
-      );
-
-      return `
-        <span class="scanner-evidence-chip">
-          ${name} · ${signal}
-        </span>
-      `;
-    }).join("");
-
-    return `
-      <article class="scanner-item">
-        <div class="scanner-item-head">
-          <div>
-            <div class="scanner-item-symbol">
-              ${symbol}
-            </div>
-
-            <div class="meta">
-              ${esc(String(candidate.timeframe||"15m"))}
-              ·
-              ${structureTrend}
-            </div>
-          </div>
-
-          <span class="scanner-pill scanner-item-direction ${scannerDirectionClass(direction)}">
-            ${direction}
-          </span>
-        </div>
-
-        <div class="scanner-metrics">
-          <div class="scanner-metric">
-            <div class="scanner-metric-label">
-              SCORE
-            </div>
-            <div class="scanner-metric-value">
-              ${score}
-            </div>
-          </div>
-
-          <div class="scanner-metric">
-            <div class="scanner-metric-label">
-              CONFIDENCE
-            </div>
-            <div class="scanner-metric-value">
-              ${confidence}
-            </div>
-          </div>
-
-          <div class="scanner-metric">
-            <div class="scanner-metric-label">
-              DATA QUALITY
-            </div>
-            <div class="scanner-metric-value">
-              ${dataQuality}
-            </div>
-          </div>
-
-          <div class="scanner-metric">
-            <div class="scanner-metric-label">
-              MTF ALIGNMENT
-            </div>
-            <div class="scanner-metric-value">
-              ${fmt(aligned,0)}/${fmt(mtfValues.length,0)}
-            </div>
-          </div>
-        </div>
-
-        <div class="scanner-evidence">
-          <span class="scanner-evidence-chip">
-            STRUCTURE · ${structureTrend}
-          </span>
-
-          <span class="scanner-evidence-chip">
-            BOS · ${bos}
-          </span>
-
-          ${chips}
-        </div>
-
-        <div class="scanner-candidate-only">
-          SCANNER CANDIDATE ONLY · NOT EXECUTION AUTHORIZATION
-        </div>
-      </article>
-    `;
-  }).join("");
-}
-
-async function loadScanner(symbol=null){
-  const scanSymbolEl=document.getElementById(
-    "scannerScanSymbol"
-  );
-
-  const scanWatchlistEl=document.getElementById(
-    "scannerScanWatchlist"
-  );
-
-  const activeSymbol=resolveScannerSymbol(symbol);
-
-  const buttons=[
-    scanSymbolEl,
-    scanWatchlistEl
-  ].filter(Boolean);
-
-  buttons.forEach(button=>{
-    setDashboardControlDisabled(button,true);
-  });
-
-  if(scanSymbolEl){
-    setDashboardTextContent(scanSymbolEl,"SCANNING…";
-  }
-
-  if(scanWatchlistEl){
-    setDashboardTextContent(scanWatchlistEl,"SCANNING…";
-  }
-
-  try{
-    const url=
-      activeSymbol
-        ? `/scanner?symbol=${encodeURIComponent(activeSymbol)}`
-        : "/scanner";
-
-    const response=await fetch(
-      url,
-      {cache:"no-store"}
-    );
-
-    const data=await response.json();
-
-    if(!response.ok){
-      throw new Error(
-        data.detail||("HTTP "+response.status)
-      );
-    }
-
-    setDashboardScannerState(data);
-    renderScanner();
-
-  }catch(error){
-    setDashboardScannerState({
-      status:"UNAVAILABLE",
-      generated_at:Date.now(),
-      scanned_symbols:0,
-      candidate_count:0,
-      candidates:[],
-      errors:[
-        {
-          symbol:activeSymbol||"",
-          timeframe:"",
-          error:String(error)
-        }
-      ]
-    });
-
-    renderScanner();
-
-  }finally{
-    buttons.forEach(button=>{
-      setDashboardControlDisabled(button,false);
-    });
-
-    if(scanSymbolEl){
-      setDashboardTextContent(scanSymbolEl,"SCAN SYMBOL";
-    }
-
-    if(scanWatchlistEl){
-      setDashboardTextContent(scanWatchlistEl,"SCAN WATCHLIST";
-    }
-  }
-}
-
-function initScannerControls(){
-  const symbolEl=document.getElementById(
-    "scannerSymbol"
-  );
-
-  const scanSymbolEl=document.getElementById(
-    "scannerScanSymbol"
-  );
-
-  const scanWatchlistEl=document.getElementById(
-    "scannerScanWatchlist"
-  );
-
-  if(scanSymbolEl){
-    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
-      const selected=getDashboardControlValue(symbolEl);
-
-      setDashboardFilter(
-        "scannerSymbol",
-        selected
-      );
-
-      const symbol=
-        selected || getActiveSymbol();
-
-      loadScanner(symbol);
-    });
-  }
-
-  if(scanWatchlistEl){
-    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
-      if(symbolEl){
-        setDashboardControlValue(symbolEl,"");
-      }
-
-      setDashboardFilter(
-        "scannerSymbol",
-        ""
-      );
-
-      loadScanner("");
-    });
-  }
-
-  renderScanner();
-}
-/* R19_SCANNER_UI_END */
 
 
 
@@ -3054,6 +2409,654 @@ JAGUAR QUANT X · COMMAND CENTER V3 · READ-ONLY · NO LIVE AUTHORITY
 </div>
 
 <script>
+/* R21_SCANNER_ALERT_UI_START */
+let r21ScannerAlerts = null;
+
+function scannerAlertStatusClass(status){
+  const normalized=String(
+    status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  if(normalized==="CURRENT"){
+    return "current";
+  }
+
+  if(normalized==="DEGRADED"){
+    return "degraded";
+  }
+
+  return "unavailable";
+}
+
+function renderScannerAlerts(){
+  const statusEl=document.getElementById(
+    "scannerAlertStatus"
+  );
+
+  const listEl=document.getElementById(
+    "scannerAlertList"
+  );
+
+  if(!statusEl || !listEl){
+    return;
+  }
+
+  const result=r21ScannerAlerts;
+
+  if(!result){
+    setDashboardInnerHTML(statusEl,"");
+    setDashboardInnerHTML(listEl,
+      '<div class="scanner-alert-empty">'+
+      'Alert scanner idle. Run an alert scan to discover contextual alerts.'+
+      '</div>');
+    return;
+  }
+
+  const status=String(
+    result.status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  setDashboardInnerHTML(statusEl,
+    '<span class="scanner-alert-status-pill '+
+    scannerAlertStatusClass(status)+
+    '">'+
+    status+
+    '</span>'+
+    '<span class="meta">'+
+    'SCANNED '+
+    Number(result.scanned_symbols||0)+
+    ' · ALERTS '+
+    Number(result.alert_count||0)+
+    '</span>');
+
+  if(
+    Array.isArray(result.errors) &&
+    result.errors.length
+  ){
+    statusEl.innerHTML+=
+      '<span class="meta">'+
+      'ERRORS '+
+      result.errors.length+
+      '</span>';
+  }
+
+  const alerts=Array.isArray(result.alerts)
+    ? result.alerts
+    : [];
+
+  if(!alerts.length){
+    setDashboardInnerHTML(listEl,
+      '<div class="scanner-alert-empty">'+
+      'No contextual scanner alerts found.'+
+      '</div>');
+    return;
+  }
+
+  setDashboardInnerHTML(listEl,alerts.map(
+    alert=>{
+      const priority=String(
+        alert.priority||"MEDIUM"
+      ).toUpperCase();
+
+      const direction=String(
+        alert.direction||"NEUTRAL"
+      ).toUpperCase();
+
+      const factors=Array.isArray(
+        alert.dominant_factors
+      )
+        ? alert.dominant_factors.join(", ")
+        : "n/a";
+
+      return `
+        <article class="scanner-alert-item">
+          <div class="scanner-alert-head">
+            <div class="scanner-alert-title">
+              ${alert.symbol||"UNKNOWN"}
+              · ${direction}
+              · ${alert.setup||"CONFLUENCE"}
+            </div>
+
+            <span class="scanner-alert-badge">
+              ${priority}
+            </span>
+          </div>
+
+          <div class="scanner-alert-meta">
+            <span>TF ${alert.timeframe||"n/a"}</span>
+            <span>STATE ${alert.state||"n/a"}</span>
+            <span>CONF ${Number(alert.confidence||0)}</span>
+            <span>CONFLUENCE ${Number(alert.confluence_score||0)}</span>
+            <span>CONFLICTS ${Number(alert.conflict_count||0)}</span>
+          </div>
+
+          <div class="scanner-alert-meta">
+            <span>FACTORS ${factors}</span>
+          </div>
+
+          <div class="scanner-alert-explanation">
+            ${alert.explanation||"No explanation available."}
+          </div>
+        </article>
+      `;
+    }
+  ).join(""));
+}
+
+async function loadScannerAlerts(symbol=null){
+  const scanSymbolEl=document.getElementById(
+    "scannerAlertScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerAlertScanWatchlist"
+  );
+
+  const activeSymbol=resolveScannerAlertSymbol(symbol);
+
+  const buttons=[
+    scanSymbolEl,
+    scanWatchlistEl
+  ].filter(Boolean);
+
+  buttons.forEach(button=>{
+    setDashboardControlDisabled(button,true);
+  });
+
+  if(scanSymbolEl){
+    setDashboardTextContent(scanSymbolEl,"SCANNING…");
+  }
+
+  if(scanWatchlistEl){
+    setDashboardTextContent(scanWatchlistEl,"SCANNING…");
+  }
+
+  try{
+    const url=
+      activeSymbol
+        ? `/scanner/alerts?symbol=${encodeURIComponent(activeSymbol)}`
+        : "/scanner/alerts";
+
+    const response=await fetch(
+      url,
+      {cache:"no-store"}
+    );
+
+    if(!response.ok){
+      throw new Error(
+        `HTTP ${response.status}`
+      );
+    }
+
+    r21ScannerAlerts=await response.json();
+
+    renderScannerAlerts();
+  }catch(error){
+    r21ScannerAlerts={
+      status:"UNAVAILABLE",
+      scanned_symbols:0,
+      alert_count:0,
+      alerts:[],
+      errors:[
+        {
+          error:String(
+            error &&
+            error.message
+              ? error.message
+              : error
+          )
+        }
+      ]
+    };
+
+    renderScannerAlerts();
+  }finally{
+    buttons.forEach(button=>{
+      setDashboardControlDisabled(button,false);
+    });
+
+    if(scanSymbolEl){
+      setDashboardTextContent(scanSymbolEl,"SCAN ALERTS");
+    }
+
+    if(scanWatchlistEl){
+      setDashboardTextContent(scanWatchlistEl,
+        "SCAN WATCHLIST ALERTS");
+    }
+  }
+}
+
+function initScannerAlertControls(){
+  const symbolEl=document.getElementById(
+    "scannerAlertSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerAlertScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerAlertScanWatchlist"
+  );
+
+  if(scanSymbolEl){
+    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
+      const selected=getDashboardControlValue(symbolEl);
+
+      setDashboardFilter(
+        "scannerAlertSymbol",
+        selected
+      );
+
+      const symbol=
+        selected || getActiveSymbol();
+
+      loadScannerAlerts(symbol);
+    });
+  }
+
+  if(scanWatchlistEl){
+    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
+      if(symbolEl){
+        setDashboardControlValue(symbolEl,"");
+      }
+
+      setDashboardFilter(
+        "scannerAlertSymbol",
+        ""
+      );
+
+      loadScannerAlerts("");
+    });
+  }
+
+  renderScannerAlerts();
+}
+/* R21_SCANNER_ALERT_UI_END */
+
+/* R19_SCANNER_UI_START */
+function scannerStatusClass(status){
+  const normalized=String(
+    status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  if(normalized==="CURRENT"){
+    return "current";
+  }
+
+  if(normalized==="DEGRADED"){
+    return "degraded";
+  }
+
+  return "unavailable";
+}
+
+function scannerDirectionClass(direction){
+  const value=String(
+    direction||"NEUTRAL"
+  ).toUpperCase();
+
+  if(value==="LONG"){
+    return "long";
+  }
+
+  if(value==="SHORT"){
+    return "short";
+  }
+
+  return "neutral";
+}
+
+function renderScanner(){
+  const snapshot=state.scanner||{};
+
+  const status=String(
+    snapshot.status||"UNAVAILABLE"
+  ).toUpperCase();
+
+  const candidates=Array.isArray(
+    snapshot.candidates
+  )
+    ? snapshot.candidates
+    : [];
+
+  const statusEl=document.getElementById(
+    "scannerStatus"
+  );
+
+  const errorEl=document.getElementById(
+    "scannerError"
+  );
+
+  const listEl=document.getElementById(
+    "scannerList"
+  );
+
+  if(!statusEl || !errorEl || !listEl){
+    return;
+  }
+
+  const scanned=Number(
+    snapshot.scanned_symbols||0
+  );
+
+  const count=Number(
+    snapshot.candidate_count||0
+  );
+
+  setDashboardInnerHTML(statusEl,
+    `<span class="scanner-pill ${scannerStatusClass(status)}">`+
+    `STATUS · ${esc(status)}`+
+    `</span>`+
+    `<span class="scanner-pill">`+
+    `SCANNED · ${fmt(scanned,0)}`+
+    `</span>`+
+    `<span class="scanner-pill">`+
+    `CANDIDATES · ${fmt(count,0)}`+
+    `</span>`);
+
+  setDashboardTextContent(errorEl,
+    Array.isArray(snapshot.errors) &&
+    snapshot.errors.length
+      ? snapshot.errors.map(
+          error=>String(
+            error.error||"Scanner provider error"
+          )
+        ).join(" · ")
+      : "");
+
+  if(!candidates.length){
+    setDashboardInnerHTML(listEl,
+      `<div class="scanner-empty">`+
+      (
+        status==="UNAVAILABLE"
+          ? "Scanner unavailable or no valid market data is available."
+          : "No scanner candidates meet the current discovery gates."
+      )+
+      `</div>`);
+
+    return;
+  }
+
+  setDashboardInnerHTML(listEl,candidates.map(candidate=>{
+    const symbol=esc(
+      String(candidate.symbol||"—")
+    );
+
+    const direction=esc(
+      String(candidate.direction||"NEUTRAL")
+    );
+
+    const score=fmt(
+      candidate.score,
+      0
+    );
+
+    const confidence=fmt(
+      candidate.confidence,
+      0
+    )+"%";
+
+    const structure=candidate.structure||{};
+    const quality=candidate.data_quality||{};
+
+    const structureTrend=esc(
+      String(structure.trend||"NEUTRAL")
+    );
+
+    const bos=esc(
+      String(structure.bos||"NEUTRAL")
+    );
+
+    const mtf=quality.mtf||{};
+    const mtfValues=Object.values(mtf);
+
+    const primaryTrend=
+      mtf.primary
+        ? String(mtf.primary)
+        : "";
+
+    const aligned=primaryTrend
+      ? mtfValues.filter(
+          value=>String(value)===primaryTrend
+        ).length
+      : 0;
+
+    const dataQuality=fmt(
+      quality.quality,
+      0
+    )+"%";
+
+    const evidence=Array.isArray(
+      candidate.evidence
+    )
+      ? candidate.evidence
+      : [];
+
+    const chips=evidence.slice(0,8).map(item=>{
+      const name=esc(
+        String(item.name||"—")
+      );
+
+      const signal=esc(
+        String(item.signal||"NEUTRAL")
+      );
+
+      return `
+        <span class="scanner-evidence-chip">
+          ${name} · ${signal}
+        </span>
+      `;
+    }).join("");
+
+    return `
+      <article class="scanner-item">
+        <div class="scanner-item-head">
+          <div>
+            <div class="scanner-item-symbol">
+              ${symbol}
+            </div>
+
+            <div class="meta">
+              ${esc(String(candidate.timeframe||"15m"))}
+              ·
+              ${structureTrend}
+            </div>
+          </div>
+
+          <span class="scanner-pill scanner-item-direction ${scannerDirectionClass(direction)}">
+            ${direction}
+          </span>
+        </div>
+
+        <div class="scanner-metrics">
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              SCORE
+            </div>
+            <div class="scanner-metric-value">
+              ${score}
+            </div>
+          </div>
+
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              CONFIDENCE
+            </div>
+            <div class="scanner-metric-value">
+              ${confidence}
+            </div>
+          </div>
+
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              DATA QUALITY
+            </div>
+            <div class="scanner-metric-value">
+              ${dataQuality}
+            </div>
+          </div>
+
+          <div class="scanner-metric">
+            <div class="scanner-metric-label">
+              MTF ALIGNMENT
+            </div>
+            <div class="scanner-metric-value">
+              ${fmt(aligned,0)}/${fmt(mtfValues.length,0)}
+            </div>
+          </div>
+        </div>
+
+        <div class="scanner-evidence">
+          <span class="scanner-evidence-chip">
+            STRUCTURE · ${structureTrend}
+          </span>
+
+          <span class="scanner-evidence-chip">
+            BOS · ${bos}
+          </span>
+
+          ${chips}
+        </div>
+
+        <div class="scanner-candidate-only">
+          SCANNER CANDIDATE ONLY · NOT EXECUTION AUTHORIZATION
+        </div>
+      </article>
+    `;
+  }).join(""));
+}
+
+async function loadScanner(symbol=null){
+  const scanSymbolEl=document.getElementById(
+    "scannerScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerScanWatchlist"
+  );
+
+  const activeSymbol=resolveScannerSymbol(symbol);
+
+  const buttons=[
+    scanSymbolEl,
+    scanWatchlistEl
+  ].filter(Boolean);
+
+  buttons.forEach(button=>{
+    setDashboardControlDisabled(button,true);
+  });
+
+  if(scanSymbolEl){
+    setDashboardTextContent(scanSymbolEl,"SCANNING…");
+  }
+
+  if(scanWatchlistEl){
+    setDashboardTextContent(scanWatchlistEl,"SCANNING…");
+  }
+
+  try{
+    const url=
+      activeSymbol
+        ? `/scanner?symbol=${encodeURIComponent(activeSymbol)}`
+        : "/scanner";
+
+    const response=await fetch(
+      url,
+      {cache:"no-store"}
+    );
+
+    const data=await response.json();
+
+    if(!response.ok){
+      throw new Error(
+        data.detail||("HTTP "+response.status)
+      );
+    }
+
+    setDashboardScannerState(data);
+    renderScanner();
+
+  }catch(error){
+    setDashboardScannerState({
+      status:"UNAVAILABLE",
+      generated_at:Date.now(),
+      scanned_symbols:0,
+      candidate_count:0,
+      candidates:[],
+      errors:[
+        {
+          symbol:activeSymbol||"",
+          timeframe:"",
+          error:String(error)
+        }
+      ]
+    });
+
+    renderScanner();
+
+  }finally{
+    buttons.forEach(button=>{
+      setDashboardControlDisabled(button,false);
+    });
+
+    if(scanSymbolEl){
+      setDashboardTextContent(scanSymbolEl,"SCAN SYMBOL");
+    }
+
+    if(scanWatchlistEl){
+      setDashboardTextContent(scanWatchlistEl,"SCAN WATCHLIST");
+    }
+  }
+}
+
+function initScannerControls(){
+  const symbolEl=document.getElementById(
+    "scannerSymbol"
+  );
+
+  const scanSymbolEl=document.getElementById(
+    "scannerScanSymbol"
+  );
+
+  const scanWatchlistEl=document.getElementById(
+    "scannerScanWatchlist"
+  );
+
+  if(scanSymbolEl){
+    setDashboardEventHandler(scanSymbolEl,"onclick",()=>{
+      const selected=getDashboardControlValue(symbolEl);
+
+      setDashboardFilter(
+        "scannerSymbol",
+        selected
+      );
+
+      const symbol=
+        selected || getActiveSymbol();
+
+      loadScanner(symbol);
+    });
+  }
+
+  if(scanWatchlistEl){
+    setDashboardEventHandler(scanWatchlistEl,"onclick",()=>{
+      if(symbolEl){
+        setDashboardControlValue(symbolEl,"");
+      }
+
+      setDashboardFilter(
+        "scannerSymbol",
+        ""
+      );
+
+      loadScanner("");
+    });
+  }
+
+  renderScanner();
+}
+/* R19_SCANNER_UI_END */
 const state={
   symbol:"BTCUSDT",
   interval:"15m",
@@ -3540,7 +3543,7 @@ function renderWatch(){
       <div class="asset-symbol">${esc(s)}</div>
       <div class="asset-meta">15m · SWING</div>
     </button>
-  `).join("");
+  `).join(""));
 
   box.querySelectorAll(".asset").forEach(b=>{
     setDashboardEventHandler(b,"onclick",()=>{
@@ -3740,19 +3743,19 @@ const confidence=u.confidence_breakdown||{};
 
   const mode=String(sys.mode||"UNKNOWN").toUpperCase();
 
-  setDashboardTextContent(document.getElementById("modeBadge"),"EXECUTION · "+mode;
+  setDashboardTextContent(document.getElementById("modeBadge"),"EXECUTION · "+mode);
   setDashboardClassName(
     document.getElementById("modeBadge"),
     "badge "+(mode==="PAPER"?"paper":"bad")
   );
 
-  setDashboardTextContent(document.getElementById("healthBadge"),"SYSTEM · "+(sys.health||"UNKNOWN");
+  setDashboardTextContent(document.getElementById("healthBadge"),"SYSTEM · "+(sys.health||"UNKNOWN"));
   setDashboardClassName(
     document.getElementById("healthBadge"),
     "badge "+(sys.health==="HEALTHY"?"ok":"bad")
   );
 
-  setDashboardTextContent(document.getElementById("freshBadge"),"FRESHNESS · "+freshness;
+  setDashboardTextContent(document.getElementById("freshBadge"),"FRESHNESS · "+freshness);
   setDashboardClassName(
     document.getElementById("freshBadge"),
     "badge "+
@@ -3771,7 +3774,7 @@ const confidence=u.confidence_breakdown||{};
     dataQuality.reason||""
   ).trim();
 
-  setDashboardTextContent(document.getElementById("dataQualityBadge"),"DATA · "+qualityStatus;
+  setDashboardTextContent(document.getElementById("dataQualityBadge"),"DATA · "+qualityStatus);
 
   setDashboardClassName(
     document.getElementById("dataQualityBadge"),
@@ -3789,20 +3792,20 @@ const confidence=u.confidence_breakdown||{};
     `Data Quality ${qualityStatus} · `+
     `Candles ${dataQuality.candle_count ?? "—"} · `+
     `Gaps ${dataQuality.gap_count ?? 0}`+
-    (qualityReason ? ` · ${qualityReason}` : "");
+      (qualityReason ? ` · ${qualityReason}` : ""));
 
-  setDashboardTextContent(document.getElementById("symbol"),market.symbol||getActiveSymbol();
-  setDashboardTextContent(document.getElementById("price"),fmt(market.price,2);
+  setDashboardTextContent(document.getElementById("symbol"),market.symbol||getActiveSymbol());
+  setDashboardTextContent(document.getElementById("price"),fmt(market.price,2));
 
   setDashboardTextContent(document.getElementById("marketLine"),
-    `${market.status||"UNKNOWN"} · ${market.timeframe||getActiveInterval()} · ${getActiveMode()}`;
+      `${market.status||"UNKNOWN"} · ${market.timeframe||getActiveInterval()} · ${getActiveMode()}`);
 
   setDashboardTextContent(document.getElementById("freshLine"),
-    `Snapshot ${freshness} · ${fresh.generated_at||"—"}`;
+      `Snapshot ${freshness} · ${fresh.generated_at||"—"}`);
 
   const decision=String(idm.decision||"WAIT").toUpperCase();
   const decisionEl=document.getElementById("decision");
-  setDashboardTextContent(decisionEl,decision;
+    setDashboardTextContent(decisionEl,decision);
   setDashboardClassName(
     decisionEl,
     "decision "+cls(decision)
@@ -3812,19 +3815,19 @@ const confidence=u.confidence_breakdown||{};
   const decisionContext=document.getElementById("decisionContext");
   setDashboardInnerHTML(decisionContext,
     directionIcon(headlineDirection)+" "+
-    esc(headlineDirection)+" · Priority "+esc(idm.priority||"—");
+      esc(headlineDirection)+" · Priority "+esc(idm.priority||"—"));
   setDashboardClassName(
     decisionContext,
     "decision-context "+directionClass(headlineDirection)
   );
 
   setDashboardTextContent(document.getElementById("zoneContext"),
-    `${idm.zone||"NONE"} · ${idm.zone_lifecycle||"UNKNOWN"} · ${idm.location||"UNKNOWN"}`;
+      `${idm.zone||"NONE"} · ${idm.zone_lifecycle||"UNKNOWN"} · ${idm.location||"UNKNOWN"}`);
 
-  setDashboardTextContent(document.getElementById("score"),fmt(idm.score);
-  setDashboardTextContent(document.getElementById("confidence"),fmt(idm.confidence)+"%";
-  setDashboardTextContent(document.getElementById("grade"),idm.grade||"—";
-  setDashboardTextContent(document.getElementById("readiness"),idm.readiness||"—";
+  setDashboardTextContent(document.getElementById("score"),fmt(idm.score));
+  setDashboardTextContent(document.getElementById("confidence"),fmt(idm.confidence)+"%");
+  setDashboardTextContent(document.getElementById("grade"),idm.grade||"—");
+  setDashboardTextContent(document.getElementById("readiness"),idm.readiness||"—");
 
   setPipeline("pipeMarket",market.status||"UNKNOWN");
   setPipeline("pipeIdm",idm.decision||"WAIT");
@@ -3832,27 +3835,27 @@ const confidence=u.confidence_breakdown||{};
   setPipeline("pipeExec",exe.mode||"UNKNOWN");
 
   setDashboardTextContent(document.getElementById("chartMeta"),
-    `${state.candles.length} candles · ${market.timeframe||getActiveInterval()}`;
+      `${state.candles.length} candles · ${market.timeframe||getActiveInterval()}`);
 
   const idmMissing=Array.isArray(idm.missing)
     ? idm.missing.join(", ")
     : (idm.missing||"—");
 
   setDashboardTextContent(document.getElementById("gateDecision"),
-  decisionGate.decision || idm.decision || "WAIT";
+    decisionGate.decision || idm.decision || "WAIT");
 
 setDashboardTextContent(document.getElementById("gateAuthorization"),
   decisionGate.authorization ||
-  (idm.approved ? "AUTHORIZED" : "BLOCKED");
+    (idm.approved ? "AUTHORIZED" : "BLOCKED"));
 
 setDashboardTextContent(document.getElementById("gateBlocker"),
-  decisionGate.blocker || "NONE";
+    decisionGate.blocker || "NONE");
 
 setDashboardTextContent(document.getElementById("gateBlockerStatus"),
-  decisionGate.blocker_status || "CLEAR";
+    decisionGate.blocker_status || "CLEAR");
 
 setDashboardTextContent(document.getElementById("gateReason"),
-  decisionGate.reason || "—";
+    decisionGate.reason || "—");
 
 const gateConditions =
   decisionGate.next_conditions || [];
@@ -3864,7 +3867,7 @@ setDashboardInnerHTML(document.getElementById("gateConditions"),
           esc(String(x))
         }</li>`
       ).join("")}</ul>`
-    : "No additional condition identified.";
+      : "No additional condition identified.");
 
 setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
   <div class="mtf-suff-tile">
@@ -3900,7 +3903,7 @@ setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
     )}</div>
     <div class="mtf-suff-note">missing MTF context</div>
   </div>
-`;
+  `);
 
 
   // ----------------------------------------------------------
@@ -3990,7 +3993,7 @@ setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
       <div class="gate-label">ACTIVE INVALIDATION</div>
       ${thesisList(activeInvalidation)}
     </div>
-  `;
+    `);
 
   // ----------------------------------------------------------
   // WHAT WOULD CHANGE DECISION
@@ -4125,7 +4128,7 @@ setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
       <div class="gate-label">CURRENT CONFLICTS</div>
       ${conflictList}
     </div>
-  `;
+    `);
 
   // ----------------------------------------------------------
   // TRADE SETUP
@@ -4200,7 +4203,7 @@ setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
           : "NO"
       )}
     </div>
-  `;
+  `);
 
   // ----------------------------------------------------------
   // CONFIDENCE BREAKDOWN
@@ -4278,7 +4281,7 @@ setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
           : fmt(confidenceMtf.score)
       )}
     </div>
-  `;
+  `);
 
   const confidenceEngines =
     confidence.engines &&
@@ -4327,13 +4330,13 @@ setDashboardInnerHTML(document.getElementById("mtfSufficiency"), `
 
   setDashboardInnerHTML(document.getElementById("confidenceEngines"),
     confidenceEngineRows ||
-    `<div class="banner">No canonical engine confidence evidence available.</div>`;
+    `<div class="banner">No canonical engine confidence evidence available.</div>`);
 
   setDashboardInnerHTML(document.getElementById("confidenceMethod"),
     `<div class="banner">${esc(
       confidence.method ||
       "Canonical evidence only; no derived composite confidence."
-    )}</div>`;
+    )}</div>`);
 
 setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Decision",idm.decision),
@@ -4348,7 +4351,7 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Trigger",idm.trigger),
     row("Confirmed",idm.trigger_confirmed?"YES":"NO"),
     row("Missing",idmMissing)
-  ].join("");
+  ].join(""));
 
   setDashboardInnerHTML(document.getElementById("structureRows"),[
     row("Trend",st.trend),
@@ -4367,7 +4370,7 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Zone",st.zone_type),
     rowMarkup("Zone Direction",directionMarkup(st.zone_direction)),
     row("Lifecycle",st.zone_lifecycle)
-  ].join("");
+  ].join(""));
 
   setDashboardInnerHTML(document.getElementById("riskRows"),[
     row("Approved",risk.approved?"YES":"NO"),
@@ -4377,7 +4380,7 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Risk Amount",fmt(risk.risk_amount)),
     row("Exposure",fmt(risk.exposure)),
     row("Reason",risk.reason||"—")
-  ].join("");
+  ].join(""));
 
   setDashboardInnerHTML(document.getElementById("executionRows"),[
     row("Mode",exe.mode),
@@ -4387,17 +4390,17 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Gate",exe.gate),
     row("Broker",exe.broker),
     row("Authorization",exe.authorization_id??"NONE")
-  ].join("");
+  ].join(""));
 
   setDashboardTextContent(document.getElementById("executionReason"),
-    exe.reason||"No execution reason recorded.";
+    exe.reason||"No execution reason recorded.");
 
   const reasons=Array.isArray(idm.decision_reasons)?idm.decision_reasons:[];
 
   setDashboardInnerHTML(document.getElementById("reasons"),
     reasons.length
       ? reasons.map(x=>`<div class="reason">• ${esc(x)}</div>`).join("")
-      : `<div class="reason">No IDM decision reason recorded.</div>`;
+      : `<div class="reason">No IDM decision reason recorded.</div>`);
 
   setDashboardInnerHTML(document.getElementById("mtf"),["15m","1h","4h","1d"].map(tf=>{
     const a=mtf[tf]||{};
@@ -4413,14 +4416,14 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
         ${row("VWAP",a.vwap_signal)}
       </div>
     `;
-  }).join("");
+  }).join(""));
 
   setDashboardInnerHTML(document.getElementById("systemRows"),[
     row("Health",sys.health),
     row("Execution Mode",sys.mode),
     row("Authority","READ-ONLY"),
     row("Live Authority","NONE")
-  ].join("");
+  ].join(""));
 
   setDashboardInnerHTML(document.getElementById("marketRows"),[
     row("Symbol",market.symbol),
@@ -4429,7 +4432,7 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Status",market.status),
     row("Market Time",prettyTime(fresh.market_timestamp)),
     row("Freshness",freshness)
-  ].join("");
+  ].join(""));
 
   const broker=portfolio.broker||{};
   const account=portfolio.account||{};
@@ -4442,13 +4445,13 @@ setDashboardInnerHTML(document.getElementById("idmRows"),[
     row("Broker",broker.status||"—"),
     row("Account",account.status||"—"),
     row("Reconciliation",rec.status||"—")
-  ].join("");
+    ].join(""));
 
   setDashboardInnerHTML(document.getElementById("auditRows"),[
     row("Run ID",audit.run_id??"NONE"),
     row("Decision ID",audit.decision_id??"NONE"),
     row("Timestamp",audit.timestamp||"—")
-  ].join("");
+    ].join(""));
 
   renderSession();
   renderMarkets();
@@ -4746,7 +4749,7 @@ function renderChart(){
        ${x[0]}
      </span>
    `)
-   .join("");
+   .join(""));
 }
 
 
@@ -4781,7 +4784,7 @@ function renderFibonacci(){
   const fib=state.ui?.fibonacci;
 
   if(!fib){
-    setDashboardInnerHTML(box,'<div class="banner">Canonical Fibonacci data unavailable.</div>';
+    setDashboardInnerHTML(box,'<div class="banner">Canonical Fibonacci data unavailable.</div>');
     return;
   }
 
@@ -4847,7 +4850,7 @@ function renderFibonacci(){
         : "No Fibonacci reasons reported."
       }
     </div>
-  `;
+  `);
 }
 
 function renderSession(){
@@ -4886,7 +4889,7 @@ function renderSession(){
         ${esc(reasons.join(" · ")||"No session reason available.")}
       </div>
     </div>
-  `;
+  `);
 }
 
 function renderMarkets(){
@@ -4917,7 +4920,7 @@ function renderMarkets(){
         `).join("")}
       </div>
     </div>
-  `).join("");
+  `).join(""))
 
   box.querySelectorAll(".coverage-asset").forEach(btn=>{
     setDashboardEventHandler(btn,"onclick",()=>{
@@ -4989,11 +4992,11 @@ function renderScannerAlertContext(){
   const result=r23ScannerAlertContexts;
 
   if(!result){
-    setDashboardInnerHTML(statusEl,"";
+    setDashboardInnerHTML(statusEl,"");
     setDashboardInnerHTML(listEl,
       '<div class="scanner-alert-empty">'+
       'Alert context idle. Load context to inspect related news.'+
-      '</div>';
+      '</div>');
     return;
   }
 
@@ -5017,7 +5020,7 @@ function renderScannerAlertContext(){
     '</span>'+
     '<span class="meta scanner-alert-context-boundary">'+
     authority+
-    '</span>';
+    '</span>');
 
   const contexts=
     Array.isArray(result.contexts)
@@ -5028,7 +5031,7 @@ function renderScannerAlertContext(){
     setDashboardInnerHTML(listEl,
       '<div class="scanner-alert-empty">'+
       'No alert context available.'+
-      '</div>';
+      '</div>');
     return;
   }
 
@@ -5120,7 +5123,7 @@ function renderScannerAlertContext(){
         </article>
       `;
     }
-  ).join("");
+  ).join(""));
 }
 
 async function loadScannerAlertContext(
@@ -5147,11 +5150,11 @@ async function loadScannerAlertContext(
   });
 
   if(scanSymbolEl){
-    setDashboardTextContent(scanSymbolEl,"LOADING…";
+    setDashboardTextContent(scanSymbolEl,"LOADING…");
   }
 
   if(scanWatchlistEl){
-    setDashboardTextContent(scanWatchlistEl,"LOADING…";
+    setDashboardTextContent(scanWatchlistEl,"LOADING…");
   }
 
   try{
@@ -5221,12 +5224,12 @@ async function loadScannerAlertContext(
 
     if(scanSymbolEl){
       setDashboardTextContent(scanSymbolEl,
-        "LOAD CONTEXT";
+        "LOAD CONTEXT");
     }
 
     if(scanWatchlistEl){
       setDashboardTextContent(scanWatchlistEl,
-        "LOAD WATCHLIST CONTEXT";
+        "LOAD WATCHLIST CONTEXT");
     }
   }
 }
@@ -5536,15 +5539,15 @@ function renderNews(){
   setDashboardInnerHTML(statusEl,
     `<span class="news-status-pill ${statusClass}">STATUS · ${esc(status)}</span>`+
     `<span class="news-status-pill">SOURCE · ${esc(provider)}</span>`+
-    `<span class="news-status-pill">${cached?"CACHED":"CURRENT"}</span>`;
+    `<span class="news-status-pill">${cached?"CACHED":"CURRENT"}</span>`);
 
   setDashboardTextContent(metaEl,
-    `${provider} · ${items.length} item${items.length===1?"":"s"}`;
+    `${provider} · ${items.length} item${items.length===1?"":"s"}`);
 
   setDashboardTextContent(errorEl,
     snapshot.error
       ? String(snapshot.error)
-      : "";
+      : "");
 
   if(!items.length){
     setDashboardInnerHTML(listEl,
@@ -5552,7 +5555,7 @@ function renderNews(){
         status==="UNAVAILABLE"
           ? "News providers unavailable and no cached news is available."
           : "No news items available for this filter."
-      }</div>`;
+      }</div>`);
     return;
   }
 
@@ -5582,7 +5585,7 @@ function renderNews(){
         }
       </article>
     `;
-  }).join("");
+  }).join(""));
 }
 
 async function loadNews(refresh=false){
@@ -5595,7 +5598,7 @@ async function loadNews(refresh=false){
 
   if(refreshEl){
     setDashboardControlDisabled(refreshEl,true);
-    setDashboardTextContent(refreshEl,"REFRESHING…";
+    setDashboardTextContent(refreshEl,"REFRESHING…");
   }
 
   try{
@@ -5639,7 +5642,7 @@ async function loadNews(refresh=false){
   }finally{
     if(refreshEl){
       setDashboardControlDisabled(refreshEl,false);
-      setDashboardTextContent(refreshEl,"REFRESH NEWS";
+    setDashboardTextContent(refreshEl,"REFRESH NEWS");
     }
   }
 }
@@ -5721,17 +5724,17 @@ async function load(){
 
     render();
   }catch(e){
-    setDashboardTextContent(document.getElementById("healthBadge"),"SYSTEM · ERROR";
+    setDashboardTextContent(document.getElementById("healthBadge"),"SYSTEM · ERROR");
     setDashboardClassName(
       document.getElementById("healthBadge"),
       "badge bad"
     );
-    setDashboardTextContent(document.getElementById("freshBadge"),"FRESHNESS · ERROR";
+    setDashboardTextContent(document.getElementById("freshBadge"),"FRESHNESS · ERROR");
     setDashboardClassName(
       document.getElementById("freshBadge"),
       "badge bad"
     );
-    setDashboardTextContent(document.getElementById("dataQualityBadge"),"DATA · ERROR";
+    setDashboardTextContent(document.getElementById("dataQualityBadge"),"DATA · ERROR");
     setDashboardClassName(
       document.getElementById("dataQualityBadge"),
       "badge bad"

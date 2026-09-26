@@ -454,7 +454,7 @@ async def dashboard_state(
 @app.get("/dashboard", include_in_schema=False)
 @app.get("/dashboard/", include_in_schema=False)
 async def dashboard_home():
-    return HTMLResponse(render_command_center_v2())
+    return HTMLResponse(render_command_center_v3())
 
 
 @app.get("/dashboard/command_center.html", include_in_schema=False)
