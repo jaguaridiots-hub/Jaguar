@@ -1440,6 +1440,16 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         },
 
         "idm": {
+            "analysis_mode": _text(
+                master.get(
+                    "analysis_mode",
+                    getattr(state, "mode", "SWING"),
+                ),
+                "SWING",
+            ),
+            "analysis_mode_contract": _mapping(
+                master.get("analysis_mode_contract")
+            ),
             "decision": decision,
             "approved": bool(
                 master.get("approved", enterprise.get("approved", False))

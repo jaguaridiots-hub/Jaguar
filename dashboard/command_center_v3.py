@@ -1817,6 +1817,62 @@ details[open]>summary::after{
 
 
 
+
+/* R54B_ANALYSIS_CONTEXT_CSS_START */
+.r54b-analysis-context{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:10px 12px;
+  margin:10px 0;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;
+  background:rgba(255,255,255,.025);
+}
+.r54b-analysis-context-title{
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  color:#aab4c5;
+  white-space:nowrap;
+}
+.r54b-analysis-context-controls{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-wrap:wrap;
+  justify-content:flex-end;
+}
+.r54b-analysis-context label{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:11px;
+  color:#8994a7;
+}
+.r54b-analysis-context select{
+  min-width:105px;
+  padding:7px 9px;
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:7px;
+  background:#111722;
+  color:#e8edf5;
+  font:inherit;
+  font-size:12px;
+}
+@media(max-width:720px){
+  .r54b-analysis-context{
+    align-items:flex-start;
+    flex-direction:column;
+  }
+  .r54b-analysis-context-controls{
+    width:100%;
+    justify-content:flex-start;
+  }
+}
+/* R54B_ANALYSIS_CONTEXT_CSS_END */
+
 </style>
 </head>
 
@@ -1840,7 +1896,45 @@ details[open]>summary::after{
   </div>
 </header>
 
-<div class="watchbar" id="watchbar"></div>
+  <div class="watchbar" id="watchbar"></div>
+
+  <!-- R54B_ANALYSIS_CONTEXT_HTML_START -->
+  <section
+    class="r54b-analysis-context"
+    aria-label="Analysis context controls"
+  >
+    <div class="r54b-analysis-context-title">
+      ANALYSIS CONTEXT
+    </div>
+
+    <div class="r54b-analysis-context-controls">
+      <label>
+        <span>TIMEFRAME</span>
+        <select
+          id="analysisIntervalSelect"
+          aria-label="Analysis timeframe"
+        >
+          <option value="15m">15m</option>
+          <option value="1h">1h</option>
+          <option value="4h">4h</option>
+          <option value="1d">1d</option>
+        </select>
+      </label>
+
+      <label>
+        <span>MODE</span>
+        <select
+          id="analysisModeSelect"
+          aria-label="Analysis mode"
+        >
+          <option value="SCALP">SCALP</option>
+          <option value="SWING">SWING</option>
+          <option value="CLASSIC">CLASSIC</option>
+        </select>
+      </label>
+    </div>
+  </section>
+  <!-- R54B_ANALYSIS_CONTEXT_HTML_END -->
 
 <!-- R24_DASHBOARD_TABS_UI_START -->
 <!-- R25_DASHBOARD_TABS_HARDENING_START -->
@@ -3496,6 +3590,82 @@ function setActiveSymbol(
 }
 /* R28_DASHBOARD_STATE_MUTATION_END */
 
+  /* R54B_ANALYSIS_CONTEXT_STATE_START */
+  const R54B_VALID_ANALYSIS_INTERVALS=new Set([
+    "15m",
+    "1h",
+    "4h",
+    "1d"
+  ]);
+
+  const R54B_VALID_ANALYSIS_MODES=new Set([
+    "SCALP",
+    "SWING",
+    "CLASSIC"
+  ]);
+
+  function normalizeAnalysisInterval(value){
+    const interval=String(value||"").trim().toLowerCase();
+
+    return R54B_VALID_ANALYSIS_INTERVALS.has(interval)
+      ? interval
+      : "15m";
+  }
+
+  function normalizeAnalysisMode(value){
+    const mode=String(value||"").trim().toUpperCase();
+
+    return R54B_VALID_ANALYSIS_MODES.has(mode)
+      ? mode
+      : "SWING";
+  }
+
+  function syncAnalysisContextControls(){
+    const intervalEl=document.getElementById(
+      "analysisIntervalSelect"
+    );
+
+    const modeEl=document.getElementById(
+      "analysisModeSelect"
+    );
+
+    if(intervalEl){
+      setDashboardControlValue(
+        intervalEl,
+        normalizeAnalysisInterval(state.interval)
+      );
+    }
+
+    if(modeEl){
+      setDashboardControlValue(
+        modeEl,
+        normalizeAnalysisMode(state.mode)
+      );
+    }
+  }
+
+  function setActiveAnalysisContext(
+    {
+      interval=getActiveInterval(),
+      mode=getActiveMode(),
+      refresh=true
+    }={}
+  ){
+    state.interval=
+      normalizeAnalysisInterval(interval);
+
+    state.mode=
+      normalizeAnalysisMode(mode);
+
+    syncAnalysisContextControls();
+    renderWatch();
+
+    if(refresh){
+      load();
+    }
+  }
+  /* R54B_ANALYSIS_CONTEXT_STATE_END */
+
 function esc(v){
   return String(v??"").replace(/[&<>"']/g,m=>({
     "&":"&amp;",
@@ -3540,7 +3710,7 @@ function renderWatch(){
   setDashboardInnerHTML(box,watchlist.map(s=>`
     <button class="asset ${s===getActiveSymbol()?"active":""}" data-symbol="${esc(s)}">
       <div class="asset-symbol">${esc(s)}</div>
-      <div class="asset-meta">15m · SWING</div>
+        <div class="asset-meta">${esc(getActiveInterval())} · ${esc(getActiveMode())}</div>
     </button>
   `).join(""));
 
@@ -5704,11 +5874,55 @@ function initNewsControls(){
 /* R18_NEWS_UI_END */
 
 
+  /* R54B_ANALYSIS_CONTEXT_CONTROLS_START */
+  function initAnalysisContextControls(){
+    const intervalEl=document.getElementById(
+      "analysisIntervalSelect"
+    );
+
+    const modeEl=document.getElementById(
+      "analysisModeSelect"
+    );
+
+    syncAnalysisContextControls();
+
+    if(intervalEl){
+      setDashboardEventHandler(
+        intervalEl,
+        "onchange",
+        ()=>{
+          setActiveAnalysisContext({
+            interval:getDashboardControlValue(intervalEl),
+            mode:getActiveMode(),
+            refresh:true
+          });
+        }
+      );
+    }
+
+    if(modeEl){
+      setDashboardEventHandler(
+        modeEl,
+        "onchange",
+        ()=>{
+          setActiveAnalysisContext({
+            interval:getActiveInterval(),
+            mode:getDashboardControlValue(modeEl),
+            refresh:true
+          });
+        }
+      );
+    }
+  }
+  /* R54B_ANALYSIS_CONTEXT_CONTROLS_END */
+
+
 async function load(){
   try{
     const url=
       `/dashboard/state?symbol=${encodeURIComponent(getActiveSymbol())}`+
-      `&interval=${encodeURIComponent(getActiveInterval())}`;
+      `&interval=${encodeURIComponent(getActiveInterval())}`+
+      `&mode=${encodeURIComponent(getActiveMode())}`;
 
     const r=await fetch(url,{cache:"no-store"});
     if(!r.ok) throw new Error("HTTP "+r.status);
@@ -5803,6 +6017,7 @@ setActiveSymbol(
 );
 initR24DashboardTabs();
 initIndicatorControls();
+initAnalysisContextControls();
 initNewsControls();
 initScannerAlertControls();
     initScannerAlertContextControls();
