@@ -3657,6 +3657,8 @@ function setActiveSymbol(
     state.mode=
       normalizeAnalysisMode(mode);
 
+    persistAnalysisContext();
+
     syncAnalysisContextControls();
     renderWatch();
 
@@ -3665,6 +3667,55 @@ function setActiveSymbol(
     }
   }
   /* R54B_ANALYSIS_CONTEXT_STATE_END */
+
+
+  /* R54D_ANALYSIS_CONTEXT_STORAGE_START */
+  const R54D_ANALYSIS_CONTEXT_STORAGE_KEY=
+    "jaguar.r54d.analysisContext";
+
+  function persistAnalysisContext(){
+    const payload={
+      interval:normalizeAnalysisInterval(state.interval),
+      mode:normalizeAnalysisMode(state.mode)
+    };
+
+    try{
+      sessionStorage.setItem(
+        R54D_ANALYSIS_CONTEXT_STORAGE_KEY,
+        JSON.stringify(payload)
+      );
+    }catch(_error){
+      // Browser storage may be unavailable.
+    }
+  }
+
+  function restoreAnalysisContext(){
+    try{
+      const stored=sessionStorage.getItem(
+        R54D_ANALYSIS_CONTEXT_STORAGE_KEY
+      );
+
+      if(!stored){
+        return;
+      }
+
+      const parsed=JSON.parse(stored);
+
+      if(!parsed || typeof parsed!=="object"){
+        return;
+      }
+
+      state.interval=
+        normalizeAnalysisInterval(parsed.interval);
+
+      state.mode=
+        normalizeAnalysisMode(parsed.mode);
+    }catch(_error){
+      // Invalid or unavailable browser storage is ignored.
+    }
+  }
+  /* R54D_ANALYSIS_CONTEXT_STORAGE_END */
+
 
 function esc(v){
   return String(v??"").replace(/[&<>"']/g,m=>({
@@ -6006,6 +6057,8 @@ setDashboardEventListener(document.getElementById("aiForm"),"submit",async e=>{
 setDashboardEventListener(window,"resize",()=>{
   if(state.ui)renderChart();
 });
+
+restoreAnalysisContext();
 
 const initialSymbol=readR27ActiveWatchSymbol();
 setActiveSymbol(
