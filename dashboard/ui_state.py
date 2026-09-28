@@ -1114,9 +1114,9 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     trade_setup = {
         "status": setup_status,
         "direction": _text(
-            master.get(
+            structural.get(
                 "direction",
-                enterprise.get("direction"),
+                trade.get("direction", "NEUTRAL"),
             ),
             "NEUTRAL",
         ),
