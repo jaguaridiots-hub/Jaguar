@@ -1274,6 +1274,55 @@ if position.position != "NONE":
                     holding_time=0,
                 )
 
+                # CLOSE PERSISTENCE GUARD:
+                # The generic recorder does not expose UPDATE rowcount.
+                # Verify the canonical runtime close durably persisted
+                # before clearing local active-position state.
+                from research.database import get_connection
+
+                close_conn = get_connection()
+                try:
+                    closed_row = close_conn.execute(
+                        """
+                        SELECT
+                            status,
+                            close_time,
+                            exit_price,
+                            pnl
+                        FROM trades
+                        WHERE uuid = ?
+                        LIMIT 1
+                        """,
+                        (trade_uuid,),
+                    ).fetchone()
+                finally:
+                    close_conn.close()
+
+                if closed_row is None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Trade close was not durably persisted"
+                    )
+
+                if closed_row["status"] != "CLOSED":
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close status mismatch"
+                    )
+
+                if closed_row["close_time"] is None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close timestamp missing"
+                    )
+
+                if float(closed_row["exit_price"]) != exit_price:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close exit price mismatch"
+                    )
+
+                if float(closed_row["pnl"]) != pnl:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close PnL mismatch"
+                    )
+
                 state._trade_id = None
 
                 position.close_trade()
