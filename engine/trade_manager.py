@@ -1,3 +1,6 @@
+import math
+
+
 class TradeManager:
 
     def __init__(self):
@@ -8,6 +11,71 @@ class TradeManager:
         self.tp1_hit = False
         self.tp2_hit = False
         self.trade_closed = False
+
+    def snapshot(self):
+        return {
+            "position_open": bool(self.position_open),
+            "trade_closed": bool(self.trade_closed),
+            "break_even": bool(self.break_even),
+            "trailing": bool(self.trailing),
+            "tp1_hit": bool(self.tp1_hit),
+            "tp2_hit": bool(self.tp2_hit),
+        }
+
+    def restore(self, snapshot):
+        if not isinstance(snapshot, dict):
+            raise RuntimeError(
+                "FAIL-CLOSED: Invalid TradeManager lifecycle state"
+            )
+
+        fields = (
+            "position_open",
+            "trade_closed",
+            "break_even",
+            "trailing",
+            "tp1_hit",
+            "tp2_hit",
+        )
+
+        for field in fields:
+            value = snapshot.get(field)
+            if not isinstance(value, bool):
+                raise RuntimeError(
+                    "FAIL-CLOSED: Invalid TradeManager lifecycle flag: "
+                    f"{field}"
+                )
+
+        if snapshot["position_open"] is not True:
+            raise RuntimeError(
+                "FAIL-CLOSED: Restored active position has inactive manager"
+            )
+
+        if snapshot["trade_closed"] is not False:
+            raise RuntimeError(
+                "FAIL-CLOSED: Restored active position is marked closed"
+            )
+
+        if snapshot["tp2_hit"] and not snapshot["tp1_hit"]:
+            raise RuntimeError(
+                "FAIL-CLOSED: Invalid TradeManager TP lifecycle"
+            )
+
+        if snapshot["break_even"] and not snapshot["tp1_hit"]:
+            raise RuntimeError(
+                "FAIL-CLOSED: Invalid TradeManager break-even lifecycle"
+            )
+
+        if snapshot["trailing"] and not snapshot["tp2_hit"]:
+            raise RuntimeError(
+                "FAIL-CLOSED: Invalid TradeManager trailing lifecycle"
+            )
+
+        self.position_open = True
+        self.trade_closed = False
+        self.break_even = snapshot["break_even"]
+        self.trailing = snapshot["trailing"]
+        self.tp1_hit = snapshot["tp1_hit"]
+        self.tp2_hit = snapshot["tp2_hit"]
 
     def activate(self):
         self.position_open = True
@@ -25,7 +93,7 @@ class TradeManager:
         self.tp1_hit = False
         self.tp2_hit = False
 
-    def manage(self, state, plan):
+    def manage(self, state, plan, current_stop=None):
         if not plan:
             return {
                 "Action": "NO TRADE",
@@ -43,7 +111,17 @@ class TradeManager:
             }
 
         entry = float(plan["Entry"])
-        sl = float(plan["StopLoss"])
+
+        if current_stop is None:
+            sl = float(plan["StopLoss"])
+        else:
+            sl = float(current_stop)
+
+            if not math.isfinite(sl) or sl <= 0:
+                raise RuntimeError(
+                    "FAIL-CLOSED: Invalid current position stop"
+                )
+
         tp1 = float(plan["TP1"])
         tp2 = float(plan["TP2"])
         tp3 = float(plan["TP3"])

@@ -130,6 +130,7 @@ def _is_valid_trade(
 def save(
     position,
     symbol=None,
+    manager=None,
 ):
 
     position_type = _normalize_position(
@@ -243,6 +244,17 @@ def save(
 
     }
 
+    if manager is not None:
+        try:
+            manager_state = manager.snapshot()
+        except Exception:
+            return False
+
+        if not isinstance(manager_state, dict):
+            return False
+
+        data["manager_state"] = manager_state
+
 
     temp_file = FILE + ".tmp"
 
@@ -301,6 +313,7 @@ def save(
 def load(
     position,
     symbol=None,
+    manager=None,
 ):
 
     if not os.path.exists(
@@ -465,6 +478,17 @@ def load(
     position.initial_risk = initial_risk
     if position_type in ("LONG", "SHORT"):
         position.set_trade_uuid(trade_uuid)
+
+        if manager is not None:
+            manager_state = data.get("manager_state")
+
+            if not isinstance(manager_state, dict):
+                raise RuntimeError(
+                    "FAIL-CLOSED: Active restored position has no "
+                    "persisted TradeManager state"
+                )
+
+            manager.restore(manager_state)
 
 
     return True

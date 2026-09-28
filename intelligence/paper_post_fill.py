@@ -461,6 +461,10 @@ def execute_paper_post_fill(
                 'FAIL-CLOSED: Execution reconciliation persistence failed'
             ) from intent_error
         manager.activate()
+        if not save(position, SYMBOL, manager):
+            raise RuntimeError(
+                'FAIL-CLOSED: Active management-state persistence failed'
+            )
     elif 'SELL' in direction:
         if position.position != 'NONE':
             raise RuntimeError('FAIL-CLOSED: Position already active')
@@ -606,3 +610,7 @@ def execute_paper_post_fill(
                 'FAIL-CLOSED: Execution reconciliation persistence failed'
             ) from intent_error
         manager.activate()
+        if not save(position, SYMBOL, manager):
+            raise RuntimeError(
+                'FAIL-CLOSED: Active management-state persistence failed'
+            )

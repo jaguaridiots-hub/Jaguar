@@ -21,6 +21,8 @@ from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
 from core.jaguar_analysis_engine import JaguarAnalysisEngine
+from engine.active_trade_recovery import recover_active_trade_plan
+
 from engine.state_manager import (
     save,
     load,
@@ -593,7 +595,7 @@ execution_dispatch_runtime = build_execution_dispatch_runtime()
 # RESTORE POSITION
 # ==================================================
 
-position_loaded = load(position)
+position_loaded = load(position, SYMBOL, manager)
 
 
 if position_loaded:
@@ -621,7 +623,11 @@ if position_loaded:
 
     state._trade_id = restored_trade_uuid
 
-    manager.activate()
+    plan = recover_active_trade_plan(
+        restored_trade_uuid,
+        position,
+        SYMBOL,
+    )
 
 
 # ==================================================
@@ -1085,7 +1091,7 @@ if position.position != "NONE":
                 )
 
             # Persist AFTER stop-loss changes.
-            if not save(position, SYMBOL):
+            if not save(position, SYMBOL, manager):
                 raise RuntimeError(
                     "FAIL-CLOSED: Active position persistence failed"
                 )
