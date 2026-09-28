@@ -689,14 +689,16 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     ):
         next_conditions.append("IDM_AUTHORIZATION")
 
+    execution_authorized = (
+        execution.get("ready") is True
+        and execution.get("approved") is True
+        and str(execution.get("status", "")).strip().upper() == "EXECUTE"
+        and str(execution.get("gate", "")).strip().upper() == "AUTHORIZED"
+    )
+
     authorization = (
         "AUTHORIZED"
-        if bool(
-            master.get(
-                "approved",
-                enterprise.get("approved", False),
-            )
-        )
+        if execution_authorized
         else "BLOCKED"
     )
 
