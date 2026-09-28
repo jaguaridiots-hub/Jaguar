@@ -599,6 +599,53 @@ execution_dispatch_runtime = build_execution_dispatch_runtime()
 position_loaded = load(position, SYMBOL, manager)
 
 
+def assert_no_orphan_durable_trade(symbol):
+    """Fail closed when durable OPEN trade exists without local recovery state."""
+    conn = None
+
+    try:
+        conn = get_connection()
+
+        open_trades = conn.execute(
+            """
+            SELECT
+                uuid,
+                authorization_id,
+                symbol,
+                mode,
+                status,
+                close_time
+            FROM trades
+            WHERE symbol = ?
+              AND status = 'OPEN'
+              AND close_time IS NULL
+            ORDER BY open_time ASC
+            """,
+            (str(symbol or "").upper().strip(),),
+        ).fetchall()
+
+        if open_trades:
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable active trade exists but local recovery state is unavailable"
+            )
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable orphan-trade recovery check unavailable"
+        ) from exc
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+if not position_loaded:
+    # R56-POS-20M: a durable OPEN trade must never be treated
+    # as a flat account when local recovery state is absent.
+    assert_no_orphan_durable_trade(SYMBOL)
+
+
 if position_loaded:
 
     print(
