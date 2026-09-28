@@ -1241,6 +1241,30 @@ if position.position != "NONE":
                     else 0.0
                 )
 
+                # FINAL CLOSE AUTHORITY:
+                # Revalidate the active position against its durable
+                # execution lineage immediately before closing.
+                close_contract = recover_active_trade_plan(
+                    trade_uuid,
+                    position,
+                    SYMBOL,
+                )
+
+                if close_contract.get("TradeUUID") != trade_uuid:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Close authorization trade UUID mismatch"
+                    )
+
+                if not str(
+                    close_contract.get(
+                        "AuthorizationID",
+                        "",
+                    )
+                ).strip():
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Close authorization has no authorization ID"
+                    )
+
                 record_trade_close(
                     trade_uuid,
                     exit_price=exit_price,
