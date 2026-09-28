@@ -672,8 +672,7 @@ def assert_no_durable_entry_conflict(symbol):
                   OR status NOT IN (
                       'RECONCILED',
                       'REJECTED',
-                      'CANCELLED',
-                      'HALTED'
+                      'CANCELLED'
                   )
               )
             ORDER BY created_at ASC
