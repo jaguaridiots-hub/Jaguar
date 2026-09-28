@@ -36,6 +36,7 @@ from research.recorder import (
 from research.database import (
     insert_execution_intent,
     update_execution_intent,
+    get_connection,
 )
 
 from intelligence.execution_identity import bind_execution_identity
@@ -651,6 +652,72 @@ trade_status = {
 # NEW TRADE
 # ==================================================
 
+def assert_no_durable_entry_conflict(symbol):
+    """Fail closed when durable execution state can block re-entry."""
+    conn = None
+
+    try:
+        conn = get_connection()
+
+        unresolved_intents = conn.execute(
+            """
+            SELECT
+                authorization_id,
+                trade_uuid,
+                status
+            FROM execution_intents
+            WHERE symbol = ?
+              AND (
+                  status IS NULL
+                  OR status NOT IN (
+                      'RECONCILED',
+                      'REJECTED',
+                      'CANCELLED',
+                      'HALTED'
+                  )
+              )
+            ORDER BY created_at ASC
+            """,
+            (str(symbol or "").upper().strip(),),
+        ).fetchall()
+
+        if unresolved_intents:
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable unresolved execution state blocks new entry"
+            )
+
+        open_trades = conn.execute(
+            """
+            SELECT
+                uuid,
+                authorization_id,
+                status,
+                close_time
+            FROM trades
+            WHERE symbol = ?
+              AND status = 'OPEN'
+              AND close_time IS NULL
+            ORDER BY open_time ASC
+            """,
+            (str(symbol or "").upper().strip(),),
+        ).fetchall()
+
+        if open_trades:
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable open trade state blocks new entry"
+            )
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable re-entry barrier unavailable"
+        ) from exc
+    finally:
+        if conn is not None:
+            conn.close()
+
+
 execution_ready = (
     isinstance(execution, dict)
     and execution.get("ready") is True
@@ -663,6 +730,9 @@ if execution_ready:
 
     if position.position == "NONE":
 
+        # R56-POS-20: durable execution remnants must block fresh entry.
+        # Recovery must never create a second execution attempt.
+        assert_no_durable_entry_conflict(SYMBOL)
         # FINAL FAIL-CLOSED EXECUTION AUTHORIZATION
         if not (
             isinstance(execution, dict)
