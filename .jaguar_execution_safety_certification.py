@@ -55,6 +55,9 @@ def valid_state():
 
         risk={
             "approved": True,
+            "decision": "ENTER_LONG",
+            "entry": 100.0,
+            "stop_loss": 99.0,
             "position_size": 10.0,
             "risk_percent": 1.0,
             "risk_amount": 10.0,

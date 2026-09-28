@@ -659,6 +659,85 @@ class ExecutionGatewayV2:
             )
 
         # ==================================================
+        # 7A. TRADE/RISK CONSISTENCY GATE
+        # ==================================================
+        # Risk approval is only authoritative when it refers
+        # to the same canonical trade geometry and IDM decision.
+        # ==================================================
+
+        risk_decision = str(
+            risk.get(
+                "decision",
+                "",
+            )
+        ).upper().strip()
+
+        risk_entry_raw = risk.get(
+            "entry"
+        )
+
+        risk_stop_raw = risk.get(
+            "stop_loss"
+        )
+
+        if risk_decision != decision:
+            return self._block(
+                state,
+                "BLOCKED",
+                "RISK_MANAGER",
+                "Risk decision does not match IDM decision",
+            )
+
+        if (
+            risk_entry_raw is None
+            or risk_stop_raw is None
+        ):
+            return self._block(
+                state,
+                "BLOCKED",
+                "RISK_MANAGER",
+                "Risk contract is missing canonical trade geometry",
+            )
+
+        risk_entry = self._float(
+            risk_entry_raw,
+            0.0,
+        )
+
+        risk_stop_loss = self._float(
+            risk_stop_raw,
+            0.0,
+        )
+
+        if (
+            risk_entry <= 0
+            or risk_stop_loss <= 0
+        ):
+            return self._block(
+                state,
+                "BLOCKED",
+                "RISK_MANAGER",
+                "Risk contract contains invalid trade geometry",
+            )
+
+        consistency_tolerance = 1e-8
+
+        if (
+            abs(
+                risk_entry - entry
+            ) > consistency_tolerance
+            or abs(
+                risk_stop_loss - stop_loss
+            ) > consistency_tolerance
+        ):
+            return self._block(
+                state,
+                "BLOCKED",
+                "RISK_MANAGER",
+                "Risk contract does not match canonical trade plan",
+            )
+
+        # ==================================================
         # 8. ENTRY FRESHNESS GATE
         # ==================================================
 

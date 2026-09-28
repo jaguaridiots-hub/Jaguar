@@ -653,11 +653,7 @@ execution_ready = (
     and execution.get("gate") == "AUTHORIZED"
 )
 
-if (
-    plan
-    and plan.get("Direction")
-    and execution_ready
-):
+if execution_ready:
 
     if position.position == "NONE":
 
@@ -682,19 +678,34 @@ if (
         authorized_size = execution.get("position_size")
         authorized_risk_amount = execution.get("risk_amount")
 
+        decision = str(
+            execution.get(
+                "decision",
+                "WAIT",
+            )
+        ).upper().strip()
+
+        direction = {
+            "ENTER_LONG": "BUY",
+            "ENTER_SHORT": "SELL",
+        }.get(
+            decision,
+            "",
+        )
+
+        if direction not in ("BUY", "SELL"):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has invalid direction"
+            )
+
         if (
-            authorized_entry != plan.get("Entry")
-            or authorized_stop != plan.get("StopLoss")
+            authorized_entry is None
+            or authorized_stop is None
             or not isinstance(authorized_targets, list)
             or len(authorized_targets) < 3
-            or authorized_targets[:3] != [
-                plan.get("TP1"),
-                plan.get("TP2"),
-                plan.get("TP3"),
-            ]
         ):
             raise RuntimeError(
-                "FAIL-CLOSED: Position plan differs from authorized execution"
+                "FAIL-CLOSED: Authorized execution geometry is incomplete"
             )
 
         if float(authorized_size or 0.0) <= 0:
@@ -706,11 +717,6 @@ if (
             raise RuntimeError(
                 "FAIL-CLOSED: Authorized risk amount is invalid"
             )
-
-        direction = plan.get(
-            "Direction",
-            "",
-        )
 
         risk_data = getattr(
             state,
@@ -941,15 +947,41 @@ if (
             )
 
         if execution_mode == "LIVE":
-            broker_order_id = execution_result.get("broker_order_id")
+            returned_client_order_id = execution_result.get(
+                "client_order_id"
+            )
+            broker_order_id = execution_result.get(
+                "broker_order_id"
+            )
         else:
             order = execution_result.get(
                 "order",
                 {},
             ) or {}
 
-            broker_order_id = order.get(
-                "broker_order_id"
+            returned_client_order_id = (
+                order.get("client_order_id")
+                if isinstance(order, dict)
+                else None
+            )
+
+            broker_order_id = (
+                order.get("broker_order_id")
+                if isinstance(order, dict)
+                else None
+            )
+
+        if returned_client_order_id != client_order_id:
+            try:
+                rollback_execution_if_pre_submission(execution_result)
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    "FAIL-CLOSED: Client order identity mismatch "
+                    "AND execution rollback failed"
+                ) from rollback_error
+
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker returned mismatched client order ID"
             )
 
         if (

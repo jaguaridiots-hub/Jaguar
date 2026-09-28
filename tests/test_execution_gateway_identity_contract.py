@@ -57,6 +57,9 @@ def build_valid_state():
 
     state.risk = {
         "approved": True,
+        "decision": "ENTER_LONG",
+        "entry": 100.0,
+        "stop_loss": 99.0,
         "position_size": 1.0,
         "risk_percent": 1.0,
         "risk_amount": 1.0,
@@ -108,6 +111,39 @@ def main():
 
     # No mode change is introduced by this patch.
     assert execution["broker"] == "Paper"
+
+    # Risk approval must refer to the same canonical trade contract.
+    divergent_cases = [
+        (
+            "ENTRY",
+            {"entry": 101.0},
+        ),
+        (
+            "STOP",
+            {"stop_loss": 98.0},
+        ),
+        (
+            "DECISION",
+            {"decision": "ENTER_SHORT"},
+        ),
+    ]
+
+    for label, mutation in divergent_cases:
+        divergent_risk_state = build_valid_state()
+        divergent_risk_state.risk.update(mutation)
+
+        divergent = gateway.process(
+            divergent_risk_state
+        ).execution
+
+        assert divergent["ready"] is False, label
+        assert divergent["approved"] is False, label
+        assert divergent["authorization_id"] is None, label
+        assert divergent["gate"] == "RISK_MANAGER", label
+
+    print("Trade/risk entry consistency fail-closed: PASS")
+    print("Trade/risk stop consistency fail-closed: PASS")
+    print("Trade/risk decision consistency fail-closed: PASS")
 
     print("EXECUTION_GATEWAY_IDENTITY_CONTRACT: PASS")
     print("Instrument-token propagation: PASS")

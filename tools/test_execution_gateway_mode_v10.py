@@ -53,6 +53,9 @@ def build_state():
     state.risk = {
         "approved": True,
         "reason": "Risk approved",
+        "decision": "ENTER_LONG",
+        "entry": 100.0,
+        "stop_loss": 99.0,
         "position_size": 1.0,
         "risk_amount": 1.0,
         "risk_percent": 1.0,

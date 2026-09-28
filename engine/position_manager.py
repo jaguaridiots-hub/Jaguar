@@ -27,6 +27,11 @@ class PositionManager:
         self.initial_risk = float(initial_risk or 0.0)
         self.trade_uuid = None
 
+    def set_trade_uuid(self, trade_uuid):
+        if not isinstance(trade_uuid, str) or not trade_uuid.strip():
+            raise ValueError("trade_uuid must be a non-empty string")
+        self.trade_uuid = trade_uuid.strip()
+
     def close_trade(self):
         self.position = "NONE"
         self.entry = 0.0

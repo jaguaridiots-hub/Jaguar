@@ -305,7 +305,6 @@ def execute_paper_post_fill(
             raise RuntimeError('FAIL-CLOSED: Invalid broker fill AND execution rollback failed') from rollback_error
         raise RuntimeError('FAIL-CLOSED: Invalid broker fill')
     if isinstance(getattr(state, 'execution', None), dict):
-        state.execution['authorization_id'] = authorization_id
         state.execution['fill_price'] = fill_price
         state.execution['filled_quantity'] = filled_quantity
         state.execution['order_status'] = execution_result.get('order_status')
