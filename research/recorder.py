@@ -252,6 +252,7 @@ def record_decision_snapshot(state, candle_timestamp=None):
     """
     Capture all scoring data from the state after a decision is made.
     """
+    init_db()
     decision_id = str(uuid.uuid4())
 
     # Canonical decision authority is IDM.
