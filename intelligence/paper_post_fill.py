@@ -398,27 +398,6 @@ def execute_paper_post_fill(
             clear()
             raise RuntimeError('FAIL-CLOSED: Trade identity assignment failed; broker execution preserved for recovery') from identity_error
         state._trade_id = trade_uuid
-        if not save(position, SYMBOL):
-            db_error = None
-            execution_error = None
-            try:
-                preserve_trade_for_recovery(trade_uuid)
-            except Exception as rollback_error:
-                db_error = rollback_error
-            try:
-                rollback_execution_if_pre_submission(execution_result)
-            except Exception as rollback_error:
-                execution_error = rollback_error
-            position.close_trade()
-            state._trade_id = None
-            clear()
-            if db_error is not None and execution_error is not None:
-                raise RuntimeError('FAIL-CLOSED: Position persistence failed; trade evidence preservation AND broker compensation were unavailable') from execution_error
-            if db_error is not None:
-                raise RuntimeError('FAIL-CLOSED: Position persistence failed AND trade evidence preservation failed') from db_error
-            if execution_error is not None:
-                raise RuntimeError('FAIL-CLOSED: Position persistence failed AND execution rollback failed') from execution_error
-            raise RuntimeError('FAIL-CLOSED: Position persistence failed; DB trade and broker execution preserved for recovery')
         try:
             journal.save(state, plan)
         except Exception as journal_error:
@@ -547,27 +526,6 @@ def execute_paper_post_fill(
             clear()
             raise RuntimeError('FAIL-CLOSED: Trade identity assignment failed; broker execution preserved for recovery') from identity_error
         state._trade_id = trade_uuid
-        if not save(position, SYMBOL):
-            db_error = None
-            execution_error = None
-            try:
-                preserve_trade_for_recovery(trade_uuid)
-            except Exception as rollback_error:
-                db_error = rollback_error
-            try:
-                rollback_execution_if_pre_submission(execution_result)
-            except Exception as rollback_error:
-                execution_error = rollback_error
-            position.close_trade()
-            state._trade_id = None
-            clear()
-            if db_error is not None and execution_error is not None:
-                raise RuntimeError('FAIL-CLOSED: Position persistence failed; trade evidence preservation AND broker compensation were unavailable') from execution_error
-            if db_error is not None:
-                raise RuntimeError('FAIL-CLOSED: Position persistence failed AND trade evidence preservation failed') from db_error
-            if execution_error is not None:
-                raise RuntimeError('FAIL-CLOSED: Position persistence failed AND execution rollback failed') from execution_error
-            raise RuntimeError('FAIL-CLOSED: Position persistence failed; DB trade and broker execution preserved for recovery')
         try:
             journal.save(state, plan)
         except Exception as journal_error:
