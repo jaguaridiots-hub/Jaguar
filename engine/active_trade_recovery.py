@@ -353,6 +353,51 @@ def recover_active_trade_plan(
             ).fetchall()
         ]
 
+        # PAPER recovery requires exactly one stop and three take-profits.
+        # No extra durable protection rows are permitted.
+        if len(rows) != 4:
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable PAPER protection set has "
+                "unexpected cardinality"
+            )
+
+        # Every VERIFIED protection must represent the complete durable fill.
+        for protection_row in rows:
+            if str(
+                protection_row.get("status", "")
+            ).upper().strip() != "VERIFIED":
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: Durable PAPER protection is not VERIFIED"
+                )
+
+            requested_qty = _positive_float(
+                protection_row.get("requested_qty"),
+                "durable protection requested quantity",
+            )
+
+            verified_qty = _positive_float(
+                protection_row.get("verified_qty"),
+                "durable protection verified quantity",
+            )
+
+            if not _same(
+                requested_qty,
+                filled_quantity,
+            ):
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: Durable protection requested "
+                    "quantity conflicts with fill"
+                )
+
+            if not _same(
+                verified_qty,
+                filled_quantity,
+            ):
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: Durable protection verified "
+                    "quantity conflicts with fill"
+                )
+
         stop_rows = [
             row
             for row in rows
@@ -443,9 +488,9 @@ def recover_active_trade_plan(
 
             targets[target_index] = requested_price
 
-        if not {0, 1, 2}.issubset(targets):
+        if set(targets) != {0, 1, 2}:
             raise ActiveTradeRecoveryError(
-                "FAIL-CLOSED: Durable TP1/TP2/TP3 contract is incomplete"
+                "FAIL-CLOSED: Durable TP1/TP2/TP3 contract is not exact"
             )
 
         tp1 = targets[0]
