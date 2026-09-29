@@ -1193,24 +1193,36 @@ if position.position != "NONE":
                 current_stop=position.stop_loss,
             )
 
-            new_stop = trade_status.get(
-                "StopLoss"
+            trade_action = trade_status.get(
+                "Action"
             )
 
-            if isinstance(
-                new_stop,
-                (int, float),
-            ) and new_stop > 0:
-
-                position.update_stop_loss(
-                    new_stop
+            # R56-POS-21: never persist terminal TradeManager state
+            # while the durable trade is still OPEN. If the process
+            # crashes before canonical close persistence, the previous
+            # active snapshot remains recoverable.
+            if trade_action not in (
+                "EXIT",
+                "STOP LOSS",
+            ):
+                new_stop = trade_status.get(
+                    "StopLoss"
                 )
 
-            # Persist AFTER stop-loss changes.
-            if not save(position, SYMBOL, manager):
-                raise RuntimeError(
-                    "FAIL-CLOSED: Active position persistence failed"
-                )
+                if isinstance(
+                    new_stop,
+                    (int, float),
+                ) and new_stop > 0:
+
+                    position.update_stop_loss(
+                        new_stop
+                    )
+
+                # Persist AFTER non-terminal stop/lifecycle changes.
+                if not save(position, SYMBOL, manager):
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active position persistence failed"
+                    )
 
             status = position.status()
 
