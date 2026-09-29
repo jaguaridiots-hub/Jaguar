@@ -277,6 +277,100 @@ def _persist_paper_durable_lifecycle(
 
 
 
+def _persist_initial_active_trade_lifecycle(
+    *,
+    trade_uuid,
+    authorization_id,
+    direction,
+    authorized_stop,
+    SYMBOL,
+):
+    """Create the first durable active-management snapshot."""
+
+    if (
+        not isinstance(trade_uuid, str)
+        or not trade_uuid.strip()
+    ):
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid trade UUID for active lifecycle"
+        )
+
+    if (
+        not isinstance(authorization_id, str)
+        or not authorization_id.strip()
+    ):
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid authorization ID for active lifecycle"
+        )
+
+    symbol = str(
+        SYMBOL or ""
+    ).upper().strip()
+
+    if not symbol:
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid symbol for active lifecycle"
+        )
+
+    normalized_direction = str(
+        direction or ""
+    ).upper().strip()
+
+    position = {
+        "BUY": "LONG",
+        "SELL": "SHORT",
+    }.get(
+        normalized_direction
+    )
+
+    if position is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid execution direction for active lifecycle"
+        )
+
+    try:
+        current_stop = float(authorized_stop)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid initial active lifecycle stop"
+        ) from exc
+
+    if (
+        not current_stop > 0
+        or current_stop != current_stop
+        or current_stop in (
+            float("inf"),
+            float("-inf"),
+        )
+    ):
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid initial active lifecycle stop"
+        )
+
+    from research.database import insert_active_trade_lifecycle
+
+    now = datetime.utcnow().isoformat()
+
+    insert_active_trade_lifecycle(
+        {
+            "trade_uuid": trade_uuid.strip(),
+            "authorization_id": authorization_id.strip(),
+            "symbol": symbol,
+            "position": position,
+            "current_stop": current_stop,
+            "tp1_hit": False,
+            "tp2_hit": False,
+            "break_even": False,
+            "trailing": False,
+            "trade_closed": False,
+            "revision": 1,
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+
+
+
 def execute_paper_post_fill(
     *,
     execution,
@@ -439,6 +533,20 @@ def execute_paper_post_fill(
             raise RuntimeError(
                 'FAIL-CLOSED: Execution reconciliation persistence failed'
             ) from intent_error
+
+        try:
+            _persist_initial_active_trade_lifecycle(
+                trade_uuid=trade_uuid,
+                authorization_id=authorization_id,
+                direction=direction,
+                authorized_stop=authorized_stop,
+                SYMBOL=SYMBOL,
+            )
+        except Exception as lifecycle_error:
+            raise RuntimeError(
+                'FAIL-CLOSED: Initial active lifecycle persistence failed'
+            ) from lifecycle_error
+
         manager.activate()
         if not save(position, SYMBOL, manager):
             raise RuntimeError(
@@ -567,6 +675,20 @@ def execute_paper_post_fill(
             raise RuntimeError(
                 'FAIL-CLOSED: Execution reconciliation persistence failed'
             ) from intent_error
+
+        try:
+            _persist_initial_active_trade_lifecycle(
+                trade_uuid=trade_uuid,
+                authorization_id=authorization_id,
+                direction=direction,
+                authorized_stop=authorized_stop,
+                SYMBOL=SYMBOL,
+            )
+        except Exception as lifecycle_error:
+            raise RuntimeError(
+                'FAIL-CLOSED: Initial active lifecycle persistence failed'
+            ) from lifecycle_error
+
         manager.activate()
         if not save(position, SYMBOL, manager):
             raise RuntimeError(

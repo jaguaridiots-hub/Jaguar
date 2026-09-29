@@ -1,8 +1,15 @@
 """Fail-closed reconstruction of an already-open PAPER trade."""
 
+import hashlib
+import json
 import math
+from datetime import datetime
 
-from research.database import get_connection
+from research.database import (
+    get_connection,
+    get_active_trade_lifecycle,
+    update_active_trade_lifecycle,
+)
 
 
 class ActiveTradeRecoveryError(RuntimeError):
@@ -33,6 +40,107 @@ def _same(left, right):
         abs_tol=1e-8,
     )
 
+
+
+def _load_durable_fill(
+    trade,
+    *,
+    trade_uuid,
+    authorization_id,
+    expected_symbol,
+):
+    """Read and verify the immutable actual fill from snapshot_open."""
+
+    raw_snapshot = trade.get("snapshot_open")
+    stored_checksum = trade.get("snapshot_open_checksum")
+
+    if (
+        not isinstance(raw_snapshot, str)
+        or not raw_snapshot.strip()
+        or not isinstance(stored_checksum, str)
+        or not stored_checksum.strip()
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable trade snapshot/fingerprint missing"
+        )
+
+    try:
+        snapshot = json.loads(raw_snapshot)
+    except (TypeError, ValueError) as exc:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable trade snapshot is invalid"
+        ) from exc
+
+    if not isinstance(snapshot, dict):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable trade snapshot is not an object"
+        )
+
+    expected_checksum = hashlib.sha256(
+        json.dumps(
+            snapshot,
+            sort_keys=True,
+        ).encode()
+    ).hexdigest()
+
+    if stored_checksum != expected_checksum:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable trade snapshot checksum mismatch"
+        )
+
+    execution = snapshot.get(
+        "enterprise_execution"
+    )
+
+    if not isinstance(execution, dict):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable execution snapshot is missing"
+        )
+
+    snapshot_trade_uuid = execution.get(
+        "trade_uuid"
+    )
+
+    if snapshot_trade_uuid != trade_uuid:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable snapshot trade UUID mismatch"
+        )
+
+    snapshot_authorization_id = execution.get(
+        "authorization_id"
+    )
+
+    if snapshot_authorization_id != authorization_id:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable snapshot authorization mismatch"
+        )
+
+    snapshot_symbol = str(
+        execution.get("symbol", "")
+    ).upper().strip()
+
+    if snapshot_symbol != expected_symbol:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable snapshot symbol mismatch"
+        )
+
+    fill_price = _positive_float(
+        execution.get("fill_price"),
+        "durable fill price",
+    )
+
+    filled_quantity = _positive_float(
+        execution.get("filled_quantity"),
+        "durable filled quantity",
+    )
+
+    return {
+        "fill_price": fill_price,
+        "filled_quantity": filled_quantity,
+        "client_order_id": str(
+            execution.get("client_order_id", "")
+        ).strip(),
+    }
 
 def recover_active_trade_plan(
     trade_uuid,
@@ -163,19 +271,32 @@ def recover_active_trade_plan(
                 "with PositionManager"
             )
 
+        durable_fill = _load_durable_fill(
+            trade,
+            trade_uuid=trade_uuid,
+            authorization_id=authorization_id,
+            expected_symbol=trade_symbol,
+        )
+
         entry = _positive_float(
             getattr(position, "entry", 0.0),
             "entry",
         )
 
-        trade_entry = _positive_float(
-            trade.get("entry_price"),
-            "trade entry",
-        )
+        durable_fill_price = durable_fill["fill_price"]
 
-        if not _same(entry, trade_entry):
+        if not _same(entry, durable_fill_price):
             raise ActiveTradeRecoveryError(
-                "FAIL-CLOSED: Position entry conflicts with durable trade"
+                "FAIL-CLOSED: Position entry conflicts with durable fill"
+            )
+
+        if (
+            durable_fill["client_order_id"]
+            and durable_fill["client_order_id"]
+            != str(intent.get("client_order_id", "")).strip()
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable fill client order ID mismatch"
             )
 
         original_stop = _positive_float(
@@ -197,6 +318,17 @@ def recover_active_trade_plan(
             intent.get("quantity"),
             "execution quantity",
         )
+
+        filled_quantity = durable_fill["filled_quantity"]
+
+        if not _same(
+            filled_quantity,
+            quantity,
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable fill quantity conflicts "
+                "with execution quantity"
+            )
 
         position_size = _positive_float(
             getattr(position, "position_size", 0.0),
@@ -372,7 +504,7 @@ def recover_active_trade_plan(
                 if decision == "LONG"
                 else "SELL"
             ),
-            "Entry": entry,
+            "Entry": durable_fill_price,
             "StopLoss": original_stop,
             "TP1": tp1,
             "TP2": tp2,
@@ -384,3 +516,498 @@ def recover_active_trade_plan(
 
     finally:
         conn.close()
+
+
+
+def recover_active_trade_from_durable_lifecycle(
+    *,
+    position,
+    manager,
+    symbol,
+):
+    """Reconstruct an already-open PAPER trade after local-cache loss.
+
+    Returns the canonical recovery plan when exactly one valid durable
+    lifecycle exists for the requested symbol. Returns None when there is
+    no durable lifecycle candidate; the caller must retain the existing
+    orphan barrier in that case.
+    """
+
+    expected_symbol = str(
+        symbol or ""
+    ).upper().strip()
+
+    if not expected_symbol:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid recovery symbol"
+        )
+
+    conn = get_connection()
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                l.trade_uuid,
+                l.authorization_id,
+                l.symbol AS lifecycle_symbol,
+                t.uuid AS trade_uuid_row,
+                t.status AS trade_status,
+                t.close_time
+            FROM active_trade_lifecycle AS l
+            JOIN trades AS t
+              ON t.uuid = l.trade_uuid
+            JOIN execution_intents AS i
+              ON i.authorization_id = l.authorization_id
+             AND i.trade_uuid = l.trade_uuid
+            WHERE l.symbol = ?
+              AND t.symbol = ?
+              AND t.status = 'OPEN'
+              AND t.close_time IS NULL
+            ORDER BY t.open_time ASC
+            """,
+            (
+                expected_symbol,
+                expected_symbol,
+            ),
+        ).fetchall()
+
+        if not rows:
+            return None
+
+        if len(rows) != 1:
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Multiple durable active trade "
+                "lifecycles found for symbol"
+            )
+
+        candidate = dict(rows[0])
+
+        trade_uuid = candidate.get("trade_uuid")
+
+        if (
+            not isinstance(trade_uuid, str)
+            or not trade_uuid.strip()
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable lifecycle has invalid trade UUID"
+            )
+
+    finally:
+        conn.close()
+
+    lifecycle = get_active_trade_lifecycle(
+        trade_uuid.strip()
+    )
+
+    if lifecycle is None:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable lifecycle disappeared during recovery"
+        )
+
+    if (
+        str(lifecycle["symbol"]).upper().strip()
+        != expected_symbol
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable lifecycle symbol mismatch"
+        )
+
+    direction = str(
+        lifecycle["position"]
+    ).upper().strip()
+
+    if direction not in {"LONG", "SHORT"}:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid durable recovery position"
+        )
+
+    # The lifecycle is only eligible to restore a nonterminal position.
+    if bool(lifecycle["trade_closed"]):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable lifecycle is terminal"
+        )
+
+    # Reconstruct the PositionManager from the immutable execution/trade
+    # contract first. recover_active_trade_plan() performs the complete
+    # execution/protection lineage validation.
+    recovery_seed = conn = get_connection()
+
+    try:
+        trade_row = conn.execute(
+            """
+            SELECT *
+            FROM trades
+            WHERE uuid = ?
+              AND status = 'OPEN'
+              AND close_time IS NULL
+            LIMIT 1
+            """,
+            (trade_uuid,),
+        ).fetchone()
+
+        if trade_row is None:
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable OPEN trade disappeared during recovery"
+            )
+
+        intent_row = conn.execute(
+            """
+            SELECT *
+            FROM execution_intents
+            WHERE authorization_id = ?
+              AND trade_uuid = ?
+            LIMIT 1
+            """,
+            (
+                lifecycle["authorization_id"],
+                trade_uuid,
+            ),
+        ).fetchone()
+
+        if intent_row is None:
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable execution lineage disappeared "
+                "during recovery"
+            )
+
+        trade = dict(trade_row)
+        intent = dict(intent_row)
+
+    finally:
+        recovery_seed.close()
+
+    if str(intent.get("mode", "")).upper().strip() != "PAPER":
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Only PAPER trades may be restored"
+        )
+
+    decision = str(
+        intent.get("decision", "")
+    ).upper().strip()
+
+    expected_decision = (
+        "LONG"
+        if direction == "LONG"
+        else "SHORT"
+    )
+
+    if decision != expected_decision:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable recovery direction mismatch"
+        )
+
+    durable_fill = _load_durable_fill(
+        trade,
+        trade_uuid=trade_uuid,
+        authorization_id=lifecycle["authorization_id"],
+        expected_symbol=expected_symbol,
+    )
+
+    entry = durable_fill["fill_price"]
+
+    original_stop = _positive_float(
+        intent.get("stop_loss"),
+        "durable execution stop",
+    )
+
+    quantity = _positive_float(
+        intent.get("quantity"),
+        "durable execution quantity",
+    )
+
+    if not _same(
+        durable_fill["filled_quantity"],
+        quantity,
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable fill quantity conflicts "
+            "with execution quantity"
+        )
+
+    # This exactly reproduces the PAPER post-fill calculation:
+    # abs(fill_price - authorized_stop) * position_size.
+    initial_risk = abs(
+        entry - original_stop
+    ) * quantity
+
+    if (
+        not math.isfinite(initial_risk)
+        or initial_risk <= 0
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid reconstructed initial risk"
+        )
+
+    first_target = _positive_float(
+        intent.get("take_profit"),
+        "durable execution TP1",
+    )
+
+    try:
+        position.open_trade(
+            direction,
+            entry,
+            original_stop,
+            first_target,
+            position_size=quantity,
+            initial_risk=initial_risk,
+        )
+        position.set_trade_uuid(
+            trade_uuid
+        )
+    except Exception as exc:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Unable to reconstruct PositionManager"
+        ) from exc
+
+    plan = recover_active_trade_plan(
+        trade_uuid,
+        position,
+        expected_symbol,
+    )
+
+    current_stop = _positive_float(
+        lifecycle["current_stop"],
+        "durable lifecycle current stop",
+    )
+
+    # Validate the current-stop state against the deterministic lifecycle
+    # transitions implemented by TradeManager.
+    tp1_hit = bool(lifecycle["tp1_hit"])
+    tp2_hit = bool(lifecycle["tp2_hit"])
+    break_even = bool(lifecycle["break_even"])
+    trailing = bool(lifecycle["trailing"])
+
+    # These relationships are monotonic in the production manager:
+    # TP1 -> break-even, TP2 -> trailing.
+    if break_even != tp1_hit:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable break-even/TP1 lifecycle mismatch"
+        )
+
+    if trailing != tp2_hit:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable trailing/TP2 lifecycle mismatch"
+        )
+
+    if tp2_hit and not tp1_hit:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable TP2 lifecycle precedes TP1"
+        )
+
+    if not tp1_hit:
+        if not _same(
+            current_stop,
+            plan["StopLoss"],
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Pre-TP1 durable stop is inconsistent"
+            )
+
+    elif not tp2_hit:
+        if not _same(
+            current_stop,
+            plan["Entry"],
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Break-even durable stop is inconsistent"
+            )
+
+    else:
+        if direction == "LONG":
+            if current_stop < float(plan["Entry"]):
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: LONG trailing stop regressed below entry"
+                )
+        else:
+            if current_stop > float(plan["Entry"]):
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: SHORT trailing stop regressed above entry"
+                )
+
+    position.update_stop_loss(
+        current_stop
+    )
+
+    manager_snapshot = {
+        "position_open": True,
+        "trade_closed": False,
+        "break_even": bool(lifecycle["break_even"]),
+        "trailing": bool(lifecycle["trailing"]),
+        "tp1_hit": bool(lifecycle["tp1_hit"]),
+        "tp2_hit": bool(lifecycle["tp2_hit"]),
+    }
+
+    try:
+        manager.restore(
+            manager_snapshot
+        )
+    except Exception as exc:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable TradeManager lifecycle "
+            "cannot be restored"
+        ) from exc
+
+    return plan
+
+def persist_active_trade_lifecycle(
+    *,
+    trade_uuid,
+    position,
+    manager,
+    symbol,
+):
+    """Persist non-terminal active-management state using V11 CAS."""
+
+    if (
+        not isinstance(trade_uuid, str)
+        or not trade_uuid.strip()
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Missing active lifecycle trade UUID"
+        )
+
+    lifecycle = get_active_trade_lifecycle(
+        trade_uuid.strip()
+    )
+
+    if lifecycle is None:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Active lifecycle record not found"
+        )
+
+    expected_symbol = str(
+        symbol or ""
+    ).upper().strip()
+
+    if (
+        not expected_symbol
+        or str(lifecycle["symbol"]).upper().strip()
+        != expected_symbol
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Active lifecycle symbol mismatch"
+        )
+
+    position_direction = str(
+        getattr(position, "position", "NONE")
+    ).upper().strip()
+
+    if position_direction not in {"LONG", "SHORT"}:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid active lifecycle position"
+        )
+
+    if (
+        str(lifecycle["position"]).upper().strip()
+        != position_direction
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Active lifecycle position mismatch"
+        )
+
+    try:
+        current_stop = float(
+            getattr(position, "stop_loss", 0.0)
+        )
+    except (TypeError, ValueError) as exc:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid active lifecycle current stop"
+        ) from exc
+
+    if (
+        not math.isfinite(current_stop)
+        or current_stop <= 0
+    ):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid active lifecycle current stop"
+        )
+
+    try:
+        manager_state = manager.snapshot()
+    except Exception as exc:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Unable to snapshot TradeManager lifecycle"
+        ) from exc
+
+    if not isinstance(manager_state, dict):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Invalid TradeManager lifecycle snapshot"
+        )
+
+    lifecycle_flags = (
+        "position_open",
+        "trade_closed",
+        "break_even",
+        "trailing",
+        "tp1_hit",
+        "tp2_hit",
+    )
+
+    for field in lifecycle_flags:
+        if not isinstance(
+            manager_state.get(field),
+            bool,
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Invalid TradeManager lifecycle flag: "
+                f"{field}"
+            )
+
+    if manager_state["position_open"] is not True:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Non-terminal lifecycle has inactive manager"
+        )
+
+    if manager_state["trade_closed"] is not False:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Non-terminal lifecycle is marked closed"
+        )
+
+    desired = {
+        "current_stop": current_stop,
+        "tp1_hit": manager_state["tp1_hit"],
+        "tp2_hit": manager_state["tp2_hit"],
+        "break_even": manager_state["break_even"],
+        "trailing": manager_state["trailing"],
+    }
+
+    unchanged = (
+        math.isclose(
+            float(lifecycle["current_stop"]),
+            current_stop,
+            rel_tol=0.0,
+            abs_tol=1e-8,
+        )
+        and bool(lifecycle["tp1_hit"]) == desired["tp1_hit"]
+        and bool(lifecycle["tp2_hit"]) == desired["tp2_hit"]
+        and bool(lifecycle["break_even"]) == desired["break_even"]
+        and bool(lifecycle["trailing"]) == desired["trailing"]
+    )
+
+    if unchanged:
+        return int(lifecycle["revision"])
+
+    current_revision = int(
+        lifecycle["revision"]
+    )
+
+    update_active_trade_lifecycle(
+        trade_uuid=trade_uuid.strip(),
+        authorization_id=str(
+            lifecycle["authorization_id"]
+        ).strip(),
+        symbol=expected_symbol,
+        position=position_direction,
+        current_stop=desired["current_stop"],
+        tp1_hit=desired["tp1_hit"],
+        tp2_hit=desired["tp2_hit"],
+        break_even=desired["break_even"],
+        trailing=desired["trailing"],
+        revision=current_revision + 1,
+        expected_revision=current_revision,
+        updated_at=datetime.utcnow().isoformat(),
+    )
+
+    return current_revision + 1

@@ -21,7 +21,11 @@ from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
 from core.jaguar_analysis_engine import JaguarAnalysisEngine
-from engine.active_trade_recovery import recover_active_trade_plan
+from engine.active_trade_recovery import (
+    recover_active_trade_plan,
+    recover_active_trade_from_durable_lifecycle,
+    persist_active_trade_lifecycle,
+)
 
 from engine.state_manager import (
     save,
@@ -37,6 +41,7 @@ from research.database import (
     insert_execution_intent,
     update_execution_intent,
     get_connection,
+    delete_active_trade_lifecycle,
 )
 
 from intelligence.execution_identity import bind_execution_identity
@@ -641,40 +646,109 @@ def assert_no_orphan_durable_trade(symbol):
 
 
 if not position_loaded:
-    # R56-POS-20M: a durable OPEN trade must never be treated
-    # as a flat account when local recovery state is absent.
-    assert_no_orphan_durable_trade(SYMBOL)
+    # R56-POS-24D: local JSON is a cache. When it is unavailable,
+    # attempt recovery strictly from the durable PAPER lifecycle.
+    try:
+        durable_recovery_plan = (
+            recover_active_trade_from_durable_lifecycle(
+                position=position,
+                manager=manager,
+                symbol=SYMBOL,
+            )
+        )
+    except Exception as recovery_error:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable active-trade recovery failed"
+        ) from recovery_error
+
+    if durable_recovery_plan is None:
+        # R56-POS-20M / R56-POS-23: a durable OPEN trade without a
+        # reconstructable active lifecycle must never be treated as flat.
+        assert_no_orphan_durable_trade(SYMBOL)
+    else:
+        recovered_trade_uuid = getattr(
+            position,
+            "trade_uuid",
+            None,
+        )
+
+        if (
+            position.position not in ("LONG", "SHORT")
+            or not isinstance(recovered_trade_uuid, str)
+            or not recovered_trade_uuid.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable recovery produced invalid active identity"
+            )
+
+        state._trade_id = recovered_trade_uuid
+        plan = durable_recovery_plan
+
+        print(
+            "\nExisting PAPER trade recovered from durable lifecycle."
+        )
 
 
 if position_loaded:
 
     print(
-        "\nExisting trade state loaded."
+        "\nExisting trade state detected; "
+        "revalidating against durable PAPER lifecycle."
     )
 
-    restored_trade_uuid = getattr(
+    cached_trade_uuid = getattr(
         position,
         "trade_uuid",
         None,
     )
 
-    # FAIL-CLOSED: an active restored position must have
-    # a valid trade identity.
+    # FAIL-CLOSED: the local cache may identify the active trade,
+    # but durable DB state remains the recovery authority.
     if (
         position.position not in ("LONG", "SHORT")
-        or not isinstance(restored_trade_uuid, str)
-        or not restored_trade_uuid.strip()
+        or not isinstance(cached_trade_uuid, str)
+        or not cached_trade_uuid.strip()
     ):
         raise RuntimeError(
-            "FAIL-CLOSED: Invalid restored active trade identity"
+            "FAIL-CLOSED: Invalid cached active trade identity"
         )
 
-    state._trade_id = restored_trade_uuid
+    try:
+        durable_recovery_plan = (
+            recover_active_trade_from_durable_lifecycle(
+                position=position,
+                manager=manager,
+                symbol=SYMBOL,
+            )
+        )
+    except Exception as recovery_error:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable active-trade revalidation failed"
+        ) from recovery_error
 
-    plan = recover_active_trade_plan(
-        restored_trade_uuid,
+    if durable_recovery_plan is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: Active local state has no durable "
+            "active lifecycle"
+        )
+
+    recovered_trade_uuid = getattr(
         position,
-        SYMBOL,
+        "trade_uuid",
+        None,
+    )
+
+    if recovered_trade_uuid != cached_trade_uuid:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable recovery trade UUID conflicts "
+            "with local active state"
+        )
+
+    state._trade_id = recovered_trade_uuid
+    plan = durable_recovery_plan
+
+    print(
+        "Durable PAPER lifecycle is authoritative for active state."
     )
 
 
@@ -1218,10 +1292,28 @@ if position.position != "NONE":
                         new_stop
                     )
 
-                # Persist AFTER non-terminal stop/lifecycle changes.
-                if not save(position, SYMBOL, manager):
+                # R56-POS-24: durable lifecycle is committed before
+                # the local JSON cache. The database is the recovery
+                # authority for current stop and manager lifecycle.
+                try:
+                    persist_active_trade_lifecycle(
+                        trade_uuid=trade_uuid,
+                        position=position,
+                        manager=manager,
+                        symbol=SYMBOL,
+                    )
+                except Exception as lifecycle_error:
                     raise RuntimeError(
-                        "FAIL-CLOSED: Active position persistence failed"
+                        "FAIL-CLOSED: Active lifecycle persistence failed"
+                    ) from lifecycle_error
+
+                # Local state is a cache of the already-durable lifecycle.
+                if not save(position, SYMBOL, manager):
+                    # Never leave a stale cache capable of being restored
+                    # after the database has advanced.
+                    clear()
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active position cache persistence failed"
                     )
 
             status = position.status()
@@ -1449,6 +1541,23 @@ if position.position != "NONE":
                 if float(closed_row["pnl"]) != pnl:
                     raise RuntimeError(
                         "FAIL-CLOSED: Durable trade close PnL mismatch"
+                    )
+
+                # R56-POS-24C: after canonical trade closure has been
+                # durably verified, remove the nonterminal active-lifecycle
+                # record. Never delete it before CLOSED read-back succeeds.
+                try:
+                    deleted_lifecycle = delete_active_trade_lifecycle(
+                        trade_uuid
+                    )
+                except Exception as lifecycle_error:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active lifecycle cleanup failed"
+                    ) from lifecycle_error
+
+                if deleted_lifecycle != 1:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active lifecycle cleanup rowcount mismatch"
                     )
 
                 state._trade_id = None

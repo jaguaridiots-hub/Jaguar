@@ -6,6 +6,7 @@ import tempfile
 
 import intelligence.paper_post_fill as pp
 import engine.state_manager as sm
+import research.database as db
 
 
 def _make_state():
@@ -146,85 +147,209 @@ def _run_success(direction):
     journal = Journal(events)
 
     trade_uuid = f"R56-POS22-{direction}"
+    authorization_id = f"AUTH-{direction}"
+    client_order_id = f"CLIENT-{direction}"
 
-    with tempfile.TemporaryDirectory(dir=".jaguar_audit") as td:
+    with tempfile.TemporaryDirectory(
+        dir=".jaguar_audit"
+    ) as td:
+
         state_file = Path(td) / "state.json"
+        db_file = Path(td) / "execution.db"
 
         original_file = sm.FILE
         original_save = pp.save
+        original_db_path = db.DB_PATH
+
         sm.FILE = str(state_file)
-
-        save_calls = []
-
-        def tracked_save(*args, **kwargs):
-            manager_arg = args[2] if len(args) > 2 else kwargs.get("manager")
-            save_calls.append(manager_arg)
-            events.append("save(position,SYMBOL,manager)")
-            return sm.save(*args, **kwargs)
-
-        pp.save = tracked_save
-
-        original_record, original_lifecycle = _patch_common(events)
+        db.DB_PATH = str(db_file)
 
         try:
-            pp.execute_paper_post_fill(
-                execution={},
-                execution_result=_execution_result(),
-                authorization_id=f"AUTH-{direction}",
-                trade_uuid=trade_uuid,
-                authorized_stop=(
-                    90.0 if direction == "BUY" else 110.0
-                ),
-                authorized_targets=(
-                    [110.0, 120.0]
-                    if direction == "BUY"
-                    else [90.0, 80.0]
-                ),
-                direction=direction,
-                state=state,
-                position=position,
-                manager=manager,
-                journal=journal,
-                plan={},
-                rollback_execution_if_pre_submission=lambda result: None,
-                preserve_trade_for_recovery=lambda uuid: None,
-                SYMBOL="BTCUSDT",
-                TIMEFRAME="15m",
+            # R56-POS-24:
+            # Active lifecycle is downstream of the canonical
+            # execution-intent identity pair.
+            db.init_db()
+
+            db.insert_execution_intent(
+                {
+                    "authorization_id": authorization_id,
+                    "trade_uuid": trade_uuid,
+                    "client_order_id": client_order_id,
+                    "symbol": "BTCUSDT",
+                    "timeframe": "15m",
+                    "mode": "PAPER",
+                    "decision": (
+                        "LONG"
+                        if direction == "BUY"
+                        else "SHORT"
+                    ),
+                    "quantity": 1.0,
+                    "requested_price": 100.0,
+                    "stop_loss": (
+                        90.0
+                        if direction == "BUY"
+                        else 110.0
+                    ),
+                    "take_profit": (
+                        110.0
+                        if direction == "BUY"
+                        else 90.0
+                    ),
+                    "run_id": "R56-POS24-POS22-FIXTURE",
+                    "status": "AUTHORIZED",
+                    "created_at": "2026-09-29T10:00:00",
+                    "updated_at": "2026-09-29T10:00:00",
+                }
             )
+
+            db.update_execution_intent(
+                authorization_id,
+                broker_order_id=f"BROKER-{direction}",
+                status="SUBMITTED",
+            )
+
+            save_calls = []
+
+            def tracked_save(*args, **kwargs):
+                manager_arg = (
+                    args[2]
+                    if len(args) > 2
+                    else kwargs.get("manager")
+                )
+
+                save_calls.append(manager_arg)
+                events.append(
+                    "save(position,SYMBOL,manager)"
+                )
+
+                return sm.save(
+                    *args,
+                    **kwargs,
+                )
+
+            pp.save = tracked_save
+
+            original_record, original_lifecycle = (
+                _patch_common(events)
+            )
+
+            try:
+                pp.execute_paper_post_fill(
+                    execution={},
+                    execution_result=_execution_result(),
+                    authorization_id=authorization_id,
+                    trade_uuid=trade_uuid,
+                    authorized_stop=(
+                        90.0
+                        if direction == "BUY"
+                        else 110.0
+                    ),
+                    authorized_targets=(
+                        [110.0, 120.0]
+                        if direction == "BUY"
+                        else [90.0, 80.0]
+                    ),
+                    direction=direction,
+                    state=state,
+                    position=position,
+                    manager=manager,
+                    journal=journal,
+                    plan={},
+                    rollback_execution_if_pre_submission=(
+                        lambda result: None
+                    ),
+                    preserve_trade_for_recovery=(
+                        lambda uuid: None
+                    ),
+                    SYMBOL="BTCUSDT",
+                    TIMEFRAME="15m",
+                )
+            finally:
+                _restore_common(
+                    original_record,
+                    original_lifecycle,
+                )
+
+            expected = [
+                "position.open_trade",
+                "record_trade_open",
+                "position.set_trade_uuid",
+                "journal.save",
+                "_persist_paper_durable_lifecycle",
+                "manager.activate",
+                "save(position,SYMBOL,manager)",
+            ]
+
+            assert events == expected, (
+                f"{direction}: unexpected event order: "
+                f"{events}"
+            )
+
+            assert len(save_calls) == 1
+            assert save_calls[0] is manager
+            assert state_file.exists()
+
+            persisted = json.loads(
+                state_file.read_text()
+            )
+
+            assert persisted["position"] == (
+                "LONG"
+                if direction == "BUY"
+                else "SHORT"
+            )
+
+            assert persisted["trade_uuid"] == trade_uuid
+
+            assert (
+                persisted["manager_state"]
+                ["position_open"]
+                is True
+            )
+
+            assert (
+                persisted["manager_state"]
+                ["trade_closed"]
+                is False
+            )
+
+            lifecycle = (
+                db.get_active_trade_lifecycle(
+                    trade_uuid
+                )
+            )
+
+            assert lifecycle is not None
+            assert lifecycle["trade_uuid"] == trade_uuid
+            assert lifecycle["authorization_id"] == (
+                authorization_id
+            )
+            assert lifecycle["symbol"] == "BTCUSDT"
+            assert lifecycle["position"] == (
+                "LONG"
+                if direction == "BUY"
+                else "SHORT"
+            )
+            assert lifecycle["revision"] == 1
+            assert lifecycle["trade_closed"] == 0
+
+            print(
+                f"R56_POS22_RUNTIME_{direction}_V11_LIFECYCLE: PASS"
+            )
+
+            print(
+                f"R56_POS22_RUNTIME_{direction}_ORDER: PASS"
+            )
+
+            print(
+                f"R56_POS22_RUNTIME_{direction}_MANAGER_STATE: PASS"
+            )
+
         finally:
-            _restore_common(original_record, original_lifecycle)
             pp.save = original_save
             sm.FILE = original_file
+            db.DB_PATH = original_db_path
 
-        expected = [
-            "position.open_trade",
-            "record_trade_open",
-            "position.set_trade_uuid",
-            "journal.save",
-            "_persist_paper_durable_lifecycle",
-            "manager.activate",
-            "save(position,SYMBOL,manager)",
-        ]
-
-        assert events == expected, (
-            f"{direction}: unexpected event order: {events}"
-        )
-
-        assert len(save_calls) == 1
-        assert save_calls[0] is manager
-        assert state_file.exists()
-
-        persisted = json.loads(state_file.read_text())
-
-        assert persisted["position"] == (
-            "LONG" if direction == "BUY" else "SHORT"
-        )
-        assert persisted["trade_uuid"] == trade_uuid
-        assert persisted["manager_state"]["position_open"] is True
-        assert persisted["manager_state"]["trade_closed"] is False
-
-        print(f"R56_POS22_RUNTIME_{direction}_ORDER: PASS")
-        print(f"R56_POS22_RUNTIME_{direction}_MANAGER_STATE: PASS")
 
 
 def _run_lifecycle_failure():

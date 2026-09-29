@@ -344,6 +344,46 @@ def repair_schema(cursor, missing):
 # ----------------------------------------------------------------------
 # init_db – creates all tables including Phase 33D columns
 # ----------------------------------------------------------------------
+
+def _migrate_v10_to_v11(cursor):
+    """Create the durable active-trade lifecycle contract."""
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS active_trade_lifecycle (
+            trade_uuid TEXT PRIMARY KEY,
+            authorization_id TEXT NOT NULL UNIQUE,
+            symbol TEXT NOT NULL,
+            position TEXT NOT NULL,
+            current_stop REAL NOT NULL,
+            tp1_hit INTEGER NOT NULL,
+            tp2_hit INTEGER NOT NULL,
+            break_even INTEGER NOT NULL,
+            trailing INTEGER NOT NULL,
+            trade_closed INTEGER NOT NULL,
+            revision INTEGER NOT NULL,
+            state_checksum TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (authorization_id)
+                REFERENCES execution_intents(authorization_id)
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_active_trade_lifecycle_authorization
+        ON active_trade_lifecycle(authorization_id)
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS
+        idx_active_trade_lifecycle_symbol
+        ON active_trade_lifecycle(symbol)
+    """)
+
+    _set_schema_version(cursor, 11)
+
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -407,7 +447,14 @@ def init_db():
         # Idempotently ensure the V10 journal remains present.
         _migrate_v9_to_v10(c)
 
-    _set_schema_version(c, 10)
+    if version < 11:
+        _migrate_v10_to_v11(c)
+        version = 11
+    else:
+        # Idempotently ensure the V11 lifecycle table remains present.
+        _migrate_v10_to_v11(c)
+
+    _set_schema_version(c, 11)
     conn.commit()
 
     missing = validate_schema(c)
@@ -425,8 +472,11 @@ def init_db():
             )
 
         _migrate_v7_to_v8(c)
-        # Preserve the active V10 schema version after legacy trade-column repair.
-        _set_schema_version(c, 10)
+
+        # Re-assert the current schema contract after legacy column repair.
+        # V11 owns durable active-trade lifecycle persistence.
+        _migrate_v10_to_v11(c)
+        _set_schema_version(c, 11)
         conn.commit()
 
         still_missing = validate_schema(c)
@@ -2070,6 +2120,551 @@ def update_execution_protection(
         raise
     finally:
         conn.close()
+
+
+# ----------------------------------------------------------------------
+# Durable active-trade lifecycle V11
+# ----------------------------------------------------------------------
+
+_ACTIVE_LIFECYCLE_TERMINAL = {
+    True,
+}
+
+
+def _lifecycle_bool(value, field):
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, int) and value in (0, 1):
+        return bool(value)
+
+    raise ValueError(
+        f"Invalid active-lifecycle {field}"
+    )
+
+
+def _lifecycle_checksum(data):
+    import hashlib
+    import json
+
+    payload = {
+        key: data[key]
+        for key in (
+            "trade_uuid",
+            "authorization_id",
+            "symbol",
+            "position",
+            "current_stop",
+            "tp1_hit",
+            "tp2_hit",
+            "break_even",
+            "trailing",
+            "trade_closed",
+            "revision",
+        )
+    }
+
+    return hashlib.sha256(
+        json.dumps(
+            payload,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()
+
+
+def _validate_active_lifecycle(data):
+    required = {
+        "trade_uuid",
+        "authorization_id",
+        "symbol",
+        "position",
+        "current_stop",
+        "tp1_hit",
+        "tp2_hit",
+        "break_even",
+        "trailing",
+        "trade_closed",
+        "revision",
+    }
+
+    missing = required - set(data)
+    if missing:
+        raise ValueError(
+            f"Missing active-lifecycle fields: {sorted(missing)}"
+        )
+
+    for field in (
+        "trade_uuid",
+        "authorization_id",
+        "symbol",
+    ):
+        value = data[field]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"Invalid active-lifecycle {field}"
+            )
+
+    position = str(
+        data["position"]
+    ).upper().strip()
+
+    if position not in {"LONG", "SHORT"}:
+        raise ValueError(
+            "Invalid active-lifecycle position"
+        )
+
+    current_stop = float(data["current_stop"])
+
+    if current_stop != current_stop:
+        raise ValueError(
+            "Invalid active-lifecycle current_stop"
+        )
+
+    if current_stop in (
+        float("inf"),
+        float("-inf"),
+    ) or current_stop <= 0:
+        raise ValueError(
+            "Invalid active-lifecycle current_stop"
+        )
+
+    tp1_hit = _lifecycle_bool(
+        data["tp1_hit"],
+        "tp1_hit",
+    )
+    tp2_hit = _lifecycle_bool(
+        data["tp2_hit"],
+        "tp2_hit",
+    )
+    break_even = _lifecycle_bool(
+        data["break_even"],
+        "break_even",
+    )
+    trailing = _lifecycle_bool(
+        data["trailing"],
+        "trailing",
+    )
+    trade_closed = _lifecycle_bool(
+        data["trade_closed"],
+        "trade_closed",
+    )
+
+    if tp2_hit and not tp1_hit:
+        raise RuntimeError(
+            "FAIL-CLOSED: TP2 requires TP1"
+        )
+
+    if break_even and not tp1_hit:
+        raise RuntimeError(
+            "FAIL-CLOSED: break-even requires TP1"
+        )
+
+    if trailing and not tp2_hit:
+        raise RuntimeError(
+            "FAIL-CLOSED: trailing requires TP2"
+        )
+
+    if trade_closed:
+        raise RuntimeError(
+            "FAIL-CLOSED: active lifecycle cannot be terminal"
+        )
+
+    revision = data["revision"]
+
+    if isinstance(revision, bool):
+        raise ValueError(
+            "Invalid active-lifecycle revision"
+        )
+
+    try:
+        revision = int(revision)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Invalid active-lifecycle revision"
+        ) from exc
+
+    if revision < 1:
+        raise ValueError(
+            "Invalid active-lifecycle revision"
+        )
+
+    return {
+        "trade_uuid": data["trade_uuid"].strip(),
+        "authorization_id": data["authorization_id"].strip(),
+        "symbol": data["symbol"].upper().strip(),
+        "position": position,
+        "current_stop": current_stop,
+        "tp1_hit": tp1_hit,
+        "tp2_hit": tp2_hit,
+        "break_even": break_even,
+        "trailing": trailing,
+        "trade_closed": trade_closed,
+        "revision": revision,
+    }
+
+
+
+def _assert_active_lifecycle_lineage(conn, data):
+    """Require the lifecycle identity pair to exist canonically."""
+
+    row = conn.execute(
+        """
+        SELECT trade_uuid
+        FROM execution_intents
+        WHERE authorization_id = ?
+        """,
+        (data["authorization_id"],),
+    ).fetchone()
+
+    if row is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: active lifecycle authorization "
+            "does not exist in execution_intents"
+        )
+
+    if row["trade_uuid"] != data["trade_uuid"]:
+        raise RuntimeError(
+            "FAIL-CLOSED: active lifecycle authorization/trade "
+            "lineage mismatch"
+        )
+
+
+def insert_active_trade_lifecycle(data: dict):
+    """Create the initial durable active-management snapshot."""
+
+    normalized = _validate_active_lifecycle(data)
+
+    checksum = _lifecycle_checksum(normalized)
+
+    created_at = data.get("created_at")
+    updated_at = data.get("updated_at")
+
+    if not isinstance(created_at, str) or not created_at.strip():
+        raise ValueError(
+            "Invalid active-lifecycle created_at"
+        )
+
+    if not isinstance(updated_at, str) or not updated_at.strip():
+        raise ValueError(
+            "Invalid active-lifecycle updated_at"
+        )
+
+    conn = get_connection()
+
+    try:
+        _assert_active_lifecycle_lineage(
+            conn,
+            normalized,
+        )
+
+        conn.execute(
+            """
+            INSERT INTO active_trade_lifecycle (
+                trade_uuid,
+                authorization_id,
+                symbol,
+                position,
+                current_stop,
+                tp1_hit,
+                tp2_hit,
+                break_even,
+                trailing,
+                trade_closed,
+                revision,
+                state_checksum,
+                created_at,
+                updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                normalized["trade_uuid"],
+                normalized["authorization_id"],
+                normalized["symbol"],
+                normalized["position"],
+                normalized["current_stop"],
+                int(normalized["tp1_hit"]),
+                int(normalized["tp2_hit"]),
+                int(normalized["break_even"]),
+                int(normalized["trailing"]),
+                int(normalized["trade_closed"]),
+                normalized["revision"],
+                checksum,
+                created_at,
+                updated_at,
+            ),
+        )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def get_active_trade_lifecycle(trade_uuid: str):
+    if (
+        not isinstance(trade_uuid, str)
+        or not trade_uuid.strip()
+    ):
+        raise ValueError(
+            "Invalid trade_uuid"
+        )
+
+    conn = get_connection()
+
+    try:
+        row = conn.execute(
+            """
+            SELECT *
+            FROM active_trade_lifecycle
+            WHERE trade_uuid = ?
+            """,
+            (trade_uuid,),
+        ).fetchone()
+
+        if row is None:
+            return None
+
+        canonical = {
+            "trade_uuid": row["trade_uuid"],
+            "authorization_id": row["authorization_id"],
+            "symbol": row["symbol"],
+            "position": row["position"],
+            "current_stop": row["current_stop"],
+            "tp1_hit": row["tp1_hit"],
+            "tp2_hit": row["tp2_hit"],
+            "break_even": row["break_even"],
+            "trailing": row["trailing"],
+            "trade_closed": row["trade_closed"],
+            "revision": row["revision"],
+        }
+
+        normalized = _validate_active_lifecycle(
+            canonical
+        )
+
+        expected_checksum = _lifecycle_checksum(
+            normalized
+        )
+
+        if row["state_checksum"] != expected_checksum:
+            raise RuntimeError(
+                "FAIL-CLOSED: active lifecycle checksum mismatch"
+            )
+
+        return row
+    finally:
+        conn.close()
+
+
+def update_active_trade_lifecycle(
+    trade_uuid: str,
+    *,
+    authorization_id: str,
+    symbol: str,
+    position: str,
+    current_stop,
+    tp1_hit,
+    tp2_hit,
+    break_even,
+    trailing,
+    revision,
+    expected_revision: int,
+    updated_at: str,
+):
+    if (
+        not isinstance(trade_uuid, str)
+        or not trade_uuid.strip()
+    ):
+        raise ValueError(
+            "Invalid trade_uuid"
+        )
+
+    data = {
+        "trade_uuid": trade_uuid,
+        "authorization_id": authorization_id,
+        "symbol": symbol,
+        "position": position,
+        "current_stop": current_stop,
+        "tp1_hit": tp1_hit,
+        "tp2_hit": tp2_hit,
+        "break_even": break_even,
+        "trailing": trailing,
+        "trade_closed": False,
+        "revision": revision,
+    }
+
+    normalized = _validate_active_lifecycle(data)
+
+    try:
+        expected_revision = int(expected_revision)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Invalid expected active-lifecycle revision"
+        ) from exc
+
+    if normalized["revision"] != expected_revision + 1:
+        raise RuntimeError(
+            "FAIL-CLOSED: active-lifecycle revision must "
+            "advance exactly by one"
+        )
+
+    if (
+        not isinstance(updated_at, str)
+        or not updated_at.strip()
+    ):
+        raise ValueError(
+            "Invalid active-lifecycle updated_at"
+        )
+
+    checksum = _lifecycle_checksum(normalized)
+
+    conn = get_connection()
+
+    try:
+        _assert_active_lifecycle_lineage(
+            conn,
+            normalized,
+        )
+
+        current = conn.execute(
+            """
+            SELECT *
+            FROM active_trade_lifecycle
+            WHERE trade_uuid = ?
+            """,
+            (trade_uuid,),
+        ).fetchone()
+
+        if current is None:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: active lifecycle not found: "
+                f"{trade_uuid}"
+            )
+
+        if current["authorization_id"] != normalized["authorization_id"]:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: active lifecycle authorization "
+                "identity mismatch"
+            )
+
+        if current["symbol"] != normalized["symbol"]:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: active lifecycle symbol mismatch"
+            )
+
+        # Validate the existing durable state before allowing a
+        # revision advance. A corrupted lifecycle must quarantine;
+        # it must never be silently repaired by the next update.
+        current_canonical = {
+            "trade_uuid": current["trade_uuid"],
+            "authorization_id": current["authorization_id"],
+            "symbol": current["symbol"],
+            "position": current["position"],
+            "current_stop": current["current_stop"],
+            "tp1_hit": current["tp1_hit"],
+            "tp2_hit": current["tp2_hit"],
+            "break_even": current["break_even"],
+            "trailing": current["trailing"],
+            "trade_closed": current["trade_closed"],
+            "revision": current["revision"],
+        }
+
+        current_normalized = _validate_active_lifecycle(
+            current_canonical
+        )
+
+        expected_current_checksum = _lifecycle_checksum(
+            current_normalized
+        )
+
+        if current["state_checksum"] != expected_current_checksum:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: existing active lifecycle checksum mismatch"
+            )
+
+        cursor = conn.execute(
+            """
+            UPDATE active_trade_lifecycle
+            SET
+                current_stop = ?,
+                tp1_hit = ?,
+                tp2_hit = ?,
+                break_even = ?,
+                trailing = ?,
+                trade_closed = ?,
+                revision = ?,
+                state_checksum = ?,
+                updated_at = ?
+            WHERE trade_uuid = ?
+              AND authorization_id = ?
+              AND revision = ?
+            """,
+            (
+                normalized["current_stop"],
+                int(normalized["tp1_hit"]),
+                int(normalized["tp2_hit"]),
+                int(normalized["break_even"]),
+                int(normalized["trailing"]),
+                int(normalized["trade_closed"]),
+                normalized["revision"],
+                checksum,
+                updated_at,
+                trade_uuid,
+                normalized["authorization_id"],
+                expected_revision,
+            ),
+        )
+
+        if cursor.rowcount != 1:
+            conn.rollback()
+            raise RuntimeError(
+                "FAIL-CLOSED: stale or missing active-lifecycle revision"
+            )
+
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
+
+def delete_active_trade_lifecycle(trade_uuid: str):
+    if (
+        not isinstance(trade_uuid, str)
+        or not trade_uuid.strip()
+    ):
+        raise ValueError(
+            "Invalid trade_uuid"
+        )
+
+    conn = get_connection()
+
+    try:
+        cursor = conn.execute(
+            """
+            DELETE FROM active_trade_lifecycle
+            WHERE trade_uuid = ?
+            """,
+            (trade_uuid,),
+        )
+
+        conn.commit()
+
+        return cursor.rowcount
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
