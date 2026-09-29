@@ -1300,6 +1300,7 @@ if position.position != "NONE":
                         trade_uuid=trade_uuid,
                         position=position,
                         manager=manager,
+                        plan=plan,
                         symbol=SYMBOL,
                     )
                 except Exception as lifecycle_error:

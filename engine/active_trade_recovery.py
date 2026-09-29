@@ -901,6 +901,7 @@ def persist_active_trade_lifecycle(
     trade_uuid,
     position,
     manager,
+    plan,
     symbol,
 ):
     """Persist non-terminal active-management state using V11 CAS."""
@@ -1009,6 +1010,123 @@ def persist_active_trade_lifecycle(
         raise ActiveTradeRecoveryError(
             "FAIL-CLOSED: Non-terminal lifecycle is marked closed"
         )
+
+    # R56-POS-26: validate the current stop against the canonical
+    # execution plan before allowing a new durable lifecycle revision.
+    if not isinstance(plan, dict):
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Missing canonical active trade plan"
+        )
+
+    expected_plan_direction = {
+        "LONG": "BUY",
+        "SHORT": "SELL",
+    }[position_direction]
+
+    plan_direction = str(
+        plan.get("Direction", "")
+    ).upper().strip()
+
+    if plan_direction != expected_plan_direction:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Active lifecycle plan direction mismatch"
+        )
+
+    entry = _positive_float(
+        plan.get("Entry"),
+        "plan entry",
+    )
+
+    original_stop = _positive_float(
+        plan.get("StopLoss"),
+        "plan stop loss",
+    )
+
+    tp1_hit = manager_state["tp1_hit"]
+    tp2_hit = manager_state["tp2_hit"]
+    break_even = manager_state["break_even"]
+    trailing = manager_state["trailing"]
+
+    if tp2_hit and not tp1_hit:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable TP2 lifecycle precedes TP1"
+        )
+
+    if break_even != tp1_hit:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable break-even/TP1 lifecycle mismatch"
+        )
+
+    if trailing != tp2_hit:
+        raise ActiveTradeRecoveryError(
+            "FAIL-CLOSED: Durable trailing/TP2 lifecycle mismatch"
+        )
+
+    # R56-POS-26: active-management lifecycle is forward-only.
+    # A durable revision must never erase a previously reached milestone.
+    monotonic_flags = (
+        "tp1_hit",
+        "tp2_hit",
+        "break_even",
+        "trailing",
+    )
+
+    current_flags = {
+        "tp1_hit": tp1_hit,
+        "tp2_hit": tp2_hit,
+        "break_even": break_even,
+        "trailing": trailing,
+    }
+
+    for field in monotonic_flags:
+        if bool(lifecycle[field]) and not current_flags[field]:
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Active lifecycle flag regressed: "
+                f"{field}"
+            )
+
+    # R56-POS-26: once durable trailing is active, the current stop
+    # must never move backward relative to the previous durable revision.
+    previous_stop = _positive_float(
+        lifecycle["current_stop"],
+        "previous durable current stop",
+    )
+
+    if bool(lifecycle["trailing"]) and trailing:
+        if position_direction == "LONG":
+            if current_stop < previous_stop:
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: LONG trailing stop regressed "
+                    "from previous durable revision"
+                )
+        else:
+            if current_stop > previous_stop:
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: SHORT trailing stop regressed "
+                    "from previous durable revision"
+                )
+
+    if not tp1_hit:
+        if not _same(current_stop, original_stop):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Pre-TP1 current stop is inconsistent"
+            )
+    elif not tp2_hit:
+        if not _same(current_stop, entry):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Break-even current stop is inconsistent"
+            )
+    else:
+        if position_direction == "LONG":
+            if current_stop < entry:
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: LONG trailing stop regressed below entry"
+                )
+        else:
+            if current_stop > entry:
+                raise ActiveTradeRecoveryError(
+                    "FAIL-CLOSED: SHORT trailing stop regressed above entry"
+                )
 
     desired = {
         "current_stop": current_stop,
