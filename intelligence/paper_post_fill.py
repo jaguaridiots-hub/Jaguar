@@ -390,6 +390,15 @@ def execute_paper_post_fill(
     SYMBOL,
     TIMEFRAME,
 ):
+    normalized_direction = str(
+        direction or ""
+    ).upper().strip()
+
+    if normalized_direction not in {"BUY", "SELL"}:
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid PAPER execution direction"
+        )
+
     filled_quantity = float(execution_result.get('filled_quantity', 0.0) or 0.0)
     fill_price = float(execution_result.get('fill_price', 0.0) or 0.0)
     if filled_quantity <= 0 or fill_price <= 0:
@@ -410,7 +419,7 @@ def execute_paper_post_fill(
         except Exception as rollback_error:
             raise RuntimeError('FAIL-CLOSED: Invalid filled-trade risk AND execution rollback failed') from rollback_error
         raise RuntimeError('FAIL-CLOSED: Invalid filled-trade risk')
-    if 'BUY' in direction:
+    if normalized_direction == 'BUY':
         if position.position != 'NONE':
             raise RuntimeError('FAIL-CLOSED: Position already active')
         try:
@@ -538,7 +547,7 @@ def execute_paper_post_fill(
             _persist_initial_active_trade_lifecycle(
                 trade_uuid=trade_uuid,
                 authorization_id=authorization_id,
-                direction=direction,
+                direction=normalized_direction,
                 authorized_stop=authorized_stop,
                 SYMBOL=SYMBOL,
             )
@@ -552,7 +561,7 @@ def execute_paper_post_fill(
             raise RuntimeError(
                 'FAIL-CLOSED: Active management-state persistence failed'
             )
-    elif 'SELL' in direction:
+    elif normalized_direction == 'SELL':
         if position.position != 'NONE':
             raise RuntimeError('FAIL-CLOSED: Position already active')
         try:
@@ -680,7 +689,7 @@ def execute_paper_post_fill(
             _persist_initial_active_trade_lifecycle(
                 trade_uuid=trade_uuid,
                 authorization_id=authorization_id,
-                direction=direction,
+                direction=normalized_direction,
                 authorized_stop=authorized_stop,
                 SYMBOL=SYMBOL,
             )
