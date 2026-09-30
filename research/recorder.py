@@ -99,6 +99,56 @@ def record_trade_open(
     else:
         take_profit = trade_plan.get("tp1")
 
+    # R56-POS-30: canonical PAPER persistence must use the
+    # already-authorized execution geometry, never mutable trade state.
+    paper_authoritative_entry = None
+    paper_authoritative_stop = None
+    paper_authoritative_targets = None
+
+    if (
+        contract_source == "ENTERPRISE"
+        and str(
+            enterprise_execution.get("mode", "")
+        ).strip().upper() == "PAPER"
+    ):
+        paper_authoritative_entry = enterprise_execution.get("entry")
+        paper_authoritative_stop = enterprise_execution.get(
+            "stop_loss"
+        )
+        paper_authoritative_targets = enterprise_execution.get(
+            "targets"
+        )
+
+        if (
+            paper_authoritative_entry is None
+            or paper_authoritative_stop is None
+            or not isinstance(
+                paper_authoritative_targets,
+                list,
+            )
+            or len(paper_authoritative_targets) < 3
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Canonical PAPER execution geometry missing"
+            )
+
+        take_profit = paper_authoritative_targets[0]
+
+    persisted_entry = (
+        paper_authoritative_entry
+        if paper_authoritative_entry is not None
+        else trade_plan.get("entry")
+    )
+
+    persisted_stop = (
+        paper_authoritative_stop
+        if paper_authoritative_stop is not None
+        else trade_plan.get(
+            "stop_loss",
+            trade_plan.get("stop"),
+        )
+    )
+
     snapshot_open = {
         # Canonical execution authority.
         "execution_authority": "IDM",
@@ -166,8 +216,8 @@ def record_trade_open(
         "symbol": state.symbol,
         "timeframe": state.interval,
         "mode": getattr(state, "mode", "SWING"),
-        "entry_price": trade_plan.get("entry"),
-        "stop_loss": trade_plan.get("stop_loss", trade_plan.get("stop")),
+        "entry_price": persisted_entry,
+        "stop_loss": persisted_stop,
         "take_profit": take_profit,
         "snapshot_open": snapshot_json,
         "snapshot_open_checksum": checksum,
