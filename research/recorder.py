@@ -291,30 +291,27 @@ def record_trade_abandoned(uuid):
 
 def record_trade_close(uuid, exit_price, pnl, r_multiple, win_loss, holding_time, exit_time=None):
     init_db()
+    close_timestamp = exit_time or datetime.now().isoformat()
+
+    close_snapshot = {
+        "exit_price": exit_price,
+        "pnl": pnl,
+        "r_multiple": r_multiple,
+        "win_loss": win_loss,
+        "holding_time": int(holding_time),
+        "timestamp": close_timestamp,
+    }
+
     close_data = {
         "status": "CLOSED",
-        "close_time": exit_time or datetime.now().isoformat(),
+        "close_time": close_timestamp,
         "exit_price": exit_price,
         "pnl": pnl,
         "r_multiple": r_multiple,
         "win_loss": 1 if win_loss else 0,
         "holding_time": int(holding_time),
-        "snapshot_close": json.dumps({
-            "exit_price": exit_price,
-            "pnl": pnl,
-            "r_multiple": r_multiple,
-            "win_loss": win_loss,
-            "holding_time": int(holding_time),
-            "timestamp": datetime.now().isoformat()
-        }),
-        "snapshot_close_checksum": _compute_checksum({
-            "exit_price": exit_price,
-            "pnl": pnl,
-            "r_multiple": r_multiple,
-            "win_loss": win_loss,
-            "holding_time": int(holding_time),
-            "timestamp": datetime.now().isoformat()
-        })
+        "snapshot_close": json.dumps(close_snapshot),
+        "snapshot_close_checksum": _compute_checksum(close_snapshot),
     }
     update_close_trade(uuid, close_data)
     print(f"📊 Research: Trade {uuid} closed (PnL: {pnl:.2f}, R: {r_multiple:.2f})")
