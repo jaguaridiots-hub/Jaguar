@@ -3,6 +3,7 @@ import json
 import math
 from datetime import datetime
 from .database import get_connection
+from .closed_trade_integrity import validate_closed_trade_record
 
 def get_trades_with_filters(symbol=None, mode=None, asset_class=None):
     conn = get_connection()
@@ -22,7 +23,10 @@ def get_trades_with_filters(symbol=None, mode=None, asset_class=None):
     rows = cur.fetchall()
     conn.close()
     columns = [desc[0] for desc in cur.description]
-    trades = [dict(zip(columns, row)) for row in rows]
+    trades = [
+        validate_closed_trade_record(dict(zip(columns, row)))
+        for row in rows
+    ]
     trades.sort(key=lambda t: t.get('close_time', ''))
     return trades
 

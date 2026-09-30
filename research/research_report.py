@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from math import sqrt
 from .database import DB_PATH
+from .closed_trade_integrity import validate_closed_trade_record
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -32,10 +33,31 @@ def overall_performance(run_id=None):
     where, params = _closed_trades_where(run_id)
     conn = get_connection()
     trades = conn.execute(
-        f"SELECT win_loss, pnl, r_multiple, holding_time, open_time, exit_price FROM trades {where} ORDER BY open_time",
+        f"""
+        SELECT
+            uuid,
+            status,
+            close_time,
+            exit_price,
+            pnl,
+            r_multiple,
+            win_loss,
+            holding_time,
+            snapshot_close,
+            snapshot_close_checksum,
+            open_time
+        FROM trades
+        {where}
+        ORDER BY open_time
+        """,
         params
     ).fetchall()
     conn.close()
+
+    trades = [
+        validate_closed_trade_record(t)
+        for t in trades
+    ]
 
     total = len(trades)
     wins = sum(1 for t in trades if t["win_loss"] == 1)
@@ -388,8 +410,32 @@ def campaign_compare(selected_ids=None):
 def mode_performance(run_id=None):
     where, params = _closed_trades_where(run_id)
     conn = get_connection()
-    rows = conn.execute(f"SELECT mode, win_loss, pnl FROM trades {where}", params).fetchall()
+    rows = conn.execute(
+        f"""
+        SELECT
+            uuid,
+            status,
+            close_time,
+            exit_price,
+            pnl,
+            r_multiple,
+            win_loss,
+            holding_time,
+            snapshot_close,
+            snapshot_close_checksum,
+            mode
+        FROM trades
+        {where}
+        """,
+        params,
+    ).fetchall()
     conn.close()
+
+    rows = [
+        validate_closed_trade_record(r)
+        for r in rows
+    ]
+
     modes = {}
     for r in rows:
         md = r["mode"] or "unknown"

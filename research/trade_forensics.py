@@ -3,6 +3,7 @@ import sqlite3
 import json
 from datetime import datetime
 from .database import DB_PATH
+from .closed_trade_integrity import validate_closed_trade_record
 
 def get_connection():
     conn = sqlite3.connect(DB_PATH)
@@ -17,6 +18,10 @@ def get_trade_summary(trade_uuid):
     conn.close()
     if not trade:
         return None
+
+    if str(trade["status"]).strip().upper() == "CLOSED":
+        return validate_closed_trade_record(trade)
+
     return dict(trade)
 
 def get_decision_context(trade_uuid):

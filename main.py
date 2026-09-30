@@ -1506,10 +1506,16 @@ if position.position != "NONE":
                     closed_row = close_conn.execute(
                         """
                         SELECT
+                            uuid,
                             status,
                             close_time,
                             exit_price,
-                            pnl
+                            pnl,
+                            r_multiple,
+                            win_loss,
+                            holding_time,
+                            snapshot_close,
+                            snapshot_close_checksum
                         FROM trades
                         WHERE uuid = ?
                         LIMIT 1
@@ -1533,6 +1539,12 @@ if position.position != "NONE":
                     raise RuntimeError(
                         "FAIL-CLOSED: Durable trade close timestamp missing"
                     )
+
+                from research.closed_trade_integrity import (
+                    validate_closed_trade_record
+                )
+
+                validate_closed_trade_record(closed_row)
 
                 if float(closed_row["exit_price"]) != exit_price:
                     raise RuntimeError(
