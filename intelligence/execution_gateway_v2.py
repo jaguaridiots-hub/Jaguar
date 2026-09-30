@@ -31,6 +31,7 @@ The gateway fails closed.
 
 
 import hashlib
+import math
 from config.config_manager import config
 
 
@@ -469,6 +470,12 @@ class ExecutionGatewayV2:
                 target <= 0
                 for target in normalized_targets
             )
+            or not math.isfinite(entry)
+            or not math.isfinite(stop_loss)
+            or any(
+                not math.isfinite(target)
+                for target in normalized_targets
+            )
         ):
 
             return self._block(
@@ -591,6 +598,47 @@ class ExecutionGatewayV2:
                         "Short targets must be "
                         "below entry"
                     ),
+                )
+
+        # Canonical PAPER execution requires the exact TP1/TP2/TP3
+        # target contract before execution can become AUTHORIZED.
+        if len(normalized_targets) != 3:
+            return self._block(
+                state,
+                "BLOCKED",
+                "TRADE_GEOMETRY",
+                "Execution requires exactly 3 target levels",
+            )
+
+        # Target ladder must move monotonically in the profitable
+        # direction before execution can become AUTHORIZED.
+        if decision == "ENTER_LONG":
+            if any(
+                left >= right
+                for left, right in zip(
+                    normalized_targets,
+                    normalized_targets[1:],
+                )
+            ):
+                return self._block(
+                    state,
+                    "BLOCKED",
+                    "TRADE_GEOMETRY",
+                    "Long target ladder is not strictly increasing",
+                )
+        else:
+            if any(
+                left <= right
+                for left, right in zip(
+                    normalized_targets,
+                    normalized_targets[1:],
+                )
+            ):
+                return self._block(
+                    state,
+                    "BLOCKED",
+                    "TRADE_GEOMETRY",
+                    "Short target ladder is not strictly decreasing",
                 )
 
         # ==================================================
