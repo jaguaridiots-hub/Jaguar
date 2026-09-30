@@ -158,6 +158,7 @@ def durable_paper_result(
     is_long = direction == "LONG"
 
     return {
+        "requested_quantity": 2.0,
         "filled_quantity": 2.0,
         "fill_price": fill_price,
         "remaining_quantity": 0.0,

@@ -154,8 +154,8 @@ def test_r56_pos22():
         assert ast.unparse(node.args[1]) == "SYMBOL"
         assert ast.unparse(node.args[2]) == "manager"
 
-    long_branch = _find_direction_branch(fn, "'BUY' in direction")
-    short_branch = _find_direction_branch(fn, "'SELL' in direction")
+    long_branch = _find_direction_branch(fn, "normalized_direction == 'BUY'")
+    short_branch = _find_direction_branch(fn, "normalized_direction == 'SELL'")
 
     _validate_branch(long_branch, "LONG")
     _validate_branch(short_branch, "SHORT")

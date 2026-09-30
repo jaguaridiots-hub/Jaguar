@@ -34,6 +34,7 @@ def make_intent(auth, trade_uuid):
 
 def result_for(auth):
     return {
+        "requested_quantity": 1.0,
         "filled_quantity": 1.0,
         "fill_price": 100.0,
         "order_status": "FILLED",
@@ -41,6 +42,9 @@ def result_for(auth):
         "order": {
             "authorization_id": auth,
             "status": "FILLED",
+            "requested_qty": 1.0,
+            "filled_qty": 1.0,
+            "remaining_qty": 0.0,
         },
         "position_reconciliation": {
             "reconciled": True,

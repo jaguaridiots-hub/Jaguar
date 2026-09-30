@@ -46,7 +46,7 @@ def build_state():
         "status": "READY",
         "entry": 100.0,
         "stop_loss": 99.0,
-        "targets": [101.0],
+        "targets": [101.0, 102.0, 103.0],
         "side": "LONG",
     }
 

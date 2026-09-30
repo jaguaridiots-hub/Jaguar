@@ -88,9 +88,70 @@ def _persist_paper_durable_lifecycle(
             "FAIL-CLOSED: PAPER execution did not reach FILLED"
         )
 
-    if float(execution_result.get("remaining_quantity", 0.0) or 0.0) != 0.0:
+    remaining_quantity = float(
+        execution_result.get("remaining_quantity", 0.0) or 0.0
+    )
+
+    if remaining_quantity != 0.0:
         raise RuntimeError(
             "FAIL-CLOSED: PAPER execution has remaining quantity"
+        )
+
+    # R56-POS-31: durable reconciliation requires a complete fill
+    # of the exact quantity authorized by the durable execution intent.
+    try:
+        intent_quantity = float(
+            intent["quantity"]
+        )
+        result_requested_quantity = float(
+            execution_result.get(
+                "requested_quantity",
+                0.0,
+            ) or 0.0
+        )
+        result_filled_quantity = float(
+            execution_result.get(
+                "filled_quantity",
+                0.0,
+            ) or 0.0
+        )
+        order_requested_quantity = float(
+            order.get(
+                "requested_qty",
+                0.0,
+            ) or 0.0
+        )
+        order_filled_quantity = float(
+            order.get(
+                "filled_qty",
+                0.0,
+            ) or 0.0
+        )
+        lifecycle_filled_quantity = float(
+            filled_quantity
+        )
+    except (TypeError, ValueError):
+        raise RuntimeError(
+            "FAIL-CLOSED: PAPER execution quantity evidence invalid"
+        )
+
+    if (
+        intent_quantity <= 0
+        or result_requested_quantity <= 0
+        or result_filled_quantity <= 0
+        or order_requested_quantity <= 0
+        or order_filled_quantity <= 0
+        or lifecycle_filled_quantity <= 0
+        or intent_quantity != result_requested_quantity
+        or intent_quantity != result_filled_quantity
+        or intent_quantity != order_requested_quantity
+        or intent_quantity != order_filled_quantity
+        or intent_quantity != lifecycle_filled_quantity
+        or result_requested_quantity != result_filled_quantity
+        or order_requested_quantity != order_filled_quantity
+    ):
+        raise RuntimeError(
+            "FAIL-CLOSED: PAPER execution quantity authority mismatch"
         )
 
     if current_status == "SUBMITTED":

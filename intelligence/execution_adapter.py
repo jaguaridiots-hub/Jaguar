@@ -240,6 +240,35 @@ class ExecutionAdapter:
                     "after cancellation; paper entry rolled back"
                 )
 
+        # R56-POS-31: PAPER execution is authoritative only when
+        # broker quantity and status exactly match the authorized size.
+        authorized_quantity = float(
+            contract.get("position_size", 0.0) or 0.0
+        )
+
+        if (
+            authorized_quantity <= 0
+            or requested_quantity != authorized_quantity
+            or filled_quantity != authorized_quantity
+            or requested_quantity != filled_quantity
+            or remaining_quantity != 0.0
+            or str(order.get("status", "")).strip().upper() != "FILLED"
+        ):
+            rollback = self.broker.close_position(
+                contract["authorization_id"],
+                contract.get("entry", 0.0),
+            )
+
+            if rollback.get("status") != self.broker.CLOSED:
+                raise RuntimeError(
+                    "FAIL-CLOSED: PAPER quantity/status mismatch "
+                    "AND rollback failed"
+                )
+
+            raise RuntimeError(
+                "FAIL-CLOSED: PAPER fill quantity/status mismatch"
+            )
+
         authorization_id = contract["authorization_id"]
 
         protection = self.broker.submit_protection(
@@ -327,7 +356,7 @@ class ExecutionAdapter:
             "order_status": order.get("status"),
             "residual_cancelled": (
                 requested_quantity == filled_quantity
-                or remaining_quantity == 0.0
+                and remaining_quantity == 0.0
             ),
             "order": order,
             "protection": protection,
