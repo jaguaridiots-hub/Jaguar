@@ -2,6 +2,7 @@
 import json
 import uuid
 import hashlib
+import math
 from datetime import datetime
 from core.asset_registry import get_asset_class
 from .database import (
@@ -102,6 +103,7 @@ def record_trade_open(
     # R56-POS-30: canonical PAPER persistence must use the
     # already-authorized execution geometry, never mutable trade state.
     paper_authoritative_entry = None
+    paper_authoritative_fill_price = None
     paper_authoritative_stop = None
     paper_authoritative_targets = None
 
@@ -112,12 +114,24 @@ def record_trade_open(
         ).strip().upper() == "PAPER"
     ):
         paper_authoritative_entry = enterprise_execution.get("entry")
+        paper_authoritative_fill_price = enterprise_execution.get(
+            "fill_price"
+        )
         paper_authoritative_stop = enterprise_execution.get(
             "stop_loss"
         )
         paper_authoritative_targets = enterprise_execution.get(
             "targets"
         )
+
+        try:
+            paper_authoritative_fill_price = float(
+                paper_authoritative_fill_price
+            )
+        except (TypeError, ValueError):
+            raise RuntimeError(
+                "FAIL-CLOSED: Canonical PAPER fill price missing or invalid"
+            )
 
         if (
             paper_authoritative_entry is None
@@ -127,17 +141,25 @@ def record_trade_open(
                 list,
             )
             or len(paper_authoritative_targets) < 3
+            or not math.isfinite(
+                paper_authoritative_fill_price
+            )
+            or paper_authoritative_fill_price <= 0
         ):
             raise RuntimeError(
-                "FAIL-CLOSED: Canonical PAPER execution geometry missing"
+                "FAIL-CLOSED: Canonical PAPER execution geometry/fill price missing"
             )
 
         take_profit = paper_authoritative_targets[0]
 
     persisted_entry = (
-        paper_authoritative_entry
-        if paper_authoritative_entry is not None
-        else trade_plan.get("entry")
+        paper_authoritative_fill_price
+        if paper_authoritative_fill_price is not None
+        else (
+            paper_authoritative_entry
+            if paper_authoritative_entry is not None
+            else trade_plan.get("entry")
+        )
     )
 
     persisted_stop = (

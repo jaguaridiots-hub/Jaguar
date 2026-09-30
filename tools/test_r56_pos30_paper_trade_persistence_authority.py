@@ -27,6 +27,7 @@ def main():
             "mode": "PAPER",
             "decision": "ENTER_LONG",
             "entry": 100.0,
+            "fill_price": 100.0,
             "stop_loss": 95.0,
             "targets": [110.0, 115.0, 120.0],
             "position_size": 1.0,

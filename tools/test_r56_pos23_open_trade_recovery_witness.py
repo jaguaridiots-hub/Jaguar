@@ -28,6 +28,7 @@ def make_state(auth, trade_uuid):
         "symbol": "BTCUSDT",
         "decision": "ENTER_LONG",
         "entry": 100.0,
+        "fill_price": 100.0,
         "stop_loss": 95.0,
         "targets": [105.0, 110.0, 115.0],
         "position_size": 2.0,
@@ -189,6 +190,9 @@ def reconstruct_from_durable_rows(auth):
     ) == float(intent["quantity"])
 
     reconstructed = {
+        "requested_quantity": float(
+            intent["quantity"]
+        ),
         "filled_quantity": float(
             intent["quantity"]
         ),
