@@ -1,10 +1,12 @@
 # dashboard/portal.py – Institutional Portal
 import os
-from dashboard.generate import generate_dashboard
+from dashboard.generate import (
+    generate_dashboard,
+    get_authoritative_trade_views,
+)
 from dashboard.portfolio import generate_portfolio_dashboard
 from core.orchestrator import JaguarOrchestrator
 from datetime import datetime
-from paper_trading import load_ledger
 
 WATCHLIST = [
     "GC=F", "SI=F", "BTCUSDT", "ETHUSDT",
@@ -78,12 +80,34 @@ def generate_index(results):
     total_reject = sum(1 for s in results for m in MODES if results[s].get(m, {}).get("decision") == "REJECT")
     total_signals = len(results) * len(MODES)
 
-    ledger = load_ledger()
-    balance = ledger.get("balance", 0)
-    open_positions = [p for p in ledger.get("positions", []) if p.get("status") == "OPEN"]
-    total_trades = ledger.get("total_trades", 0)
-    wins = ledger.get("wins", 0)
-    win_rate = round(wins / total_trades * 100, 2) if total_trades > 0 else 0
+    open_positions, closed_trades = (
+        get_authoritative_trade_views()
+    )
+
+    total_trades = len(closed_trades)
+
+    wins = sum(
+        1
+        for trade_row in closed_trades
+        if trade_row["win_loss"] == 1
+    )
+
+    win_rate = (
+        round(
+            wins / total_trades * 100,
+            2,
+        )
+        if total_trades > 0
+        else 0
+    )
+
+    realized_pnl = sum(
+        trade_row["pnl"]
+        for trade_row in closed_trades
+    )
+
+    # Legacy display convention only.
+    balance = 100000.0 + realized_pnl
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 

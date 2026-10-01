@@ -2,7 +2,11 @@
 import json
 from datetime import datetime
 from string import Template
-from paper_trading import load_ledger, get_open_trades, get_closed_trades
+import math
+
+from research import database as db
+from research.closed_trade_integrity import validate_closed_trade_record
+
 
 CURRENCY_MAP = {
     "GC=F": "$", "SI=F": "$",
@@ -10,6 +14,266 @@ CURRENCY_MAP = {
     "AAPL": "$", "MSFT": "$", "NVDA": "$",
     "RELIANCE.NS": "₹", "TCS.NS": "₹", "NIFTY": "₹",
 }
+
+def _finite_dashboard_number(value, field, *, positive=False):
+    try:
+        number = float(value)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(
+            f"FAIL-CLOSED: Dashboard {field} is invalid"
+        ) from exc
+
+    if not math.isfinite(number):
+        raise RuntimeError(
+            f"FAIL-CLOSED: Dashboard {field} is invalid"
+        )
+
+    if positive and number <= 0:
+        raise RuntimeError(
+            f"FAIL-CLOSED: Dashboard {field} is invalid"
+        )
+
+    if not positive and number < 0:
+        raise RuntimeError(
+            f"FAIL-CLOSED: Dashboard {field} is invalid"
+        )
+
+    return number
+
+
+def _dashboard_side(decision):
+    normalized = str(
+        decision or ""
+    ).strip().upper()
+
+    side = {
+        "LONG": "BUY",
+        "SHORT": "SELL",
+    }.get(normalized)
+
+    if side is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: Dashboard execution direction invalid"
+        )
+
+    return side
+
+
+def get_authoritative_trade_views():
+    """
+    Read legacy-dashboard trade views only from durable Jaguar state.
+
+    Terminal result fields come from integrity-validated CLOSED trades.
+    Direction and quantity come from the retained RECONCILED execution intent.
+    """
+    db.init_db()
+
+    conn = db.get_connection()
+
+    try:
+        rows = conn.execute(
+            """
+            SELECT
+                t.*,
+                i.authorization_id AS intent_authorization_id,
+                i.trade_uuid AS intent_trade_uuid,
+                i.symbol AS intent_symbol,
+                i.timeframe AS intent_timeframe,
+                i.mode AS intent_mode,
+                i.decision AS intent_decision,
+                i.quantity AS intent_quantity,
+                i.status AS intent_status
+            FROM trades t
+            LEFT JOIN execution_intents i
+              ON i.authorization_id = t.authorization_id
+            WHERE
+                (
+                    t.status = 'OPEN'
+                    AND t.close_time IS NULL
+                )
+                OR
+                (
+                    t.status = 'CLOSED'
+                    AND t.close_time IS NOT NULL
+                )
+            ORDER BY
+                COALESCE(t.close_time, t.open_time),
+                t.uuid
+            """
+        ).fetchall()
+    finally:
+        conn.close()
+
+    open_trades = []
+    closed_trades = []
+
+    for raw_row in rows:
+        trade = dict(raw_row)
+
+        authorization_id = trade.get(
+            "authorization_id"
+        )
+
+        intent_authorization_id = trade.get(
+            "intent_authorization_id"
+        )
+
+        intent_trade_uuid = trade.get(
+            "intent_trade_uuid"
+        )
+
+        intent_symbol = str(
+            trade.get("intent_symbol") or ""
+        ).strip().upper()
+
+        trade_symbol = str(
+            trade.get("symbol") or ""
+        ).strip().upper()
+
+        intent_timeframe = str(
+            trade.get("intent_timeframe") or ""
+        ).strip()
+
+        trade_timeframe = str(
+            trade.get("timeframe") or ""
+        ).strip()
+
+        intent_mode = str(
+            trade.get("intent_mode") or ""
+        ).strip().upper()
+
+        intent_status = str(
+            trade.get("intent_status") or ""
+        ).strip().upper()
+
+        if (
+            not isinstance(authorization_id, str)
+            or not authorization_id.strip()
+            or intent_authorization_id != authorization_id
+            or intent_trade_uuid != trade.get("uuid")
+            or intent_symbol != trade_symbol
+            or intent_timeframe != trade_timeframe
+            or intent_mode != "PAPER"
+            or intent_status != "RECONCILED"
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Dashboard durable trade lacks "
+                "a matching RECONCILED PAPER execution intent"
+            )
+
+        side = _dashboard_side(
+            trade.get("intent_decision")
+        )
+
+        quantity = _finite_dashboard_number(
+            trade.get("intent_quantity"),
+            "execution quantity",
+            positive=True,
+        )
+
+        entry = _finite_dashboard_number(
+            trade.get("entry_price"),
+            "entry price",
+            positive=True,
+        )
+
+        stop = _finite_dashboard_number(
+            trade.get("stop_loss"),
+            "stop loss",
+            positive=True,
+        )
+
+        tp = _finite_dashboard_number(
+            trade.get("take_profit"),
+            "take profit",
+            positive=True,
+        )
+
+        status = str(
+            trade.get("status") or ""
+        ).strip().upper()
+
+        if status == "OPEN":
+            open_trades.append(
+                {
+                    "symbol": trade_symbol,
+                    "side": side,
+                    "entry": entry,
+                    "quantity": quantity,
+                    "stop": stop,
+                    "tp": tp,
+                    "entry_time": trade.get("open_time"),
+                    "status": "OPEN",
+                    "exit": None,
+                    "exit_time": None,
+                    "pnl": 0.0,
+                    "win_loss": None,
+                }
+            )
+            continue
+
+        if status != "CLOSED":
+            raise RuntimeError(
+                "FAIL-CLOSED: Dashboard encountered unsupported "
+                "durable trade status"
+            )
+
+        validated = validate_closed_trade_record(
+            trade
+        )
+
+        try:
+            pnl = float(validated["pnl"])
+            exit_price = float(
+                validated["exit_price"]
+            )
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                "FAIL-CLOSED: Dashboard closed-trade numeric evidence invalid"
+            ) from exc
+
+        if (
+            not math.isfinite(pnl)
+            or not math.isfinite(exit_price)
+            or exit_price <= 0
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Dashboard closed-trade numeric evidence invalid"
+            )
+
+        win_loss = int(
+            validated["win_loss"]
+        )
+
+        if win_loss not in (0, 1):
+            raise RuntimeError(
+                "FAIL-CLOSED: Dashboard closed-trade outcome invalid"
+            )
+
+        if not validated.get("open_time"):
+            raise RuntimeError(
+                "FAIL-CLOSED: Dashboard closed-trade open_time missing"
+            )
+
+        closed_trades.append(
+            {
+                "symbol": trade_symbol,
+                "side": side,
+                "entry": entry,
+                "quantity": quantity,
+                "stop": stop,
+                "tp": tp,
+                "entry_time": validated["open_time"],
+                "status": "CLOSED",
+                "exit": exit_price,
+                "exit_time": validated["close_time"],
+                "pnl": pnl,
+                "win_loss": win_loss,
+            }
+        )
+
+    return open_trades, closed_trades
+
 
 def generate_dashboard(state, output_file="dashboard.html"):
     # ---- DIAGNOSTIC ----
@@ -69,21 +333,59 @@ def generate_dashboard(state, output_file="dashboard.html"):
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     currency = CURRENCY_MAP.get(symbol, "$")
 
-    ledger = load_ledger()
-    balance = ledger.get("balance", 100000)
-    total_trades = ledger.get("total_trades", 0)
-    wins = ledger.get("wins", 0)
-    win_rate = round(wins / total_trades * 100, 2) if total_trades > 0 else 0
-    net_profit = balance - 100000
+    open_trades, closed_trades = (
+        get_authoritative_trade_views()
+    )
 
-    open_trades = get_open_trades()
-    closed_trades = get_closed_trades()
     open_count = len(open_trades)
     closed_count = len(closed_trades)
-    total_profit = sum(p["pnl"] for p in closed_trades if p["pnl"] > 0)
-    total_loss = sum(p["pnl"] for p in closed_trades if p["pnl"] < 0)
-    profit_count = len([p for p in closed_trades if p["pnl"] > 0])
-    loss_count = len([p for p in closed_trades if p["pnl"] < 0])
+
+    total_trades = closed_count
+
+    wins = sum(
+        1
+        for trade_row in closed_trades
+        if trade_row["win_loss"] == 1
+    )
+
+    losses = sum(
+        1
+        for trade_row in closed_trades
+        if trade_row["win_loss"] == 0
+    )
+
+    win_rate = (
+        round(
+            wins / total_trades * 100,
+            2,
+        )
+        if total_trades > 0
+        else 0
+    )
+
+    total_profit = sum(
+        trade_row["pnl"]
+        for trade_row in closed_trades
+        if trade_row["pnl"] > 0
+    )
+
+    total_loss = sum(
+        trade_row["pnl"]
+        for trade_row in closed_trades
+        if trade_row["pnl"] < 0
+    )
+
+    profit_count = wins
+    loss_count = losses
+
+    net_profit = sum(
+        trade_row["pnl"]
+        for trade_row in closed_trades
+    )
+
+    # Legacy display convention only; realized movement remains
+    # authoritative from durable CLOSED trades.
+    balance = 100000.0 + net_profit
 
     unrealized_pnl = sum(
         (price - p["entry"]) * p["quantity"] if p["side"] == "BUY" else (p["entry"] - price) * p["quantity"]
@@ -136,7 +438,7 @@ def generate_dashboard(state, output_file="dashboard.html"):
         for p in closed_trades:
             sym_curr = CURRENCY_MAP.get(p["symbol"], "$")
             color = "#00FF88" if p["pnl"] >= 0 else "#FF4D4D"
-            result_label = "WIN" if p["pnl"] >= 0 else "LOSS"
+            result_label = "WIN" if p["win_loss"] == 1 else "LOSS"
             closed_rows += f"""
             <tr>
                 <td>{p["symbol"]}</td>
