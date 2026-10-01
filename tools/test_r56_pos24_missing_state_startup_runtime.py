@@ -125,6 +125,7 @@ def seed_durable_trade():
     pp._persist_paper_durable_lifecycle(
         execution=dict(state.execution),
         execution_result={
+            "requested_quantity": 2.0,
             "filled_quantity": 2.0,
             "fill_price": 101.0,
             "remaining_quantity": 0.0,

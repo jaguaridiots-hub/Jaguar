@@ -1486,13 +1486,120 @@ if position.position != "NONE":
                     else 0.0
                 )
 
+                # R56-POS-39: holding-time authority comes from the
+                # already-durable trade open timestamp plus one
+                # canonical terminal close timestamp.
+                from research.database import get_connection
+
+                holding_conn = get_connection()
+                try:
+                    open_row = holding_conn.execute(
+                        """
+                        SELECT
+                            uuid,
+                            status,
+                            open_time,
+                            close_time
+                        FROM trades
+                        WHERE uuid = ?
+                        LIMIT 1
+                        """,
+                        (trade_uuid,),
+                    ).fetchone()
+                finally:
+                    holding_conn.close()
+
+                if open_row is None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade row missing during close"
+                    )
+
+                if str(
+                    open_row["uuid"]
+                ) != trade_uuid:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade UUID mismatch during close"
+                    )
+
+                if str(
+                    open_row["status"] or ""
+                ).strip().upper() != "OPEN":
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade is not OPEN during close"
+                    )
+
+                if open_row["close_time"] is not None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade already has close_time"
+                    )
+
+                durable_open_time = open_row["open_time"]
+
+                if not isinstance(
+                    durable_open_time,
+                    str,
+                ) or not durable_open_time.strip():
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade open_time is missing"
+                    )
+
+                close_timestamp = datetime.now().isoformat()
+
+                try:
+                    open_dt = datetime.fromisoformat(
+                        durable_open_time
+                    )
+                    close_dt = datetime.fromisoformat(
+                        close_timestamp
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ) as exc:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Invalid durable trade timestamp"
+                    ) from exc
+
+                open_is_aware = (
+                    open_dt.tzinfo is not None
+                    and open_dt.utcoffset() is not None
+                )
+                close_is_aware = (
+                    close_dt.tzinfo is not None
+                    and close_dt.utcoffset() is not None
+                )
+
+                if open_is_aware != close_is_aware:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Trade open/close timestamp timezone mismatch"
+                    )
+
+                holding_seconds = (
+                    close_dt - open_dt
+                ).total_seconds()
+
+                if holding_seconds < 0:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Negative trade holding time"
+                    )
+
+                if holding_seconds != holding_seconds:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Non-finite trade holding time"
+                    )
+
+                holding_seconds = int(
+                    holding_seconds
+                )
+
                 record_trade_close(
                     trade_uuid,
                     exit_price=exit_price,
                     pnl=pnl,
                     r_multiple=r_multiple,
                     win_loss=(pnl > 0),
-                    holding_time=0,
+                    holding_time=holding_seconds,
+                    exit_time=close_timestamp,
                 )
 
                 # CLOSE PERSISTENCE GUARD:
