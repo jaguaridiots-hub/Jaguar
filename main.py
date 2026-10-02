@@ -47,6 +47,7 @@ from research.database import (
 from intelligence.execution_identity import bind_execution_identity
 from intelligence.execution_dispatch_composition import build_execution_dispatch_runtime
 from intelligence.paper_post_fill import execute_paper_post_fill
+from config.config_manager import config
 
 
 SYMBOL = "BTCUSDT"
@@ -596,12 +597,31 @@ position = PositionManager()
 manager = TradeManager()
 execution_dispatch_runtime = build_execution_dispatch_runtime()
 
+try:
+    runtime_execution_mode = config.get_execution_mode()
+except Exception as mode_error:
+    raise RuntimeError(
+        "FAIL-CLOSED: Unable to resolve runtime execution mode"
+    ) from mode_error
+
+if runtime_execution_mode not in {"PAPER", "LIVE"}:
+    raise RuntimeError(
+        "FAIL-CLOSED: Unsupported runtime execution mode"
+    )
+
 
 # ==================================================
 # RESTORE POSITION
 # ==================================================
 
 position_loaded = load(position, SYMBOL, manager)
+
+# R56-POS-50: the legacy PositionManager lifecycle is PAPER-only.
+# A restored local active position must never cross into LIVE runtime.
+if runtime_execution_mode == "LIVE" and position_loaded:
+    raise RuntimeError(
+        "FAIL-CLOSED: Legacy active position state cannot enter LIVE runtime"
+    )
 
 
 def assert_no_orphan_durable_trade(symbol):
@@ -645,7 +665,7 @@ def assert_no_orphan_durable_trade(symbol):
             conn.close()
 
 
-if not position_loaded:
+if not position_loaded and runtime_execution_mode == "PAPER":
     # R56-POS-24D: local JSON is a cache. When it is unavailable,
     # attempt recovery strictly from the durable PAPER lifecycle.
     try:
@@ -1224,6 +1244,12 @@ if execution_ready:
 # ==================================================
 
 if position.position != "NONE":
+
+    # R56-POS-50: legacy active lifecycle management is PAPER-only.
+    if runtime_execution_mode != "PAPER":
+        raise RuntimeError(
+            "FAIL-CLOSED: Legacy active position lifecycle unavailable in LIVE runtime"
+        )
 
     print(
         "\n========== POSITION ACTIVE =========="
