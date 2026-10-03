@@ -3,3 +3,7 @@ def get_data(symbol):
         "market": "FOREX",
         "symbol": symbol
     }
+
+def get_forex(symbol):
+    return get_data(symbol)
+

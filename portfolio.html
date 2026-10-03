@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <meta http-equiv="refresh" content="300">
+    <title>Jaguar Quant X – Portfolio</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0b0e14;
+            color: #e0e4ed;
+            padding: 16px;
+            min-height: 100vh;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #141a24, #1a1f2a);
+            border-radius: 12px;
+            border: 1px solid #f7931a60;
+            box-shadow: 0 4px 20px rgba(247,147,26,0.15);
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .logo-main { font-size: 26px; font-weight: 900; color: #f0f4fa; }
+        .logo-main span { color: #f7931a; text-shadow: 0 0 20px rgba(247,147,26,0.3); }
+        .logo-tagline { font-size: 11px; letter-spacing: 3px; color: #5a6272; }
+        .logo-tagline span { color: #f7931a; }
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 11px; background: #252b36; color: #b0b8c8; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .card {
+            background: #141a24;
+            border-radius: 12px;
+            padding: 14px 16px;
+            border: 1px solid #252b36;
+            transition: 0.2s;
+        }
+        .card:hover { border-color: #f7931a80; box-shadow: 0 0 25px rgba(247,147,26,0.1); }
+        .card-title { font-size: 10px; text-transform: uppercase; color: #8892a2; }
+        .card-value { font-size: 24px; font-weight: 700; color: #f0f4fa; }
+        .card-value .sub { font-size: 14px; color: #8892a2; margin-left: 6px; }
+        .section-title { font-size: 14px; font-weight: 600; color: #aab2c2; margin: 20px 0 10px 0; border-bottom: 1px solid #252b36; padding-bottom: 6px; }
+        .section-title .gold { color: #f7931a; }
+        .table-wrap { overflow-x: auto; margin-bottom: 20px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #141a24;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #252b36;
+        }
+        th { background: #1a1f2a; color: #8892a2; font-size: 11px; text-transform: uppercase; padding: 10px 12px; text-align: left; }
+        td { padding: 8px 12px; border-bottom: 1px solid #1e232e; font-size: 13px; }
+        tr:hover td { background: #1a1f2a; }
+        .status-badge {
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .status-badge.buy { background: #2e7d32; }
+        .status-badge.sell { background: #c62828; }
+        .status-badge.wait { background: #ed6c02; }
+        .status-badge.reject { background: #6c757d; }
+        .status-badge.error { background: #e91e63; }
+        .live-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #4caf50; animation: pulse 1.5s infinite; margin-right: 6px; }
+        @keyframes pulse { 0% { opacity:0.6; transform:scale(0.95); } 50% { opacity:1; transform:scale(1.1); } 100% { opacity:0.6; transform:scale(0.95); } }
+        .flex { display: flex; align-items: center; gap: 6px; }
+        .footer { margin-top: 30px; text-align: center; font-size: 11px; color: #5a6272; border-top: 1px solid #1e232e; padding-top: 16px; }
+        .footer .gold { color: #f7931a; }
+        @media (max-width: 480px) { .grid { grid-template-columns: repeat(2,1fr); } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div>
+            <div class="logo-main">JAGUAR <span>QUANTX</span></div>
+            <div class="logo-tagline">DATA <span>·</span> DISCIPLINE <span>·</span> DOMINATE</div>
+        </div>
+        <span class="badge"><i class="fas fa-layer-group"></i> Portfolio</span>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; margin-bottom:16px;">
+        <div class="flex"><span class="live-dot"></span><span style="font-size:13px;color:#8892a2;">Live</span></div>
+        <span style="font-size:12px;color:#5a6272;">2026-07-25 19:38:58</span>
+    </div>
+
+    <div class="grid">
+        <div class="card"><div class="card-title">Total Assets</div><div class="card-value">9</div></div>
+        <div class="card"><div class="card-title">Total BUY</div><div class="card-value" style="color:#4caf50;">4</div></div>
+        <div class="card"><div class="card-title">Total SELL</div><div class="card-value" style="color:#f44336;">0</div></div>
+        <div class="card"><div class="card-title">Total WAIT</div><div class="card-value" style="color:#ff9800;">3</div></div>
+        <div class="card"><div class="card-title">Total REJECT</div><div class="card-value" style="color:#6c757d;">20</div></div>
+    </div>
+
+    <div class="section-title"><span class="gold">●</span> Breakdown by Mode</div>
+    <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+
+        <div class="card">
+            <div class="card-title">SCALP</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:4px;">
+                <span style="color:#4caf50;">BUY 4</span>
+                <span style="color:#f44336;">SELL 0</span>
+                <span style="color:#ff9800;">WAIT 2</span>
+                <span style="color:#6c757d;">REJ 3</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">SWING</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:4px;">
+                <span style="color:#4caf50;">BUY 0</span>
+                <span style="color:#f44336;">SELL 0</span>
+                <span style="color:#ff9800;">WAIT 1</span>
+                <span style="color:#6c757d;">REJ 8</span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <div class="card-title">CLASSIC</div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:4px;">
+                <span style="color:#4caf50;">BUY 0</span>
+                <span style="color:#f44336;">SELL 0</span>
+                <span style="color:#ff9800;">WAIT 0</span>
+                <span style="color:#6c757d;">REJ 9</span>
+            </div>
+        </div>
+        
+    </div>
+
+    <div class="section-title"><span class="gold">●</span> Asset Details</div>
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr><th>Asset</th><th>Mode</th><th>Decision</th><th>Score</th><th>Grade</th><th>Confidence</th></tr>
+            </thead>
+            <tbody>
+    
+        <tr>
+            <td><strong>Gold</strong><br><span style="font-size:11px;color:#5a6272;">GC=F</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge wait">WAIT</span></td>
+            <td>50</td>
+            <td>C</td>
+            <td>55%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Gold</strong><br><span style="font-size:11px;color:#5a6272;">GC=F</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>25</td>
+            <td>F</td>
+            <td>30%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Gold</strong><br><span style="font-size:11px;color:#5a6272;">GC=F</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>15</td>
+            <td>F</td>
+            <td>20%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Silver</strong><br><span style="font-size:11px;color:#5a6272;">SI=F</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge buy">BUY</span></td>
+            <td>100</td>
+            <td>A-</td>
+            <td>105%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Silver</strong><br><span style="font-size:11px;color:#5a6272;">SI=F</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge wait">WAIT</span></td>
+            <td>76</td>
+            <td>C</td>
+            <td>81%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Silver</strong><br><span style="font-size:11px;color:#5a6272;">SI=F</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>66</td>
+            <td>F</td>
+            <td>71%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Bitcoin</strong><br><span style="font-size:11px;color:#5a6272;">BTCUSDT</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge buy">BUY</span></td>
+            <td>76</td>
+            <td>A-</td>
+            <td>81%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Bitcoin</strong><br><span style="font-size:11px;color:#5a6272;">BTCUSDT</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>51</td>
+            <td>F</td>
+            <td>56%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Bitcoin</strong><br><span style="font-size:11px;color:#5a6272;">BTCUSDT</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>41</td>
+            <td>F</td>
+            <td>46%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Ethereum</strong><br><span style="font-size:11px;color:#5a6272;">ETHUSDT</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>46</td>
+            <td>F</td>
+            <td>51%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Ethereum</strong><br><span style="font-size:11px;color:#5a6272;">ETHUSDT</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>21</td>
+            <td>F</td>
+            <td>26%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Ethereum</strong><br><span style="font-size:11px;color:#5a6272;">ETHUSDT</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>11</td>
+            <td>F</td>
+            <td>16%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Apple</strong><br><span style="font-size:11px;color:#5a6272;">AAPL</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge buy">BUY</span></td>
+            <td>82</td>
+            <td>A-</td>
+            <td>87%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Apple</strong><br><span style="font-size:11px;color:#5a6272;">AAPL</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>57</td>
+            <td>F</td>
+            <td>62%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Apple</strong><br><span style="font-size:11px;color:#5a6272;">AAPL</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>47</td>
+            <td>F</td>
+            <td>52%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Microsoft</strong><br><span style="font-size:11px;color:#5a6272;">MSFT</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>4</td>
+            <td>F</td>
+            <td>9%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Microsoft</strong><br><span style="font-size:11px;color:#5a6272;">MSFT</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>0</td>
+            <td>F</td>
+            <td>5%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Microsoft</strong><br><span style="font-size:11px;color:#5a6272;">MSFT</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>0</td>
+            <td>F</td>
+            <td>5%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Nvidia</strong><br><span style="font-size:11px;color:#5a6272;">NVDA</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge wait">WAIT</span></td>
+            <td>52</td>
+            <td>C</td>
+            <td>57%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Nvidia</strong><br><span style="font-size:11px;color:#5a6272;">NVDA</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>27</td>
+            <td>F</td>
+            <td>32%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Nvidia</strong><br><span style="font-size:11px;color:#5a6272;">NVDA</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>17</td>
+            <td>F</td>
+            <td>22%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Reliance</strong><br><span style="font-size:11px;color:#5a6272;">RELIANCE.NS</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>0</td>
+            <td>F</td>
+            <td>5%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Reliance</strong><br><span style="font-size:11px;color:#5a6272;">RELIANCE.NS</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>0</td>
+            <td>F</td>
+            <td>5%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>Reliance</strong><br><span style="font-size:11px;color:#5a6272;">RELIANCE.NS</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>0</td>
+            <td>F</td>
+            <td>5%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>TCS</strong><br><span style="font-size:11px;color:#5a6272;">TCS.NS</span></td>
+            <td>SCALP</td>
+            <td><span class="status-badge buy">BUY</span></td>
+            <td>70</td>
+            <td>A-</td>
+            <td>75%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>TCS</strong><br><span style="font-size:11px;color:#5a6272;">TCS.NS</span></td>
+            <td>SWING</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>45</td>
+            <td>F</td>
+            <td>50%</td>
+        </tr>
+        
+        <tr>
+            <td><strong>TCS</strong><br><span style="font-size:11px;color:#5a6272;">TCS.NS</span></td>
+            <td>CLASSIC</td>
+            <td><span class="status-badge reject">REJECT</span></td>
+            <td>35</td>
+            <td>F</td>
+            <td>40%</td>
+        </tr>
+        
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="index.html" style="color:#f7931a; text-decoration: none; font-weight:600;">
+            <i class="fas fa-arrow-left"></i> Back to Portal
+        </a>
+    </div>
+
+    <div class="footer">
+        <span class="gold">◆</span> Jaguar Quant X <span class="gold">◆</span> Portfolio Intelligence <span class="gold">◆</span> v2.0
+    </div>
+</div>
+</body>
+</html>

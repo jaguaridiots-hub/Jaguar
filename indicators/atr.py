@@ -1,9 +1,17 @@
+# indicators/atr.py
+
 def atr(candles, period=14):
+
+    if len(candles) < period + 1:
+        return {
+            "value": None,
+            "ready": False,
+            "reason": f"Insufficient candles for ATR (need {period + 1}, got {len(candles)})"
+        }
 
     trs = []
 
     for i in range(1, len(candles)):
-
         high = candles[i]["high"]
         low = candles[i]["low"]
         prev_close = candles[i-1]["close"]
@@ -16,13 +24,13 @@ def atr(candles, period=14):
 
         trs.append(tr)
 
-    value = sum(trs[-period:]) / period
+    avg_tr = sum(trs[-period:]) / period
 
     return {
-        "value": round(value, 2),
+        "value": round(avg_tr, 2),
         "volatility": (
             "HIGH"
-            if value > (sum(trs) / len(trs))
+            if avg_tr > (sum(trs) / len(trs))
             else "LOW"
         )
     }

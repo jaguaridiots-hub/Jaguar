@@ -1,0 +1,22 @@
+{
+  "candle_count": 300,
+  "captured_at_utc": "2026-07-13T11:02:57.812376+00:00",
+  "fieldnames": [
+    "time",
+    "close_time",
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume"
+  ],
+  "first_candle_time": 1783671300000,
+  "fixture_sha256": "19c050cc00f3dfba4490573b004ebc34b4988e0e0fbb286acd30a1e54e6a6432",
+  "fixture_version": 1,
+  "last_candle_time": 1783940400000,
+  "purpose": "Jaguar temporal structural deterministic replay fixture",
+  "requested_limit": 300,
+  "source": "data.market_data.get_klines",
+  "symbol": "BTCUSDT",
+  "timeframe": "15m"
+}

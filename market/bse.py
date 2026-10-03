@@ -3,3 +3,7 @@ def get_data(symbol):
         "market": "BSE",
         "symbol": symbol
     }
+
+def get_bse(symbol):
+    return get_data(symbol)
+

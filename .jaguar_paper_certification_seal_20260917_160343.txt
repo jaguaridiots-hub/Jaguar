@@ -1,0 +1,42 @@
+JAGUAR QUANT X — PAPER CERTIFICATION SEAL
+====================================================
+timestamp_utc=2026-09-17T16:03:43.176832+00:00
+execution_mode=PAPER
+branch=jaguar-execution-safety-certification
+head=177c20a6c3030906ef070c5878784cc82bfb04d2
+parent=32ab5183fc3acee01e2ba22e76bfe969efe507c2
+release_tag=jaguar-v2.0.0-rc1-live-readiness
+release_tag_target=82ff4f7831f9e0a81e6cbc8c5987a089e51bfd2e
+
+CERTIFIED GATES
+canonical_paper_e2e=PASS
+durable_lifecycle=PASS
+durable_idempotency=PASS
+partial_failure_fail_closed=PASS
+recovery_resume=PASS
+no_paper_resubmission=PASS
+identity_preservation=PASS
+production_compile=PASS
+git_diff_check=PASS
+live_submission_count=0
+
+RELEASE DELTA
+api.py
+dashboard/ui_state.py
+intelligence/paper_post_fill.py
+dashboard_excluded=True
+
+PRODUCTION SHA256
+main.py=9dbca9e34554d1415d2910285c87aa5e094e24386ddef934312baa85d37755e7
+intelligence/paper_post_fill.py=18b70316527fc151a854a1bd0c6264b11c6cef6e8944c9842ecb63b66ee06505
+research/database.py=aafaaf56ce6b62f3d01fad38790d43b0c95ffff962d3c0e0260d29196b4b09d3
+intelligence/paper_broker_adapter.py=d1eec22992014d3ab5cb67b9e6e4241cb51068ac67d723b592a16fa8391dacc8
+intelligence/execution_adapter.py=79e2196f6454a2d8e87672c9ae23db8ef3e65130b26e521b2b80bed6cdfaf24b
+intelligence/execution_dispatch_composition.py=458e2853a4f3d77f909db789644f845be8a4413095bb234a14e40606b341aaa1
+intelligence/live_execution_dispatch.py=752b0ae0b6d61171d4633fcc0a31adf194a92815e835e31726862db1deb41874
+intelligence/execution_identity.py=61fb52ee97c269cbd7afb6d6af8907ab56e445a2d0802546c6f96eb6d98ea886
+
+WORKTREE POLICY
+dashboard_BTCUSDT_SWING.html=RESTORED / EXCLUDED FROM RELEASE DELTA
+certification_artifacts=UNTRACKED EVIDENCE
+production_certification_changes=NONE

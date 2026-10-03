@@ -1,20 +1,67 @@
 class CHoCHEngine:
 
     @staticmethod
-    def analyze(candles):
+    def analyze(candles, swing):
+        """
+        Detect CHoCH from canonical SwingEngine structure.
 
-        last = candles[-1]
-        prev = candles[-2]
+        CHoCH is a structural transition, not a
+        candle-to-candle high/low comparison.
+        """
 
-        if last["high"] > prev["high"] and last["low"] > prev["low"]:
-            signal = "BULLISH"
+        if not swing:
+            return {
+                "signal": "SIDEWAYS",
+                "reason": "No canonical swing structure available",
+            }
 
-        elif last["high"] < prev["high"] and last["low"] < prev["low"]:
-            signal = "BEARISH"
+        trend = swing.get("trend", "UNKNOWN")
+        swings = swing.get("swings", []) or []
 
-        else:
-            signal = "SIDEWAYS"
+        if len(swings) < 2:
+            return {
+                "signal": "SIDEWAYS",
+                "reason": "Insufficient canonical swings",
+            }
+
+        last_close = candles[-1]["close"]
+
+        previous_swing_high = swing.get("previous_swing_high")
+        previous_swing_low = swing.get("previous_swing_low")
+
+        if trend == "DOWNTREND":
+            if (
+                previous_swing_high
+                and last_close > previous_swing_high["price"]
+            ):
+                return {
+                    "signal": "BULLISH",
+                    "reason": "Close above canonical bearish structure high",
+                    "level": previous_swing_high,
+                }
+
+            return {
+                "signal": "SIDEWAYS",
+                "reason": "Bearish structure intact",
+            }
+
+        if trend == "UPTREND":
+            if (
+                previous_swing_low
+                and last_close < previous_swing_low["price"]
+            ):
+                return {
+                    "signal": "BEARISH",
+                    "reason": "Close below canonical bullish structure low",
+                    "level": previous_swing_low,
+                }
+
+            return {
+                "signal": "SIDEWAYS",
+                "reason": "Bullish structure intact",
+            }
 
         return {
-            "signal": signal
+            "signal": "SIDEWAYS",
+            "reason": f"No directional CHoCH in {trend} structure",
         }

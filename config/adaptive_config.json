@@ -1,0 +1,14 @@
+{
+  "SCALP": {
+    "threshold": 65,
+    "boost": 35
+  },
+  "SWING": {
+    "threshold": 80,
+    "boost": 10
+  },
+  "CLASSIC": {
+    "threshold": 90,
+    "boost": 0
+  }
+}

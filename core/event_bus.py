@@ -1,22 +1,33 @@
+from datetime import datetime
+
+
 class EventBus:
 
     def __init__(self):
-        self._events = []
+        self.events = []
 
-    def publish(self, name, payload=None):
+    def publish(self, event, payload=None):
 
-        self._events.append({
-
-            "event": name,
-
+        item = {
+            "time": datetime.now().strftime("%H:%M:%S"),
+            "event": event,
             "payload": payload
+        }
 
-        })
+        self.events.append(item)
+
+        print(
+            f"[{item['time']}] "
+            f"{item['event']}"
+        )
 
     def history(self):
-
-        return self._events
+        return self.events
 
     def clear(self):
+        self.events.clear()
 
-        self._events.clear()
+    def last(self):
+        if self.events:
+            return self.events[-1]
+        return None
