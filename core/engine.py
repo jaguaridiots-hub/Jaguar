@@ -1,6 +1,18 @@
-class Engine:
+"""
+Base engine runner class.
+"""
+from abc import ABC, abstractmethod
 
-    name = "ENGINE"
+class EngineRunner(ABC):
+    """Base class for all engine runners."""
+    @property
+    def engine_name(self) -> str:
+        return self.__class__.__name__
 
+    @abstractmethod
     def run(self, state, bus):
-        raise NotImplementedError
+        """Execute engine analysis."""
+        pass
+
+# Backward compatibility alias
+Engine = EngineRunner

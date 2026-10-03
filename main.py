@@ -1,30 +1,96 @@
+import os
+import time
+from datetime import datetime
+
 from core.kernel import JaguarKernel
 from core.logger import JaguarLogger
 from core.registry import ModuleRegistry
 from core.event_bus import EventBus
-from data.market_data import get_klines
+
+from indicators.indicator_engine import (
+    update_market_state,
+)
+
+from engine.institutional_master import (
+    analyze as institutional_master,
+)
+
 from engine.trade_manager import TradeManager
 from engine.position_manager import PositionManager
 from engine.trade_journal import TradeJournal
 from engine.performance import Performance
 from engine.live_feed import LiveFeed
-import time
-from engine.state_manager import save, load, clear
+from core.jaguar_analysis_engine import JaguarAnalysisEngine
+from engine.active_trade_recovery import (
+    recover_active_trade_plan,
+    recover_active_trade_from_durable_lifecycle,
+    persist_active_trade_lifecycle,
+)
+
+from engine.state_manager import (
+    save,
+    load,
+    clear,
+)
+
 from market.live_loader import update_state
+from research.recorder import (
+    record_decision_snapshot,
+)
+from research.database import (
+    insert_execution_intent,
+    update_execution_intent,
+    get_connection,
+    delete_active_trade_lifecycle,
+)
+
+from intelligence.execution_identity import bind_execution_identity
+from intelligence.execution_dispatch_composition import build_execution_dispatch_runtime
+from intelligence.paper_post_fill import execute_paper_post_fill
+from config.config_manager import config
+
+
+SYMBOL = "BTCUSDT"
+TIMEFRAME = "15m"
+
+
+# ==================================================
+# HEADER
+# ==================================================
 
 print("=" * 50)
 print("              JAGUAR QUANT X v2.0")
 print("=" * 50)
 
-# Logger
+
+# ==================================================
+# LOGGER
+# ==================================================
+
 log = JaguarLogger()
-log.info("Starting Jaguar Quant X...")
 
-# Kernel
+log.info(
+    "Starting Jaguar Quant X..."
+)
+
+
+# ==================================================
+# KERNEL
+# ==================================================
+
 kernel = JaguarKernel()
-kernel.initialize("BTCUSDT", "15m")
+analysis = JaguarAnalysisEngine(kernel)
 
-# Registry
+kernel.initialize(
+    SYMBOL,
+    TIMEFRAME,
+)
+
+
+# ==================================================
+# MODULE REGISTRY
+# ==================================================
+
 registry = ModuleRegistry()
 
 modules = [
@@ -40,101 +106,487 @@ modules = [
 ]
 
 for module in modules:
+
     registry.register(module)
 
 registry.show()
 
-# Event Bus
+
+# ==================================================
+# EVENT BUS
+# ==================================================
+
 bus = EventBus()
-bus.publish("startup", "All Systems Online")
+
+bus.publish(
+    "startup",
+    "All Systems Online",
+)
+
 
 print("\n" + "=" * 50)
-print("Jaguar Quant X Ready To Trade")
+
+print(
+    "Jaguar Quant X Ready To Trade"
+)
+
 print("=" * 50)
 
-# ===================================================
-# LOAD LIVE MARKET DATA
-# ===================================================
 
-candles = get_klines()
+# ==================================================
+# CANONICAL STARTUP MARKET HYDRATION
+# ==================================================
+
+result = analysis.run(SYMBOL)
+
+state = result["state"]
+report = result["report"]
+
+run_id = os.environ.get("JAGUAR_PAPER_RUN")
+
+if not isinstance(run_id, str) or not run_id.strip():
+    run_id = (
+        "PAPER-"
+        + datetime.now().strftime("%Y%m%d-%H%M%S")
+    )
+
+state.run_id = run_id
+
+decision_id = record_decision_snapshot(
+    state,
+    candle_timestamp=getattr(
+        state,
+        "_candle_time",
+        None,
+    ),
+)
+
+print(
+    "📊 Research: Decision snapshot recorded:",
+    decision_id,
+)
+
+print(
+    "📊 Research: Run ID:",
+    state.run_id,
+)
+
+
+state.timeframe = TIMEFRAME
+
+candles = (
+    state.market.get("candles", [])
+    if isinstance(getattr(state, "market", None), dict)
+    else []
+)
+
+if not candles:
+    print("WARNING: No canonical candles found in state.market")
 
 latest = candles[-1]
 
-state = kernel.get_state()
 
-state.symbol = "BTCUSDT"
-state.timeframe = "15m"
-state.price = latest["close"]
-state.volume = latest["volume"]
+# ==================================================
+# LIVE MARKET
+# ==================================================
 
-print("\n========= LIVE MARKET =========")
-print("Symbol     :", state.symbol)
-print("Timeframe  :", state.timeframe)
-print("Price      :", state.price)
-print("High       :", latest["high"])
-print("Low        :", latest["low"])
-print("Volume     :", state.volume)
+print(
+    "\n========= LIVE MARKET ========="
+)
 
-print("\nMarket State")
-print(state.summary())
-from indicators.indicator_engine import update_market_state
+print(
+    "Symbol     :",
+    state.symbol,
+)
 
-volume_status = update_market_state(state)
+print(
+    "Timeframe  :",
+    state.timeframe,
+)
 
-print("\nIndicators")
-print("-------------------------")
-print("EMA20 :", state.ema20)
-print("EMA50 :", state.ema50)
-print("EMA100:", state.ema100)
-print("EMA200:", state.ema200)
-print("RSI   :", state.rsi)
-print("ATR   :", state.atr)
-print("Volume:", volume_status)
+print(
+    "Price      :",
+    latest.get("close", 0.0),
+)
 
-#mtf = report()
-#print("\n====== MULTI TIMEFRAME ======")
-#for tf, trend in mtf.items():
-#    print(f"{tf:4} : {trend}")
+print(
+    "High       :",
+    latest["high"],
+)
 
-from engine.institutional_master import analyze as institutional_master
+print(
+    "Low        :",
+    latest["low"],
+)
 
-report = institutional_master(state)
-print(report)
+print(
+    "Volume     :",
+    state.volume,
+)
 
-decision = report["decision"]
 
-state.ai_score = decision["score"]
-state.probability = decision["probability"]
-state.confidence = decision["confidence"]
-state.decision = decision["decision"]
+# ==================================================
+# INDICATORS
+# ==================================================
 
-plan = report["plan"]
-risk = report["risk"]
 
-print("\n========== MASTER DECISION ==========")
-print("Decision    :", state.decision)
-print("Confidence  :", state.confidence)
-print(f"Probability : {state.probability}%")
-print("AI Score    :", state.ai_score)
+print(
+    "\n========= INDICATORS ========="
+)
 
-reasons = decision["reasons"]
+print(
+    "EMA20  :",
+    state.ema20,
+)
 
-plan = report["plan"]
+print(
+    "EMA50  :",
+    state.ema50,
+)
 
-#print("======== AI DECISION ========")
-#print(f"AI Score     : {state.ai_score}")
-#print(f"Confidence   : {state.confidence}")
-#print(f"Probability  : {state.probability}%")
-#print(f"Decision     : {state.decision}")
+print(
+    "EMA100 :",
+    state.ema100,
+)
 
-gann = report["engines"]["Gann"]
+print(
+    "EMA200 :",
+    state.ema200,
+)
 
-support = gann["metadata"]["support"]
-resistance = gann["metadata"]["resistance"]
+print(
+    "RSI    :",
+    state.rsi,
+)
+
+print(
+    "ATR    :",
+    state.atr,
+)
+
+print(
+    "Volume :",
+    state.volume,
+)
+
+# ==================================================
+# JAGUAR MASTER ANALYSIS
+# ==================================================
+
+
+
+context = report.get(
+    "context",
+    report.get(
+        "decision",
+        {},
+    ),
+)
+
+enterprise = report.get(
+    "enterprise",
+    {},
+)
+
+# ==================================================
+# CANONICAL ENTERPRISE TRADE
+# ==================================================
+
+enterprise_execution = enterprise.get(
+    "execution",
+    {},
+)
+
+plan = {}
+
+if isinstance(enterprise_execution, dict):
+    execution_ready = (
+        enterprise_execution.get("ready") is True
+        and enterprise_execution.get("approved") is True
+        and enterprise_execution.get("status") == "EXECUTE"
+        and enterprise_execution.get("gate") == "AUTHORIZED"
+    )
+
+    if execution_ready:
+        # Canonical execution identity is established once, before any
+        # transport-specific execution path consumes the authorized contract.
+        enterprise_execution = bind_execution_identity(
+            enterprise_execution
+        )
+        enterprise["execution"] = enterprise_execution
+
+        execution_mode = enterprise_execution.get("mode", "PAPER")
+        if execution_mode not in {"PAPER", "LIVE"}:
+            raise RuntimeError(
+                "FAIL-CLOSED: unsupported execution mode"
+            )
+
+        if execution_mode == "LIVE":
+            enterprise_execution = dict(enterprise_execution)
+        else:
+            paper_authorization = execution_dispatch_runtime.paper_authorizer(
+                enterprise_execution
+            )
+            enterprise_execution = paper_authorization["execution"]
+
+        decision = str(
+            enterprise_execution.get(
+                "decision",
+                "WAIT",
+            )
+        ).upper().strip()
+
+        direction = {
+            "ENTER_LONG": "BUY",
+            "ENTER_SHORT": "SELL",
+        }.get(
+            decision,
+            "",
+        )
+
+        targets = enterprise_execution.get(
+            "targets",
+            [],
+        )
+
+        if (
+            direction in ("BUY", "SELL")
+            and enterprise_execution.get("entry") is not None
+            and enterprise_execution.get("stop_loss") is not None
+            and isinstance(targets, list)
+            and len(targets) >= 3
+        ):
+            plan = {
+                "Direction": direction,
+                "Entry": enterprise_execution["entry"],
+                "StopLoss": enterprise_execution["stop_loss"],
+                "TP1": targets[0],
+                "TP2": targets[1],
+                "TP3": targets[2],
+                "PositionSize": enterprise_execution.get(
+                    "position_size",
+                    0.0,
+                ),
+                "RiskAmount": enterprise_execution.get(
+                    "risk_amount",
+                    0.0,
+                ),
+                "RiskPercent": enterprise_execution.get(
+                    "risk_percent",
+                    0.0,
+                ),
+                "AuthorizationID": enterprise_execution.get(
+                    "authorization_id",
+                ),
+            }
+
+
+# ==================================================
+# MARKET CONTEXT
+# ==================================================
+
+context_direction = context.get(
+    "direction",
+    "NEUTRAL",
+)
+
+context_decision = context.get(
+    "decision",
+    "WAIT",
+)
+
+context_grade = context.get(
+    "confidence",
+    "D",
+)
+
+context_probability = context.get(
+    "probability",
+    0,
+)
+
+context_score = context.get(
+    "score",
+    0,
+)
+
+
+print(
+    "\n========== MARKET CONTEXT =========="
+)
+
+print(
+    "Bias          :",
+    context_direction,
+)
+
+print(
+    "Setup Status  :",
+    context_decision,
+)
+
+print(
+    "Context Grade :",
+    context_grade,
+)
+
+print(
+    "Probability   :",
+    f"{context_probability}%",
+)
+
+print(
+    "Context Score :",
+    context_score,
+)
+
+# ==================================================
+# ENTERPRISE DECISION
+# ==================================================
+
+execution = enterprise.get(
+    "execution",
+    {},
+)
+
+
+
+enterprise_approved = (
+    isinstance(execution, dict)
+    and execution.get("approved") is True
+    and execution.get("status") == "EXECUTE"
+    and execution.get("gate") == "AUTHORIZED"
+)
+
+
+print(
+    "\n========== ENTERPRISE DECISION =========="
+)
+
+print(
+    "Score         :",
+    enterprise.get(
+        "score",
+        0,
+    ),
+)
+
+print(
+    "Grade         :",
+    enterprise.get(
+        "grade",
+        "F",
+    ),
+)
+
+print(
+    "Confidence    :",
+    enterprise.get(
+        "confidence",
+        0,
+    ),
+)
+
+print(
+    "IDM Decision  :",
+    enterprise.get(
+        "decision",
+        "WAIT",
+    ),
+)
+
+print(
+    "Priority      :",
+    enterprise.get(
+        "priority",
+        "LOW",
+    ),
+)
+
+print(
+    "Approved      :",
+    enterprise_approved,
+)
+
+print(
+    "Execution     :",
+    execution.get(
+        "status",
+        "WAIT",
+    ),
+)
+
+print(
+    "Ready         :",
+    execution.get(
+        "ready",
+        False,
+    ),
+)
+
+print(
+    "Reason        :",
+    execution.get(
+        "reason",
+        "",
+    ),
+)
+
+# ==================================================
+# SUPPORT / RESISTANCE
+# ==================================================
+
+engines = report.get(
+    "engines",
+    {},
+)
+
+gann = engines.get(
+    "Gann",
+    {},
+)
+
+gann_metadata = gann.get(
+    "metadata",
+    {},
+)
+
+support = gann_metadata.get(
+    "support",
+)
+
+resistance = gann_metadata.get(
+    "resistance",
+)
 
 print("\n====== SUPPORT / RESISTANCE ======")
-print("Support   :", round(support, 2))
-print("Resistance:", round(resistance, 2))
+support_display = (
+    round(support, 2)
+    if isinstance(
+        support,
+        (int, float),
+    )
+    else "N/A"
+)
+
+resistance_display = (
+    round(resistance, 2)
+    if isinstance(
+        resistance,
+        (int, float),
+    )
+    else "N/A"
+)
+
+print(
+    "Support   :",
+    support_display,
+)
+
+print(
+    "Resistance:",
+    resistance_display,
+)
 
 performance = Performance()
 
@@ -142,175 +594,1388 @@ journal = TradeJournal()
 
 position = PositionManager()
 
-load(position)
-
 manager = TradeManager()
+execution_dispatch_runtime = build_execution_dispatch_runtime()
 
-if plan is not None:
-    trade_status = manager.manage(state, plan)
-else:
-    trade_status = {
-        "Action": "NO TRADE",
-        "StopLoss": 0,
-        "BreakEven": False,
-        "Trailing": False
-    }
+try:
+    runtime_execution_mode = config.get_execution_mode()
+except Exception as mode_error:
+    raise RuntimeError(
+        "FAIL-CLOSED: Unable to resolve runtime execution mode"
+    ) from mode_error
 
-#if plan:
-if plan and plan.get("Direction"):
+if runtime_execution_mode not in {"PAPER", "LIVE"}:
+    raise RuntimeError(
+        "FAIL-CLOSED: Unsupported runtime execution mode"
+    )
 
-    journal.save(state, plan)
 
-    if plan.get("Direction") == "🟢 STRONG BUY":
-        position.open_trade(
-            "LONG",
-            plan.get("Entry"),
-            plan.get("StopLoss"),
-            plan.get("TP1")
+# ==================================================
+# RESTORE POSITION
+# ==================================================
+
+position_loaded = load(position, SYMBOL, manager)
+
+# R56-POS-50: the legacy PositionManager lifecycle is PAPER-only.
+# A restored local active position must never cross into LIVE runtime.
+if runtime_execution_mode == "LIVE" and position_loaded:
+    raise RuntimeError(
+        "FAIL-CLOSED: Legacy active position state cannot enter LIVE runtime"
+    )
+
+
+def assert_no_orphan_durable_trade(symbol):
+    """Fail closed when durable OPEN trade exists without local recovery state."""
+    conn = None
+
+    try:
+        conn = get_connection()
+
+        open_trades = conn.execute(
+            """
+            SELECT
+                uuid,
+                authorization_id,
+                symbol,
+                mode,
+                status,
+                close_time
+            FROM trades
+            WHERE symbol = ?
+              AND status = 'OPEN'
+              AND close_time IS NULL
+            ORDER BY open_time ASC
+            """,
+            (str(symbol or "").upper().strip(),),
+        ).fetchall()
+
+        if open_trades:
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable active trade exists but local recovery state is unavailable"
+            )
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable orphan-trade recovery check unavailable"
+        ) from exc
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+if not position_loaded and runtime_execution_mode == "PAPER":
+    # R56-POS-24D: local JSON is a cache. When it is unavailable,
+    # attempt recovery strictly from the durable PAPER lifecycle.
+    try:
+        durable_recovery_plan = (
+            recover_active_trade_from_durable_lifecycle(
+                position=position,
+                manager=manager,
+                symbol=SYMBOL,
+            )
+        )
+    except Exception as recovery_error:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable active-trade recovery failed"
+        ) from recovery_error
+
+    if durable_recovery_plan is None:
+        # R56-POS-20M / R56-POS-23: a durable OPEN trade without a
+        # reconstructable active lifecycle must never be treated as flat.
+        assert_no_orphan_durable_trade(SYMBOL)
+    else:
+        recovered_trade_uuid = getattr(
+            position,
+            "trade_uuid",
+            None,
         )
 
-    elif plan.get("Direction") == "🔴 STRONG SELL":
-        position.open_trade(
-            "SHORT",
-            plan.get("Entry"),
-            plan.get("StopLoss"),
-            plan.get("TP1")
+        if (
+            position.position not in ("LONG", "SHORT")
+            or not isinstance(recovered_trade_uuid, str)
+            or not recovered_trade_uuid.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable recovery produced invalid active identity"
+            )
+
+        state._trade_id = recovered_trade_uuid
+        plan = durable_recovery_plan
+
+        print(
+            "\nExisting PAPER trade recovered from durable lifecycle."
         )
 
-else:
-    print("\nNo trade setup.")
 
-    print("\n========== TRADE PLAN ==========")
+if position_loaded:
+
+    print(
+        "\nExisting trade state detected; "
+        "revalidating against durable PAPER lifecycle."
+    )
+
+    cached_trade_uuid = getattr(
+        position,
+        "trade_uuid",
+        None,
+    )
+
+    # FAIL-CLOSED: the local cache may identify the active trade,
+    # but durable DB state remains the recovery authority.
+    if (
+        position.position not in ("LONG", "SHORT")
+        or not isinstance(cached_trade_uuid, str)
+        or not cached_trade_uuid.strip()
+    ):
+        raise RuntimeError(
+            "FAIL-CLOSED: Invalid cached active trade identity"
+        )
+
+    try:
+        durable_recovery_plan = (
+            recover_active_trade_from_durable_lifecycle(
+                position=position,
+                manager=manager,
+                symbol=SYMBOL,
+            )
+        )
+    except Exception as recovery_error:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable active-trade revalidation failed"
+        ) from recovery_error
+
+    if durable_recovery_plan is None:
+        raise RuntimeError(
+            "FAIL-CLOSED: Active local state has no durable "
+            "active lifecycle"
+        )
+
+    recovered_trade_uuid = getattr(
+        position,
+        "trade_uuid",
+        None,
+    )
+
+    if recovered_trade_uuid != cached_trade_uuid:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable recovery trade UUID conflicts "
+            "with local active state"
+        )
+
+    state._trade_id = recovered_trade_uuid
+    plan = durable_recovery_plan
+
+    print(
+        "Durable PAPER lifecycle is authoritative for active state."
+    )
 
 
-if plan and plan.get("Direction"):
+# ==================================================
+# DEFAULT TRADE STATUS
+# ==================================================
 
-    print("Direction :", plan.get("Direction"))
-    print("Entry :", plan.get("Entry"))
-    print("Stop Loss :", plan.get("StopLoss"))
+trade_status = {
 
-    print("TP1 :", plan.get("TP1"))
-    print("TP2 :", plan.get("TP2"))
-    print("TP3 :", plan.get("TP3"))
+    "Action": "NO TRADE",
 
-    print("Risk Reward :", plan.get("RiskReward"))
+    "StopLoss": 0,
 
-#    print("Position Size :", plan.get("PositionSize"))
+    "BreakEven": False,
 
- #   print("Risk Amount :", plan.get("RiskAmount"))
+    "Trailing": False,
 
-else:
-    print("\nNo Trade Plan Available")
+}
 
-if plan:
+
+# ==================================================
+# NEW TRADE
+# ==================================================
+
+def assert_no_durable_entry_conflict(symbol):
+    """Fail closed when durable execution state can block re-entry."""
+    conn = None
+
+    try:
+        conn = get_connection()
+
+        unresolved_intents = conn.execute(
+            """
+            SELECT
+                authorization_id,
+                trade_uuid,
+                status
+            FROM execution_intents
+            WHERE symbol = ?
+              AND (
+                  status IS NULL
+                  OR status NOT IN (
+                      'RECONCILED',
+                      'REJECTED',
+                      'CANCELLED'
+                  )
+              )
+            ORDER BY created_at ASC
+            """,
+            (str(symbol or "").upper().strip(),),
+        ).fetchall()
+
+        if unresolved_intents:
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable unresolved execution state blocks new entry"
+            )
+
+        open_trades = conn.execute(
+            """
+            SELECT
+                uuid,
+                authorization_id,
+                status,
+                close_time
+            FROM trades
+            WHERE symbol = ?
+              AND status = 'OPEN'
+              AND close_time IS NULL
+            ORDER BY open_time ASC
+            """,
+            (str(symbol or "").upper().strip(),),
+        ).fetchall()
+
+        if open_trades:
+            raise RuntimeError(
+                "FAIL-CLOSED: Durable open trade state blocks new entry"
+            )
+
+    except RuntimeError:
+        raise
+    except Exception as exc:
+        raise RuntimeError(
+            "FAIL-CLOSED: Durable re-entry barrier unavailable"
+        ) from exc
+    finally:
+        if conn is not None:
+            conn.close()
+
+
+execution_ready = (
+    isinstance(execution, dict)
+    and execution.get("ready") is True
+    and execution.get("approved") is True
+    and execution.get("status") == "EXECUTE"
+    and execution.get("gate") == "AUTHORIZED"
+)
+
+if execution_ready:
 
     if position.position == "NONE":
 
-        if "BUY" in plan["Direction"]:
-            position.open_trade(
-                "LONG",
-                plan["Entry"],
-                plan["StopLoss"],
-                plan["TP1"]
+        # R56-POS-20: durable execution remnants must block fresh entry.
+        # Recovery must never create a second execution attempt.
+        assert_no_durable_entry_conflict(SYMBOL)
+        # FINAL FAIL-CLOSED EXECUTION AUTHORIZATION
+        if not (
+            isinstance(execution, dict)
+            and execution.get("ready") is True
+            and execution.get("approved") is True
+            and execution.get("status") == "EXECUTE"
+            and execution.get("gate") == "AUTHORIZED"
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Unauthorized position-open attempt"
             )
 
-            save(position)
 
-        elif "SELL" in plan["Direction"]:
-            position.open_trade(
-                "SHORT",
-                plan["Entry"],
-                plan["StopLoss"],
-                plan["TP1"]
+        # CANONICAL EXECUTION CONSISTENCY
+        # The position must use exactly what the gateway authorized.
+        authorized_entry = execution.get("entry")
+        authorized_stop = execution.get("stop_loss")
+        authorized_targets = execution.get("targets")
+        authorized_size = execution.get("position_size")
+        authorized_risk_amount = execution.get("risk_amount")
+
+        decision = str(
+            execution.get(
+                "decision",
+                "WAIT",
+            )
+        ).upper().strip()
+
+        direction = {
+            "ENTER_LONG": "BUY",
+            "ENTER_SHORT": "SELL",
+        }.get(
+            decision,
+            "",
+        )
+
+        if direction not in ("BUY", "SELL"):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has invalid direction"
             )
 
-            save(position)
+        if (
+            authorized_entry is None
+            or authorized_stop is None
+            or not isinstance(authorized_targets, list)
+            or len(authorized_targets) < 3
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution geometry is incomplete"
+            )
 
-    position.update(state.price)
-    while position.position != "NONE":
+        if float(authorized_size or 0.0) <= 0:
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized position size is invalid"
+            )
 
-        candles = get_klines()
-        latest = candles[-1]
+        if float(authorized_risk_amount or 0.0) <= 0:
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized risk amount is invalid"
+            )
 
-        state = update_state(state, "BTCUSDT")
+        risk_data = getattr(
+            state,
+            "risk",
+            {},
+        ) or {}
 
-        print("\n===== LIVE MARKET =====")
-        print("Symbol :", state.symbol)
-        print("Price  :", state.price)
-        print("High   :", state.high)
-        print("Low    :", state.low)
-        print("Volume :", state.volume)
+        # ==================================================
+        # BROKER-SHAPED PAPER EXECUTION
+        # ==================================================
+        # Gateway authorization precedes broker execution.
+        # PositionManager must only mirror the confirmed fill.
+        # ==================================================
 
-        position.update(state.price)
-        save(position)
+        # ==================================================
+        # V8 EXECUTION INTENT — PRE-SUBMISSION DURABILITY
+        # ==================================================
+        broker_execution_completed = False
 
-        trade_status = manager.manage(state, plan)
+        def rollback_execution_if_pre_submission(result):
+            if broker_execution_completed:
+                return None
+            return execution_dispatch_runtime.paper_rollback
 
-        position.stop_loss = trade_status["StopLoss"]
+        def preserve_trade_for_recovery(trade_uuid):
+            if (
+                not isinstance(trade_uuid, str)
+                or not trade_uuid.strip()
+            ):
+                raise RuntimeError(
+                    "FAIL-CLOSED: Invalid trade UUID during recovery preservation"
+                )
+            return trade_uuid
 
-        position.update(state.price)
+        # The runtime transaction identity is allocated before
+        # broker submission and durably recorded as AUTHORIZED.
+        # ==================================================
 
-        status = position.status()
+        authorization_id = execution.get(
+            "authorization_id"
+        )
 
-        print("Price      :", state.price)
-        print("PnL        :", status["PnL"])
-        print("Action     :", trade_status["Action"])
-        print("Stop Loss  :", trade_status["StopLoss"])
-        print("BreakEven  :", trade_status["BreakEven"])
-        print("Trailing   :", trade_status["Trailing"])
+        if (
+            not isinstance(authorization_id, str)
+            or not authorization_id.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has no authorization ID"
+            )
 
-        if trade_status["Action"] in [
-            "EXIT",
-            "STOP LOSS",
-        ]:
-            position.close_trade()
+        trade_uuid = execution.get(
+            "trade_uuid"
+        )
 
-            clear()
+        if (
+            not isinstance(trade_uuid, str)
+            or not trade_uuid.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has no trade UUID"
+            )
 
-            print("\nTrade Closed")
-            break
+        client_order_id = execution.get(
+            "client_order_id"
+        )
 
-        time.sleep(5)
+        if (
+            not isinstance(client_order_id, str)
+            or not client_order_id.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Authorized execution has no client order ID"
+            )
 
-else:
-    print("\nNo Position")
+        intent_timestamp = datetime.utcnow().isoformat()
 
-    print("\n======== TRADE MANAGER ========")
+        targets_for_intent = execution.get(
+            "targets",
+            [],
+        )
 
-    print("Action      :", trade_status["Action"])
-    print("Stop Loss   :", trade_status["StopLoss"])
-    print("Break Even  :", trade_status["BreakEven"])
-    print("Trailing SL :", trade_status["Trailing"])
+        if (
+            not isinstance(targets_for_intent, list)
+            or not targets_for_intent
+        ):
+            targets_for_intent = []
 
-    stats = performance.summary()
+        intent_decision = {
+            "ENTER_LONG": "LONG",
+            "ENTER_SHORT": "SHORT",
+        }.get(
+            str(
+                execution.get(
+                    "decision",
+                    "",
+                )
+            ).upper().strip()
+        )
 
-    print("\n========== PERFORMANCE ==========")
-    print("Total Trades :", stats["Trades"])
-    print("Wins         :", stats["Wins"])
-    print("Losses       :", stats["Losses"])
-    print("Win Rate     :", f'{stats["WinRate"]}%')
-    print("=================================")
+        if intent_decision not in {"LONG", "SHORT"}:
+            raise RuntimeError(
+                "FAIL-CLOSED: Invalid execution decision for "
+                "durable execution intent"
+            )
 
-    print("\nReasons")
-    unique_reasons = list(dict.fromkeys(reasons))
+        try:
+            insert_execution_intent(
+                {
+                    "authorization_id": authorization_id,
+                    "trade_uuid": trade_uuid,
+                    "client_order_id": client_order_id,
+                    "symbol": execution.get(
+                        "symbol",
+                        SYMBOL,
+                    ),
+                    "timeframe": TIMEFRAME,
+                    "mode": execution.get(
+                        "mode",
+                        "PAPER",
+                    ),
+                    "decision": intent_decision,
+                    "quantity": float(
+                        execution.get(
+                            "position_size",
+                            0.0,
+                        ) or 0.0
+                    ),
+                    "requested_price": execution.get(
+                        "entry"
+                    ),
+                    "stop_loss": execution.get(
+                        "stop_loss"
+                    ),
+                    "take_profit": targets_for_intent[0],
+                    "run_id": getattr(
+                        state,
+                        "run_id",
+                        None,
+                    ),
+                    "status": "AUTHORIZED",
+                    "created_at": intent_timestamp,
+                    "updated_at": intent_timestamp,
+                }
+            )
+        except Exception as intent_error:
+            raise RuntimeError(
+                "FAIL-CLOSED: Execution intent persistence failed"
+            ) from intent_error
 
-    for r in unique_reasons:
-        print("✓", r)
+        try:
+            execution_mode = execution.get("mode", "PAPER")
+            if execution_mode not in {"PAPER", "LIVE"}:
+                raise RuntimeError(
+                    "FAIL-CLOSED: unsupported execution mode"
+                )
 
-    print("\n========== LIVE BINANCE FEED ==========")
+            if execution_mode == "LIVE":
+                try:
+                    live_result = execution_dispatch_runtime.dispatch(
+                        execution,
+                        market_metadata=state.market_metadata,
+                        activation_requested=True,
+                    )
+                except Exception as live_error:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: LIVE submission failed"
+                    ) from live_error
 
-    feed = LiveFeed(
-        state,
-        plan,
-        trade_status,
-        "btcusdt"
+                if not isinstance(live_result, dict):
+                    raise RuntimeError(
+                        "FAIL-CLOSED: LIVE dispatch returned an invalid result"
+                    )
+
+                if live_result.get("status") != "SUBMITTED":
+                    raise RuntimeError(
+                        "FAIL-CLOSED: LIVE dispatch did not reach SUBMITTED"
+                    )
+
+                if live_result.get("authorization_id") != authorization_id:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: LIVE dispatch returned mismatched authorization ID"
+                    )
+
+                if live_result.get("client_order_id") != client_order_id:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: LIVE dispatch returned mismatched client order ID"
+                    )
+
+                if (
+                    not isinstance(live_result.get("broker_order_id"), str)
+                    or not live_result.get("broker_order_id").strip()
+                ):
+                    raise RuntimeError(
+                        "FAIL-CLOSED: LIVE dispatch returned no broker order ID"
+                    )
+
+                execution_result = live_result
+            else:
+                execution_result = execution_dispatch_runtime.dispatch(
+                    execution
+                )
+        except Exception as execution_error:
+            raise RuntimeError(
+                "FAIL-CLOSED: Paper execution failed"
+            ) from execution_error
+
+        # The broker operation has completed.  From this point
+        # onward the external execution must never be erased by
+        # local compensation.  Durable V8 recovery owns the
+        # unresolved transaction.
+        broker_execution_completed = True
+
+        returned_authorization_id = execution_result.get(
+            "authorization_id"
+        )
+
+        if returned_authorization_id != authorization_id:
+            try:
+                rollback_execution_if_pre_submission(execution_result)
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    "FAIL-CLOSED: Authorization identity mismatch "
+                    "AND execution rollback failed"
+                ) from rollback_error
+
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker returned mismatched authorization ID"
+            )
+
+        if execution_mode == "LIVE":
+            returned_client_order_id = execution_result.get(
+                "client_order_id"
+            )
+            broker_order_id = execution_result.get(
+                "broker_order_id"
+            )
+        else:
+            order = execution_result.get(
+                "order",
+                {},
+            ) or {}
+
+            returned_client_order_id = (
+                order.get("client_order_id")
+                if isinstance(order, dict)
+                else None
+            )
+
+            broker_order_id = (
+                order.get("broker_order_id")
+                if isinstance(order, dict)
+                else None
+            )
+
+        if returned_client_order_id != client_order_id:
+            try:
+                rollback_execution_if_pre_submission(execution_result)
+            except Exception as rollback_error:
+                raise RuntimeError(
+                    "FAIL-CLOSED: Client order identity mismatch "
+                    "AND execution rollback failed"
+                ) from rollback_error
+
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker returned mismatched client order ID"
+            )
+
+        if (
+            not isinstance(broker_order_id, str)
+            or not broker_order_id.strip()
+        ):
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker execution returned no broker order ID"
+            )
+
+        try:
+            update_execution_intent(
+                authorization_id,
+                broker_order_id=broker_order_id,
+                status="SUBMITTED",
+            )
+        except Exception as intent_error:
+            raise RuntimeError(
+                "FAIL-CLOSED: Broker submitted but "
+                "SUBMITTED intent persistence failed"
+            ) from intent_error
+
+        if execution_mode == "PAPER":
+            execute_paper_post_fill(
+                execution=execution,
+                execution_result=execution_result,
+                authorization_id=authorization_id,
+                trade_uuid=trade_uuid,
+                authorized_stop=authorized_stop,
+                authorized_targets=authorized_targets,
+                direction=direction,
+                state=state,
+                position=position,
+                manager=manager,
+                journal=journal,
+                plan=plan,
+                rollback_execution_if_pre_submission=rollback_execution_if_pre_submission,
+                preserve_trade_for_recovery=preserve_trade_for_recovery,
+                SYMBOL=SYMBOL,
+                TIMEFRAME=TIMEFRAME,
+            )
+# ==================================================
+# ACTIVE POSITION LOOP
+# ==================================================
+
+if position.position != "NONE":
+
+    # R56-POS-50: legacy active lifecycle management is PAPER-only.
+    if runtime_execution_mode != "PAPER":
+        raise RuntimeError(
+            "FAIL-CLOSED: Legacy active position lifecycle unavailable in LIVE runtime"
+        )
+
+    print(
+        "\n========== POSITION ACTIVE =========="
     )
 
-    feed.start()
-
     try:
-        while True:
-            time.sleep(1)
+
+        while position.position != "NONE":
+
+            state = update_state(
+                state,
+                SYMBOL,
+            )
+
+            position.update(
+                state.price
+            )
+
+            # FAIL-CLOSED: active position must retain
+            # a valid persistent trade identity.
+            trade_uuid = getattr(
+                position,
+                "trade_uuid",
+                None,
+            )
+
+            if (
+                not isinstance(trade_uuid, str)
+                or not trade_uuid.strip()
+            ):
+                raise RuntimeError(
+                    "FAIL-CLOSED: Active position has no valid trade UUID"
+                )
+
+            state._trade_id = trade_uuid
+
+            # Manage using the actual persisted stop.
+            trade_status = manager.manage(
+                state,
+                plan,
+                current_stop=position.stop_loss,
+            )
+
+            trade_action = trade_status.get(
+                "Action"
+            )
+
+            # R56-POS-21: never persist terminal TradeManager state
+            # while the durable trade is still OPEN. If the process
+            # crashes before canonical close persistence, the previous
+            # active snapshot remains recoverable.
+            if trade_action not in (
+                "EXIT",
+                "STOP LOSS",
+            ):
+                new_stop = trade_status.get(
+                    "StopLoss"
+                )
+
+                if isinstance(
+                    new_stop,
+                    (int, float),
+                ) and new_stop > 0:
+
+                    position.update_stop_loss(
+                        new_stop
+                    )
+
+                # R56-POS-24: durable lifecycle is committed before
+                # the local JSON cache. The database is the recovery
+                # authority for current stop and manager lifecycle.
+                try:
+                    persist_active_trade_lifecycle(
+                        trade_uuid=trade_uuid,
+                        position=position,
+                        manager=manager,
+                        plan=plan,
+                        symbol=SYMBOL,
+                    )
+                except Exception as lifecycle_error:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active lifecycle persistence failed"
+                    ) from lifecycle_error
+
+                # Local state is a cache of the already-durable lifecycle.
+                if not save(position, SYMBOL, manager):
+                    # Never leave a stale cache capable of being restored
+                    # after the database has advanced.
+                    clear()
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active position cache persistence failed"
+                    )
+
+            status = position.status()
+
+            print(
+                "\n===== LIVE MARKET ====="
+            )
+
+            print(
+                "Symbol :",
+                state.symbol,
+            )
+
+            print(
+                "Price  :",
+                state.price,
+            )
+
+            print(
+                "High   :",
+                state.high,
+            )
+
+            print(
+                "Low    :",
+                state.low,
+            )
+
+            print(
+                "Volume :",
+                state.volume,
+            )
+
+            print(
+                "PnL    :",
+                status.get(
+                    "PnL",
+                    0,
+                ),
+            )
+
+            print(
+                "Action :",
+                trade_status.get(
+                    "Action",
+                    "WAIT",
+                ),
+            )
+
+            print(
+                "Stop Loss :",
+                trade_status.get(
+                    "StopLoss",
+                    0,
+                ),
+            )
+
+            print(
+                "BreakEven :",
+                trade_status.get(
+                    "BreakEven",
+                    False,
+                ),
+            )
+
+            print(
+                "Trailing :",
+                trade_status.get(
+                    "Trailing",
+                    False,
+                ),
+            )
+
+            if trade_status.get(
+                "Action"
+            ) in (
+                "EXIT",
+                "STOP LOSS",
+            ):
+
+                from research.recorder import record_trade_close
+
+                trade_uuid = getattr(
+                    position,
+                    "trade_uuid",
+                    None,
+                )
+
+                if (
+                    not isinstance(trade_uuid, str)
+                    or not trade_uuid.strip()
+                ):
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Cannot close trade without trade UUID"
+                    )
+
+                exit_price = float(
+                    state.price
+                )
+
+                # FINAL CLOSE AUTHORITY:
+                # Revalidate the active position against its durable
+                # execution lineage BEFORE calculating realized PnL.
+                close_contract = recover_active_trade_plan(
+                    trade_uuid,
+                    position,
+                    SYMBOL,
+                )
+
+                if close_contract.get("TradeUUID") != trade_uuid:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Close authorization trade UUID mismatch"
+                    )
+
+                if not str(
+                    close_contract.get(
+                        "AuthorizationID",
+                        "",
+                    )
+                ).strip():
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Close authorization has no authorization ID"
+                    )
+
+                try:
+                    entry_price = float(
+                        close_contract["Entry"]
+                    )
+                    position_size = float(
+                        close_contract["PositionSize"]
+                    )
+                except (KeyError, TypeError, ValueError) as exc:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Invalid authoritative close contract"
+                    ) from exc
+
+                if position_size <= 0:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Invalid authoritative position size during close"
+                    )
+
+                if position.position == "LONG":
+                    price_delta = (
+                        exit_price
+                        - entry_price
+                    )
+                else:
+                    price_delta = (
+                        entry_price
+                        - exit_price
+                    )
+
+                pnl = (
+                    price_delta
+                    * position_size
+                )
+
+                initial_risk = float(
+                    getattr(
+                        position,
+                        "initial_risk",
+                        0.0,
+                    ) or 0.0
+                )
+
+                r_multiple = (
+                    pnl / initial_risk
+                    if initial_risk > 0
+                    else 0.0
+                )
+
+                # R56-POS-39: holding-time authority comes from the
+                # already-durable trade open timestamp plus one
+                # canonical terminal close timestamp.
+                from research.database import get_connection
+
+                holding_conn = get_connection()
+                try:
+                    open_row = holding_conn.execute(
+                        """
+                        SELECT
+                            uuid,
+                            status,
+                            open_time,
+                            close_time
+                        FROM trades
+                        WHERE uuid = ?
+                        LIMIT 1
+                        """,
+                        (trade_uuid,),
+                    ).fetchone()
+                finally:
+                    holding_conn.close()
+
+                if open_row is None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade row missing during close"
+                    )
+
+                if str(
+                    open_row["uuid"]
+                ) != trade_uuid:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade UUID mismatch during close"
+                    )
+
+                if str(
+                    open_row["status"] or ""
+                ).strip().upper() != "OPEN":
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade is not OPEN during close"
+                    )
+
+                if open_row["close_time"] is not None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade already has close_time"
+                    )
+
+                durable_open_time = open_row["open_time"]
+
+                if not isinstance(
+                    durable_open_time,
+                    str,
+                ) or not durable_open_time.strip():
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade open_time is missing"
+                    )
+
+                close_timestamp = datetime.now().isoformat()
+
+                try:
+                    open_dt = datetime.fromisoformat(
+                        durable_open_time
+                    )
+                    close_dt = datetime.fromisoformat(
+                        close_timestamp
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ) as exc:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Invalid durable trade timestamp"
+                    ) from exc
+
+                open_is_aware = (
+                    open_dt.tzinfo is not None
+                    and open_dt.utcoffset() is not None
+                )
+                close_is_aware = (
+                    close_dt.tzinfo is not None
+                    and close_dt.utcoffset() is not None
+                )
+
+                if open_is_aware != close_is_aware:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Trade open/close timestamp timezone mismatch"
+                    )
+
+                holding_seconds = (
+                    close_dt - open_dt
+                ).total_seconds()
+
+                if holding_seconds < 0:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Negative trade holding time"
+                    )
+
+                if holding_seconds != holding_seconds:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Non-finite trade holding time"
+                    )
+
+                holding_seconds = int(
+                    holding_seconds
+                )
+
+                record_trade_close(
+                    trade_uuid,
+                    exit_price=exit_price,
+                    pnl=pnl,
+                    r_multiple=r_multiple,
+                    win_loss=(pnl > 0),
+                    holding_time=holding_seconds,
+                    exit_time=close_timestamp,
+                )
+
+                # CLOSE PERSISTENCE GUARD:
+                # The generic recorder does not expose UPDATE rowcount.
+                # Verify the canonical runtime close durably persisted
+                # before clearing local active-position state.
+                from research.database import get_connection
+
+                close_conn = get_connection()
+                try:
+                    closed_row = close_conn.execute(
+                        """
+                        SELECT
+                            uuid,
+                            status,
+                            close_time,
+                            exit_price,
+                            pnl,
+                            r_multiple,
+                            win_loss,
+                            holding_time,
+                            snapshot_close,
+                            snapshot_close_checksum
+                        FROM trades
+                        WHERE uuid = ?
+                        LIMIT 1
+                        """,
+                        (trade_uuid,),
+                    ).fetchone()
+                finally:
+                    close_conn.close()
+
+                if closed_row is None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Trade close was not durably persisted"
+                    )
+
+                if closed_row["status"] != "CLOSED":
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close status mismatch"
+                    )
+
+                if closed_row["close_time"] is None:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close timestamp missing"
+                    )
+
+                from research.closed_trade_integrity import (
+                    validate_closed_trade_record
+                )
+
+                validate_closed_trade_record(closed_row)
+
+                if float(closed_row["exit_price"]) != exit_price:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close exit price mismatch"
+                    )
+
+                if float(closed_row["pnl"]) != pnl:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Durable trade close PnL mismatch"
+                    )
+
+                # R56-POS-24C: after canonical trade closure has been
+                # durably verified, remove the nonterminal active-lifecycle
+                # record. Never delete it before CLOSED read-back succeeds.
+                try:
+                    deleted_lifecycle = delete_active_trade_lifecycle(
+                        trade_uuid
+                    )
+                except Exception as lifecycle_error:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active lifecycle cleanup failed"
+                    ) from lifecycle_error
+
+                if deleted_lifecycle != 1:
+                    raise RuntimeError(
+                        "FAIL-CLOSED: Active lifecycle cleanup rowcount mismatch"
+                    )
+
+                state._trade_id = None
+
+                position.close_trade()
+
+                manager.deactivate()
+
+                clear()
+
+                print(
+                    "\nTrade Closed"
+                )
+
+                break
+
+            time.sleep(5)
+
     except KeyboardInterrupt:
-        print("\nStopping Jaguar...")
+
+        print(
+            "\nStopping active trade monitor..."
+        )
+
+
+# NO POSITION
+# ==================================================
+
+else:
+
+    print(
+        "\nNo Position"
+    )
+
+
+# ==================================================
+# TRADE MANAGER REPORT
+# ==================================================
+
+print(
+    "\n======== TRADE MANAGER ========"
+)
+
+print(
+    "Action      :",
+    trade_status.get(
+        "Action",
+        "NO TRADE",
+    ),
+)
+
+print(
+    "Stop Loss   :",
+    trade_status.get(
+        "StopLoss",
+        0,
+    ),
+)
+
+print(
+    "Break Even  :",
+    trade_status.get(
+        "BreakEven",
+        False,
+    ),
+)
+
+print(
+    "Trailing SL :",
+    trade_status.get(
+        "Trailing",
+        False,
+    ),
+)
+
+
+# ==================================================
+# PERFORMANCE
+# ==================================================
+
+stats = performance.summary()
+
+
+print(
+    "\n========== PERFORMANCE =========="
+)
+
+print(
+    "Total Trades :",
+    stats.get(
+        "Trades",
+        0,
+    ),
+)
+
+print(
+    "Wins         :",
+    stats.get(
+        "Wins",
+        0,
+    ),
+)
+
+print(
+    "Losses       :",
+    stats.get(
+        "Losses",
+        0,
+    ),
+)
+
+print(
+    "Win Rate     :",
+    f'{stats.get("WinRate", 0)}%',
+)
+
+print(
+    "=" * 34
+)
+
+
+# ==================================================
+# LEGACY ANALYSIS REASONS
+# ==================================================
+
+print(
+    "\nMarket Bias Reasons"
+)
+
+reasons = context.get(
+    "reasons",
+    [],
+)
+
+unique_reasons = list(
+    dict.fromkeys(reasons)
+)
+
+for reason in unique_reasons:
+
+    print(
+        "✓",
+        reason,
+    )
+
+
+# ==================================================
+# ENTERPRISE REASONS
+# ==================================================
+
+print(
+    "\nEnterprise Reasons"
+)
+
+idm_reasons = state.idm.get(
+    "reasons",
+    [],
+)
+
+for reason in idm_reasons:
+
+    print(
+        "•",
+        reason,
+    )
+
+
+# ==================================================
+# LIVE FEED
+# ==================================================
+
+print(
+    "\n========== LIVE BINANCE FEED =========="
+)
+
+
+from core.alert_engine import AlertEngine
+from core.notification_adapter import TermuxNotificationAdapter
+from core.canonical_portfolio_read_model import (
+    build_canonical_portfolio_snapshot,
+)
+
+
+def observe_portfolio_for_alerts():
+    try:
+        portfolio = build_canonical_portfolio_snapshot()
+    except Exception:
+        return None
+    return portfolio if isinstance(portfolio, dict) else None
+
+
+alert_engine = AlertEngine(
+    TermuxNotificationAdapter(),
+    cooldown_seconds=300.0,
+)
+
+feed = LiveFeed(
+    state,
+    plan,
+    trade_status,
+    "btcusdt",
+)
+feed.alert_observer = observe_portfolio_for_alerts
+feed.alert_engine = alert_engine
+feed.alert_interval_seconds = 30.0
+
+feed.start()
+
+# Normal operation: keep the live feed running.
+# Test operation: JAGUAR_ONESHOT=1 exits after initial analysis.
+# Bounded operation: JAGUAR_MAX_RUNTIME_SECONDS=<seconds>.
+try:
+
+    if os.environ.get("JAGUAR_ONESHOT") == "1":
+
+        print(
+            "\nJAGUAR_ONESHOT=1 -> stopping after initial analysis."
+        )
+
         feed.stop()
+
+    else:
+
+        max_runtime_raw = os.environ.get(
+            "JAGUAR_MAX_RUNTIME_SECONDS"
+        )
+
+        deadline = None
+
+        if max_runtime_raw:
+
+            try:
+                max_runtime = float(max_runtime_raw)
+            except (TypeError, ValueError) as exc:
+
+                raise RuntimeError(
+                    "FAIL-CLOSED: Invalid JAGUAR_MAX_RUNTIME_SECONDS"
+                ) from exc
+
+            if max_runtime <= 0:
+
+                raise RuntimeError(
+                    "FAIL-CLOSED: JAGUAR_MAX_RUNTIME_SECONDS must be > 0"
+                )
+
+            deadline = time.monotonic() + max_runtime
+
+            print(
+                f"\nJAGUAR_MAX_RUNTIME_SECONDS={max_runtime:g}"
+                " -> bounded live run."
+            )
+
+        while True:
+
+            if (
+                deadline is not None
+                and time.monotonic() >= deadline
+            ):
+
+                print(
+                    "\nMaximum runtime reached -> stopping Jaguar."
+                )
+
+                feed.stop()
+                break
+
+            time.sleep(1)
+
+except KeyboardInterrupt:
+
+    print(
+        "\nStopping Jaguar..."
+    )
+
+    feed.stop()

@@ -8,19 +8,19 @@ class LiquidityEngine:
         highs = [c["high"] for c in candles[-10:-1]]
         lows = [c["low"] for c in candles[-10:-1]]
 
-        signal = "NONE"
+        signal = "NEUTRAL"
         score = 0
         reasons = []
 
         # Buy-side sweep
         if last["high"] > max(highs) and last["close"] < max(highs):
-            signal = "BUY_SIDE_SWEEP"
+            signal = "BEARISH"
             score = -15
             reasons.append("Buy-side Liquidity Sweep")
 
         # Sell-side sweep
         elif last["low"] < min(lows) and last["close"] > min(lows):
-            signal = "SELL_SIDE_SWEEP"
+            signal = "BULLISH"
             score = 15
             reasons.append("Sell-side Liquidity Sweep")
 

@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Runtime/research SQLite databases are local state, not release artifacts
+research/*.db

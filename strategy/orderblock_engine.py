@@ -1,17 +1,18 @@
+# strategy/orderblock_engine.py
+
 class OrderBlockEngine:
 
     def run(self, state, bus):
 
         bus.publish("ORDERBLOCK_ANALYSIS")
 
-        candles = state.market["candles"]
+        candles = state.market_current["candles"]
 
         bullish = None
         bearish = None
 
         # Scan the last 50 candles
         for i in range(len(candles) - 50, len(candles) - 2):
-
             c1 = candles[i]
             c2 = candles[i + 1]
 
@@ -47,9 +48,17 @@ class OrderBlockEngine:
                     "index": i
                 }
 
-        state.orderblock = {
+        # ---- Numeric scoring for Brain integration ----
+        score = 0
+        if bullish:
+            score = 20
+        if bearish:
+            score = -20
+
+        state.order_block = {
             "bullish": bullish,
-            "bearish": bearish
+            "bearish": bearish,
+            "score": score
         }
 
         bus.publish("ORDERBLOCK_READY")

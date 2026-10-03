@@ -1,0 +1,129 @@
+{
+  "version": "1.0",
+  "last_updated": "2026-07-23",
+  "sections": {
+    "system_overview": {
+      "title": "Jaguar Quant X – Institutional Trading Intelligence",
+      "description": "A 32‑engine AI‑native trading operating system that analyses markets, generates trade signals, and learns from its own performance.",
+      "architecture": "The pipeline consists of Market → Indicators → SMC/Structure → Probability → AI Brain → MasterDecision → Trade Planner → Risk → Execution. All downstream engines consume the MasterDecision as the single source of truth."
+    },
+    "glossary": {
+      "SMC": {
+        "term": "Smart Money Concepts",
+        "definition": "A trading methodology based on the idea that institutional players (banks, hedge funds) leave footprints in price action. It focuses on liquidity sweeps, order blocks, fair value gaps, and market structure shifts.",
+        "components": ["BOS", "CHoCH", "Liquidity", "Order Block", "FVG", "Premium/Discount"]
+      },
+      "BOS": {
+        "term": "Break of Structure",
+        "definition": "A price move that breaks a previous swing high (in an uptrend) or swing low (in a downtrend), indicating a potential trend continuation or reversal."
+      },
+      "CHoCH": {
+        "term": "Change of Character",
+        "definition": "A price move that breaks a previous swing point and signals a potential trend reversal. Often occurs before a BOS."
+      },
+      "Liquidity": {
+        "term": "Liquidity Sweep",
+        "definition": "When price moves aggressively to take out a cluster of stop‑loss orders (often at swing highs/lows), then reverses. This is a key SMC concept."
+      },
+      "OrderBlock": {
+        "term": "Order Block",
+        "definition": "A price area where institutional orders were placed. Often used as support/resistance. Can be identified by strong momentum and a gap in price."
+      },
+      "FVG": {
+        "term": "Fair Value Gap",
+        "definition": "An imbalance in price – a gap between the high of one candle and the low of the previous candle (or vice versa). Price often retraces to fill these gaps."
+      },
+      "Regime": {
+        "term": "Market Regime",
+        "definition": "The prevailing market condition – BULLISH, BEARISH, COMPRESSION (low volatility), or RISK_ON/RISK_OFF. Determined by a combination of EMA, ATR, and RSI."
+      },
+      "MTF": {
+        "term": "Multi‑Timeframe Alignment",
+        "definition": "When multiple timeframes (15m, 1h, 4h, 1d) show the same bias (e.g., all bullish). This increases probability of a trade."
+      },
+      "MasterDecision": {
+        "term": "Master Decision",
+        "definition": "The single source of truth for the entire pipeline. It outputs BUY, SELL, WAIT, or REJECT based on a composite score (0‑100) and mode‑specific thresholds."
+      },
+      "Scalp": {
+        "term": "SCALP Mode",
+        "definition": "An aggressive trading style with lower threshold (65), higher boost (+35), tight stops (1.0x ATR), and smaller risk (0.5% per trade). Suitable for frequent, small moves."
+      },
+      "Swing": {
+        "term": "SWING Mode",
+        "definition": "A balanced trading style with threshold 80, moderate boost (+10), 1.5x ATR stops, and 1.0% risk. Designed for multi‑day to multi‑week swings."
+      },
+      "Classic": {
+        "term": "CLASSIC Mode",
+        "definition": "A conservative trading style with threshold 90, no boost, 2.0x ATR stops, and 1.5% risk. Only the highest‑conviction setups are taken."
+      }
+    },
+    "decision_logic": {
+      "score_calculation": "base_score = (AI_score * 0.6) + (Probability * 0.4). Then add bonuses: SMC Bullish (+20), Regime Bullish (+15), Structure Breakout (+15), High Volume (+5). Subtract for bearish signals. Then apply mode‑specific boost (SCALP +35, SWING +10, CLASSIC 0). Final score capped at 0‑100.",
+      "thresholds": {
+        "SCALP": { "threshold": 65, "boost": 35, "grade_A": "A-", "grade_B": "B+" },
+        "SWING": { "threshold": 80, "boost": 10, "grade_A": "A", "grade_B": "B" },
+        "CLASSIC": { "threshold": 90, "boost": 0, "grade_A": "A+", "grade_B": "B" }
+      },
+      "grade_map": {
+        "A+": "Exceptional (score 95+)",
+        "A": "Strong (85‑94)",
+        "A-": "Good (75‑84)",
+        "B+": "Moderate (65‑74)",
+        "B": "Adequate (55‑64)",
+        "C": "Neutral (45‑54)",
+        "D": "Weak (35‑44)",
+        "F": "Reject (below 35)"
+      }
+    },
+    "error_codes": {
+      "UDAPI100050": {
+        "description": "Invalid token used to access Upstox API.",
+        "solution": "Generate a fresh trading access token via OAuth flow. Ensure you have the correct Client ID and Secret, and that the redirect URI matches exactly."
+      },
+      "UDAPI100057": {
+        "description": "Invalid OAuth code.",
+        "solution": "The authorization code has expired or was used already. Generate a new code from the login URL and exchange it immediately."
+      },
+      "UDAPI100068": {
+        "description": "Check your client_id and redirect_uri; one or both are incorrect.",
+        "solution": "Verify that the redirect_uri in your app settings matches exactly the one used in the authorization URL (including protocol and trailing slashes)."
+      },
+      "ERR_CONNECTION_REFUSED": {
+        "description": "Could not connect to localhost.",
+        "solution": "Start the HTTP server with `python3 -m http.server 8081` and ensure the port is not blocked. Use a different port if needed."
+      },
+      "AttributeError: 'JaguarState' object has no attribute 'master_decision'": {
+        "description": "Engine tried to access master_decision before it was created.",
+        "solution": "Ensure MasterDecisionEngine runs before any consumer engines. In register_engines.py, place MasterDecisionEngine registration before TradePlannerEngineRunner."
+      }
+    },
+    "faqs": {
+      "why_reject": "The system rejects a trade when the composite score is below the mode‑specific threshold, or when the Trade Validator flags the setup as invalid.",
+      "why_position_size": "Position size is calculated as (Capital * Risk%) / (Entry – Stop Loss). This ensures risk per trade is fixed.",
+      "what_is_exposure": "Exposure is the total notional value of the position (Position Size × Entry Price). It should not exceed the account capital.",
+      "how_to_update_portal": "Run `python3 jaguar.py --portal` to rescan all assets and regenerate the HTML files.",
+      "how_to_backtest": "Run `python3 jaguar.py --symbol GC=F --mode SCALP` – the backtest runs automatically as part of the pipeline.",
+      "how_to_learn": "Run `python3 jaguar.py --learn` to see performance summary and LLM‑based strategy advice."
+    },
+    "optimization": {
+      "parameters": [
+        { "name": "SCALP threshold", "range": "50‑80", "step": 5 },
+        { "name": "SCALP boost", "range": "20‑45", "step": 5 },
+        { "name": "SWING threshold", "range": "65‑90", "step": 5 },
+        { "name": "SWING boost", "range": "5‑20", "step": 5 },
+        { "name": "CLASSIC threshold", "range": "80‑95", "step": 5 },
+        { "name": "ATR stop multiplier", "range": "0.5‑2.0", "step": 0.25 },
+        { "name": "ATR TP multiplier", "range": "1.5‑4.0", "step": 0.5 },
+        { "name": "Risk % per trade", "range": "0.5‑2.0", "step": 0.25 }
+      ],
+      "optimization_method": "Backtest‑driven grid search + hill climbing. Evaluates based on win rate × profit factor."
+    },
+    "data_sources": {
+      "Yahoo": "Primary source for prices, OHLCV, indicators. Works for stocks, crypto, commodities, indices.",
+      "Alpha Vantage": "Fallback for historical data and financials. Free API key required.",
+      "FRED": "Economic data (GDP, inflation, interest rates). Free API key required.",
+      "NewsAPI": "Market news and sentiment (future)."
+    }
+  }
+}

@@ -81,18 +81,6 @@ class ScoreEngine:
             score -= 5
             reasons.append("Low Volume")
 
-        # ================= Market Regime =================
-
-        regime = ind.get("regime", {}).get("regime", "SIDEWAYS")
-
-        if "BULLISH" in regime:
-            score += 15
-            reasons.append("Bullish Market Regime")
-
-        elif "BEARISH" in regime:
-            score -= 15
-            reasons.append("Bearish Market Regime")
-
         # ================= Clamp Score =================
 
         score = max(-100, min(100, score))
