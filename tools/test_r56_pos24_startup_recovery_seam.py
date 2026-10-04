@@ -56,7 +56,7 @@ def test_success_sets_existing_trade_context():
 
 def test_recovery_has_no_execution_authority():
     block_start = MAIN.index(
-        "if not position_loaded:"
+        "if not position_loaded and runtime_execution_mode == \"PAPER\":"
     )
 
     block_end = MAIN.index(
@@ -86,7 +86,7 @@ def test_recovery_has_no_execution_authority():
 
 def test_none_path_retains_orphan_quarantine():
     block_start = MAIN.index(
-        "if not position_loaded:"
+        "if not position_loaded and runtime_execution_mode == \"PAPER\":"
     )
 
     block_end = MAIN.index(
