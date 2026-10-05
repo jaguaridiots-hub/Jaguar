@@ -195,17 +195,46 @@ def find_missing_state_node():
     tree = ast.parse(MAIN_SOURCE)
 
     for node in tree.body:
-        if (
-            isinstance(node, ast.If)
-            and isinstance(node.test, ast.UnaryOp)
-            and isinstance(node.test.op, ast.Not)
-            and isinstance(node.test.operand, ast.Name)
-            and node.test.operand.id == "position_loaded"
+        if not isinstance(node, ast.If):
+            continue
+
+        test = node.test
+
+        # Canonical production startup branch:
+        # if not position_loaded and runtime_execution_mode == "PAPER":
+        if not (
+            isinstance(test, ast.BoolOp)
+            and isinstance(test.op, ast.And)
+            and len(test.values) == 2
         ):
+            continue
+
+        first, second = test.values
+
+        first_matches = (
+            isinstance(first, ast.UnaryOp)
+            and isinstance(first.op, ast.Not)
+            and isinstance(first.operand, ast.Name)
+            and first.operand.id == "position_loaded"
+        )
+
+        second_matches = (
+            isinstance(second, ast.Compare)
+            and len(second.ops) == 1
+            and isinstance(second.ops[0], ast.Eq)
+            and isinstance(second.left, ast.Name)
+            and second.left.id == "runtime_execution_mode"
+            and len(second.comparators) == 1
+            and isinstance(second.comparators[0], ast.Constant)
+            and second.comparators[0].value == "PAPER"
+        )
+
+        if first_matches and second_matches:
             return node
 
     raise AssertionError(
-        "Actual `if not position_loaded:` node not found"
+        "Actual PAPER startup `if not position_loaded and "
+        "runtime_execution_mode == 'PAPER'` node not found"
     )
 
 
@@ -273,6 +302,7 @@ def main():
 
             runtime_globals = {
                 "position_loaded": False,
+                "runtime_execution_mode": "PAPER",
                 "position": position,
                 "manager": manager,
                 "state": state,
