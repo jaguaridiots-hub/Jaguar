@@ -1,3 +1,6 @@
+import pytest
+
+from config.config_manager import config
 from core.canonical_portfolio_read_model import (
     build_canonical_portfolio_snapshot,
 )
@@ -65,6 +68,15 @@ def account_snapshot():
         "unsettled_profit_previous_days": 0.0,
         "freshness": "CURRENT",
     }
+
+
+@pytest.fixture(autouse=True)
+def live_execution_mode(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_execution_mode",
+        lambda: "LIVE",
+    )
 
 
 def test_matching_positions_are_reported():
@@ -171,3 +183,79 @@ def test_invalid_jaguar_identity_is_unreconcilable():
 
     assert result["status"] == "RECONCILIATION_MISMATCH"
     assert result["reconciliation"]["status"] == "UNRECONCILABLE"
+
+
+def test_paper_mode_skips_broker_and_account(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_execution_mode",
+        lambda: "PAPER",
+    )
+
+    calls = {
+        "broker": 0,
+        "account": 0,
+    }
+
+    def broker_reader():
+        calls["broker"] += 1
+        raise AssertionError("broker reader called in PAPER mode")
+
+    def account_reader():
+        calls["account"] += 1
+        raise AssertionError("account reader called in PAPER mode")
+
+    result = build_canonical_portfolio_snapshot(
+        portfolio_reader=jaguar_snapshot,
+        broker_reader=broker_reader,
+        account_reader=account_reader,
+    )
+
+    assert calls == {
+        "broker": 0,
+        "account": 0,
+    }
+    assert result["status"] == "AVAILABLE"
+    assert result["broker"]["status"] == "NOT_APPLICABLE"
+    assert result["account"]["status"] == "NOT_APPLICABLE"
+    assert result["reconciliation"]["status"] == "NOT_APPLICABLE"
+
+def test_paper_mode_preserves_unavailable_jaguar_status(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_execution_mode",
+        lambda: "PAPER",
+    )
+
+    result = build_canonical_portfolio_snapshot(
+        portfolio_reader=lambda: {
+            "authority": "JAGUAR_EXECUTION_DATABASE",
+            "status": "UNAVAILABLE",
+            "positions": [],
+            "realized_pnl": None,
+            "unrealized_pnl": None,
+            "equity": None,
+            "available_cash": None,
+            "freshness": "UNKNOWN",
+            "quantity_source": "EXECUTION_INTENTS",
+        },
+        broker_reader=lambda: (
+            (_ for _ in ()).throw(
+                AssertionError(
+                    "broker reader called in PAPER mode"
+                )
+            )
+        ),
+        account_reader=lambda: (
+            (_ for _ in ()).throw(
+                AssertionError(
+                    "account reader called in PAPER mode"
+                )
+            )
+        ),
+    )
+
+    assert result["status"] == "UNAVAILABLE"
+    assert result["broker"]["status"] == "NOT_APPLICABLE"
+    assert result["account"]["status"] == "NOT_APPLICABLE"
+    assert result["reconciliation"]["status"] == "NOT_APPLICABLE"

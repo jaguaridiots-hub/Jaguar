@@ -2451,6 +2451,54 @@ document.getElementById("idmRows").innerHTML=[
   const broker=portfolio.broker||{};
   const account=portfolio.account||{};
   const rec=portfolio.reconciliation||{};
+  const positions=Array.isArray(portfolio.positions)
+    ? portfolio.positions
+    : [];
+
+  const positionRows=positions.length
+    ? positions.map((position,index)=>{
+        const symbol=esc(
+          String(position.symbol||"—")
+        );
+        const side=esc(
+          String(position.side||"—")
+        );
+        const mode=esc(
+          String(position.mode||"—")
+        );
+
+        return [
+          row(
+            `Position ${index+1}`,
+            `${symbol} · ${side} · ${mode}`
+          ),
+          row(
+            "Quantity",
+            position.quantity==null
+              ? "—"
+              : fmt(position.quantity)
+          ),
+          row(
+            "Entry",
+            position.entry_price==null
+              ? "—"
+              : fmt(position.entry_price)
+          ),
+          row(
+            "Stop Loss",
+            position.stop_loss==null
+              ? "—"
+              : fmt(position.stop_loss)
+          ),
+          row(
+            "Take Profit",
+            position.take_profit==null
+              ? "—"
+              : fmt(position.take_profit)
+          )
+        ].join("");
+      }).join("")
+    : row("Positions","NONE");
 
   document.getElementById("portfolioRows").innerHTML=[
     row("Portfolio",portfolio.status),
@@ -2458,7 +2506,9 @@ document.getElementById("idmRows").innerHTML=[
     row("Cash",portfolio.available_cash??"—"),
     row("Broker",broker.status||"—"),
     row("Account",account.status||"—"),
-    row("Reconciliation",rec.status||"—")
+    row("Reconciliation",rec.status||"—"),
+    row("Open Positions",positions.length),
+    positionRows
   ].join("");
 
   document.getElementById("auditRows").innerHTML=[

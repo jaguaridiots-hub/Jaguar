@@ -161,3 +161,51 @@ def test_non_filled_orders_do_not_count():
     ):
         with pytest.raises(prm.PortfolioReadModelError):
             prm._project_trade(trade)
+
+
+def test_paper_trade_uses_durable_intent_without_execution_orders():
+    trade = {
+        "uuid": "PAPER-TRADE-1",
+        "symbol": "BTCUSDT",
+        "timeframe": "15m",
+        "mode": "SWING",
+        "entry_price": 86000.0,
+        "stop_loss": 85500.0,
+        "take_profit": 87000.0,
+        "authorization_id": "PAPER-AUTH-1",
+        "status": "OPEN",
+        "close_time": None,
+    }
+
+    durable = (
+        "PAPER-AUTH-1",
+        "PAPER-TRADE-1",
+        "BTCUSDT",
+        "15m",
+        "PAPER",
+        "LONG",
+        0.25,
+        "RECONCILED",
+        "PAPER-AUTH-1",
+        "PAPER-TRADE-1",
+        "BTCUSDT",
+        "LONG",
+        0,
+    )
+
+    with patch.object(
+        prm,
+        "_paper_durable_state",
+        return_value=durable,
+    ), patch.object(
+        prm,
+        "_execution_orders",
+        side_effect=AssertionError(
+            "PAPER projection must not use execution_orders"
+        ),
+    ):
+        result = prm._project_paper_trade(trade)
+
+    assert result.quantity == pytest.approx(0.25)
+    assert result.side == "LONG"
+    assert result.quantity_source == "EXECUTION_INTENTS"
