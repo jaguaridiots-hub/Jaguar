@@ -67,6 +67,9 @@ async def analyze(req: AnalyzeRequest):
         if not isinstance(decision, dict):
             decision = {}
 
+        execution = dict(enterprise.get("execution") or {})
+        execution.pop("authorization_id", None)
+
         return {
             "symbol": req.symbol,
             "interval": req.interval,
@@ -78,7 +81,7 @@ async def analyze(req: AnalyzeRequest):
             "reasoning": decision.get("reasons", []),
             "trade": enterprise.get("trade", getattr(state, "trade", {})),
             "risk": enterprise.get("risk", getattr(state, "risk", {})),
-            "execution": enterprise.get("execution", {}),
+            "execution": execution,
         }
 
     except HTTPException:
