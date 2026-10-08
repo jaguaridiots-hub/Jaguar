@@ -30,6 +30,7 @@ def test_command_center_v3_contains_core_sections():
         "structure",
         "risk",
         "execution chain",
+        "execution mode",
         "multi-timeframe market context",
         "why jaguar decided this",
         "portfolio / broker",

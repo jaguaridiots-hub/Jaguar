@@ -1250,7 +1250,7 @@ details[open]>summary::after{
   </div>
 
   <div class="pipeline-card card">
-    <div class="pipeline-title">EXECUTION</div>
+    <div class="pipeline-title">EXECUTION MODE</div>
     <div class="pipeline-value" id="pipeExec">—</div>
   </div>
 </section>
