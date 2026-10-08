@@ -1310,7 +1310,7 @@ details[open]>summary::after{
     </div>
 
     <div class="gate-block">
-      <div class="gate-label">AUTHORIZATION</div>
+      <div class="gate-label">IDM AUTHORIZATION</div>
       <div class="gate-value" id="gateAuthorization">—</div>
     </div>
 
