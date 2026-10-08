@@ -24,6 +24,16 @@ def _number(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def _strict_bool(value: Any) -> bool:
+    """
+    Fail-closed boolean normalization for decision/execution UI state.
+
+    Only real Python booleans are authoritative.
+    Any malformed, missing, or non-boolean value becomes False.
+    """
+    return value if isinstance(value, bool) else False
+
+
 def _text(value: Any, default: str = "") -> str:
     if value is None:
         return default
@@ -500,7 +510,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     blocker = "NONE"
     blocker_status = "CLEAR"
 
-    if not bool(
+    if not _strict_bool(
         master.get(
             "approved",
             enterprise.get("approved", False),
@@ -588,7 +598,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         )
     )
 
-    execution_confirmation_confirmed = bool(
+    execution_confirmation_confirmed = _strict_bool(
         execution_confirmation.get(
             "confirmed",
             execution_confirmation_metadata.get(
@@ -610,7 +620,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     ).strip().upper()
 
     if (
-        not bool(
+        not _strict_bool(
             master.get(
                 "approved",
                 enterprise.get("approved", False),
@@ -632,7 +642,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             )
 
     if (
-        not bool(
+        not _strict_bool(
             master.get(
                 "approved",
                 enterprise.get("approved", False),
@@ -645,7 +655,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
                 "WAITING",
                 "UNCONFIRMED",
             }
-            or not bool(
+            or not _strict_bool(
                 structural.get(
                     "execution_trigger_confirmed",
                     False,
@@ -662,7 +672,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             )
 
     if (
-        not bool(
+        not _strict_bool(
             master.get(
                 "approved",
                 enterprise.get("approved", False),
@@ -680,7 +690,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
 
     if (
         not next_conditions
-        and not bool(
+        and not _strict_bool(
             master.get(
                 "approved",
                 enterprise.get("approved", False),
@@ -691,7 +701,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
 
     authorization = (
         "AUTHORIZED"
-        if bool(
+        if _strict_bool(
             master.get(
                 "approved",
                 enterprise.get("approved", False),
@@ -751,19 +761,19 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
     ).upper()
 
     thesis_conflict_flags = {
-        "direction_conflict": bool(
+        "direction_conflict": _strict_bool(
             master.get(
                 "direction_conflict",
                 False,
             )
         ),
-        "structural_conflict": bool(
+        "structural_conflict": _strict_bool(
             master.get(
                 "structural_conflict",
                 False,
             )
         ),
-        "zone_conflict": bool(
+        "zone_conflict": _strict_bool(
             master.get(
                 "zone_conflict",
                 False,
@@ -1030,7 +1040,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         "required_conditions": list(next_conditions),
         "structural_readiness": readiness_value or "UNKNOWN",
         "trigger_status": trigger_value or "UNKNOWN",
-        "trigger_confirmed": bool(
+        "trigger_confirmed": _strict_bool(
             structural.get(
                 "execution_trigger_confirmed",
                 False,
@@ -1042,19 +1052,19 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         "execution_confirmation_confirmed": (
             execution_confirmation_confirmed
         ),
-        "execution_zone_interaction": bool(
+        "execution_zone_interaction": _strict_bool(
             execution_confirmation_metadata.get(
                 "zone_interaction",
                 False,
             )
         ),
-        "execution_trigger_confirmed": bool(
+        "execution_trigger_confirmed": _strict_bool(
             execution_confirmation_metadata.get(
                 "trigger_confirmed",
                 False,
             )
         ),
-        "execution_trigger_fresh": bool(
+        "execution_trigger_fresh": _strict_bool(
             execution_confirmation_metadata.get(
                 "trigger_fresh",
                 False,
@@ -1089,7 +1099,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
         "UNKNOWN",
     ).upper()
 
-    zone_available = bool(
+    zone_available = _strict_bool(
         master.get(
             "zone_available",
             enterprise.get("zone_available", False),
@@ -1143,7 +1153,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             structural.get("trigger_status"),
             "NONE",
         ),
-        "trigger_confirmed": bool(
+        "trigger_confirmed": _strict_bool(
             execution_confirmation.get(
                 "confirmed",
                 False,
@@ -1167,10 +1177,10 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             execution.get("status"),
             "WAIT",
         ),
-        "execution_ready": bool(
+        "execution_ready": _strict_bool(
             execution.get("ready", False)
         ),
-        "execution_approved": bool(
+        "execution_approved": _strict_bool(
             execution.get("approved", False)
         ),
     }
@@ -1441,7 +1451,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
 
         "idm": {
             "decision": decision,
-            "approved": bool(
+            "approved": _strict_bool(
                 master.get("approved", enterprise.get("approved", False))
             ),
             "direction": direction,
@@ -1495,7 +1505,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
                 structural.get("readiness", "UNKNOWN"),
                 "UNKNOWN",
             ),
-            "trigger_confirmed": bool(
+            "trigger_confirmed": _strict_bool(
                 execution_confirmation.get("confirmed", False)
             ),
             "setup": _text(
@@ -1586,7 +1596,7 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
             ),
         },
         "risk": {
-            "approved": bool(risk.get("approved", False)),
+            "approved": _strict_bool(risk.get("approved", False)),
             "status": _text(
                 risk.get("status", "UNKNOWN"),
                 "UNKNOWN",
@@ -1613,8 +1623,8 @@ def build_ui_state(state: Any, report: dict | None = None) -> dict:
                 execution_mode,
                 "PAPER",
             ).upper(),
-            "ready": bool(execution.get("ready", False)),
-            "approved": bool(execution.get("approved", False)),
+            "ready": _strict_bool(execution.get("ready", False)),
+            "approved": _strict_bool(execution.get("approved", False)),
             "status": _text(
                 execution.get("status", "WAIT"),
                 "WAIT",
