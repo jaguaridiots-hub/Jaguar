@@ -5,6 +5,8 @@ from __future__ import annotations
 from math import isfinite
 from typing import Any
 
+from config.config_manager import config
+
 from core.account_read_model import (
     AccountReadModelError,
     build_account_snapshot,
@@ -159,6 +161,42 @@ def build_canonical_portfolio_snapshot(
 
     try:
         jaguar = portfolio_reader()
+
+        # PAPER portfolio presentation must not query live broker or
+        # account readers. Keep those authorities explicitly inapplicable.
+        if config.get_execution_mode() == "PAPER":
+            result = dict(jaguar)
+            result["status"] = jaguar.get(
+                "status",
+                "UNAVAILABLE",
+            )
+            result["broker"] = {
+                "authority": "UPSTOX_SHORT_TERM_POSITIONS",
+                "status": "NOT_APPLICABLE",
+                "positions": [],
+                "freshness": "NOT_APPLICABLE",
+                "quantity_source": "UPSTOX_POSITION_API",
+            }
+            result["account"] = {
+                "authority": "UPSTOX_FUND_AND_MARGIN_V3",
+                "status": "NOT_APPLICABLE",
+                "available_to_trade": None,
+                "cash_available_to_trade": None,
+                "pledge_available_to_trade": None,
+                "cash_margin_used": None,
+                "pledge_margin_used": None,
+                "unsettled_profit_today": None,
+                "unsettled_profit_previous_days": None,
+                "freshness": "NOT_APPLICABLE",
+            }
+            result["reconciliation"] = {
+                "status": "NOT_APPLICABLE",
+                "matches": [],
+                "mismatches": [],
+                "unmatched_broker_positions": [],
+                "freshness": "NOT_APPLICABLE",
+            }
+            return result
 
         try:
             broker = broker_reader()
