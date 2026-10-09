@@ -22,7 +22,7 @@ try:
 finally:
     conn.close()
 
-assert version == 10, version
+assert version == 11, version
 
 db.insert_execution_intent({
     "authorization_id": "AUTH-001",
@@ -142,7 +142,7 @@ try:
 finally:
     conn.close()
 
-assert repaired_version == 10, repaired_version
+assert repaired_version == 11, repaired_version
 assert journal is not None
 
 print("V10_SCHEMA_DRIFT_VERSION_PRESERVED: PASS")

@@ -85,10 +85,12 @@ def test_v3_load_is_async_and_uses_canonical_dashboard_state_contract():
     assert p_markets < p_load
     assert p_controls < p_load
 
-    load_tail = source[p_load:source.index(
-        'document.getElementById("aiForm").addEventListener',
+    p_ai = source.index(
+        'setDashboardEventListener(document.getElementById("aiForm"),"submit",',
         p_load,
-    )]
+    )
+
+    load_tail = source[p_load:p_ai]
 
     assert "function renderSession(){" not in load_tail
     assert "function renderMarkets(){" not in load_tail

@@ -719,6 +719,26 @@ def recover_active_trade_from_durable_lifecycle(
         trade = dict(trade_row)
         intent = dict(intent_row)
 
+        # FAIL-CLOSED: the durable trade row must belong to the same
+        # canonical authorization identity as the active lifecycle and
+        # reconciled execution intent before PositionManager mutation.
+        trade_authorization_id = str(
+            trade.get("authorization_id", "")
+        ).strip()
+        lifecycle_authorization_id = str(
+            lifecycle["authorization_id"]
+        ).strip()
+
+        if (
+            not trade_authorization_id
+            or trade_authorization_id
+            != lifecycle_authorization_id
+        ):
+            raise ActiveTradeRecoveryError(
+                "FAIL-CLOSED: Durable trade authorization "
+                "conflicts with active lifecycle"
+            )
+
     finally:
         recovery_seed.close()
 
