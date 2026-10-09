@@ -2089,7 +2089,7 @@ document.getElementById("mtfSufficiency").innerHTML = `
       )}
 
       ${row(
-        "Authorization",
+        "IDM Authorization",
         whatWouldChange.current_authorization || "BLOCKED"
       )}
 

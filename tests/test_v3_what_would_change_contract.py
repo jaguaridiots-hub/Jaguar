@@ -66,3 +66,4 @@ def test_v3_presentation_contract():
     assert 'whatWouldChange.required_conditions' in source
     assert 'whatWouldChange.execution_confirmation' in source
     assert 'whatWouldChange.conflicts' in source
+    assert '"IDM Authorization"' in source
