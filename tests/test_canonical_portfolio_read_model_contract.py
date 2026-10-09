@@ -1,6 +1,19 @@
+import pytest
+
+from config.config_manager import config
 from core.canonical_portfolio_read_model import (
     build_canonical_portfolio_snapshot,
 )
+
+
+
+@pytest.fixture(autouse=True)
+def default_live_execution_mode(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_execution_mode",
+        lambda: "LIVE",
+    )
 
 
 def jaguar_snapshot():
@@ -171,3 +184,33 @@ def test_invalid_jaguar_identity_is_unreconcilable():
 
     assert result["status"] == "RECONCILIATION_MISMATCH"
     assert result["reconciliation"]["status"] == "UNRECONCILABLE"
+
+
+def test_paper_mode_skips_broker_and_account(monkeypatch):
+    monkeypatch.setattr(
+        config,
+        "get_execution_mode",
+        lambda: "PAPER",
+    )
+
+    calls = {"broker": 0, "account": 0}
+
+    def broker_reader():
+        calls["broker"] += 1
+        raise AssertionError("broker reader called in PAPER mode")
+
+    def account_reader():
+        calls["account"] += 1
+        raise AssertionError("account reader called in PAPER mode")
+
+    result = build_canonical_portfolio_snapshot(
+        portfolio_reader=jaguar_snapshot,
+        broker_reader=broker_reader,
+        account_reader=account_reader,
+    )
+
+    assert calls == {"broker": 0, "account": 0}
+    assert result["status"] == "AVAILABLE"
+    assert result["broker"]["status"] == "NOT_APPLICABLE"
+    assert result["account"]["status"] == "NOT_APPLICABLE"
+    assert result["reconciliation"]["status"] == "NOT_APPLICABLE"
